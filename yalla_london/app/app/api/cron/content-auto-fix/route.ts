@@ -1528,6 +1528,115 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── Section 23: [REDIRECTED to X] Meta Pollution Cleanup ──────────────────
+  // From Chrome Bridge audit finding #1: bulk-consolidation script prefixed
+  // `[REDIRECTED to /slug]` into metaDescription/metaTitle fields but the
+  // follow-up 301/canonical/unpublish step never ran, so bookkeeping markers
+  // leak into Google SERP. Self-healing: strip the prefix from any field
+  // that still has it. Idempotent (safe to re-run).
+  let redirectedMetaCleaned = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const REDIRECTED_RE = /^\s*\[REDIRECTED\s+to\s+[^\]]+\]\s*/i;
+      const contaminated = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          deletedAt: null,
+          OR: [
+            { meta_description_en: { startsWith: "[REDIRECTED" } },
+            { meta_description_ar: { startsWith: "[REDIRECTED" } },
+            { meta_title_en: { startsWith: "[REDIRECTED" } },
+            { meta_title_ar: { startsWith: "[REDIRECTED" } },
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          meta_description_en: true,
+          meta_description_ar: true,
+          meta_title_en: true,
+          meta_title_ar: true,
+        },
+        take: 50,
+      });
+
+      for (const post of contaminated) {
+        const update: Record<string, string | null> = {};
+        for (const field of [
+          "meta_description_en",
+          "meta_description_ar",
+          "meta_title_en",
+          "meta_title_ar",
+        ] as const) {
+          const val = post[field];
+          if (typeof val === "string" && REDIRECTED_RE.test(val)) {
+            const cleaned = val.replace(REDIRECTED_RE, "").trim();
+            update[field] = cleaned.length > 0 ? cleaned : null;
+          }
+        }
+        if (Object.keys(update).length > 0) {
+          await prisma.blogPost.update({ where: { id: post.id }, data: update });
+          redirectedMetaCleaned++;
+        }
+      }
+
+      if (redirectedMetaCleaned > 0) {
+        console.log(
+          `[content-auto-fix] Section 23: cleaned [REDIRECTED] prefix from ${redirectedMetaCleaned} articles`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`redirected-meta-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Section 23 failed:", msg);
+    }
+  }
+
+  // ── Section 24: Auto-Mark Chrome Audit Reports as Fixed ───────────────────
+  // When a ChromeAuditReport is in status="fix_queued" and its linked
+  // AgentTask has completed, auto-mark the report as fixed. Closes the loop
+  // from Chrome Bridge audit upload → Apply Fix → CLI work → marked fixed.
+  // No manual Mark Fixed tap required.
+  let chromeAuditsMarkedFixed = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const queued = await prisma.chromeAuditReport.findMany({
+        where: {
+          status: "fix_queued",
+          agentTaskId: { not: null },
+          reviewedAt: { lt: new Date(Date.now() - 6 * 60 * 60 * 1000) }, // at least 6h old
+        },
+        select: { id: true, agentTaskId: true },
+        take: 30,
+      });
+
+      for (const report of queued) {
+        if (!report.agentTaskId) continue;
+        const task = await prisma.agentTask.findUnique({
+          where: { id: report.agentTaskId },
+          select: { status: true },
+        });
+        if (task?.status === "completed") {
+          await prisma.chromeAuditReport.update({
+            where: { id: report.id },
+            data: { status: "fixed", fixedAt: new Date() },
+          });
+          chromeAuditsMarkedFixed++;
+        }
+      }
+
+      if (chromeAuditsMarkedFixed > 0) {
+        console.log(
+          `[content-auto-fix] Section 24: auto-marked ${chromeAuditsMarkedFixed} ChromeAuditReport(s) as fixed`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`chrome-audit-auto-mark: ${msg}`);
+      console.warn("[content-auto-fix] Section 24 failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
   const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesUnpublished + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;

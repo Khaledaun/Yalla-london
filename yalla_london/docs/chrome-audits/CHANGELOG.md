@@ -1,5 +1,101 @@
 # Chrome Bridge CHANGELOG
 
+## 2026-04-20.20 — AI voice rewrite automation (closes AIO ceiling gap)
+
+**From Chrome Bridge grading session:** SEO 55 / AIO 45. The AIO ceiling at 60 (without voice overhaul) vs 75-80 (with voice overhaul on top 50 articles). Quality-recovery-runner only covers 29 not_indexed pages. The 614 other published articles still have the AI-generic opening pattern.
+
+**New cron:** `ai-voice-rewrite-runner`
+- Schedule: `0 8 * * 0` (weekly Sunday 08:00 UTC, 30 min after quality-recovery-runner)
+- maxDuration 300s
+
+**Candidate detection:**
+- Published ≥14 days ago (Google's had time to crawl)
+- First 80 words contain ≥2 AI-generic opener phrases (14-phrase regex set: "nestled in", "look no further", "whether you're a", "embark on a journey", "discover the pinnacle", "hidden gem", "step into a world", "imagine stepping", "intricate", "tailored for", "in the heart of", "pinnacle of luxury", etc.)
+- OR site-wide authenticity ratio <2 signals per 1000 words
+- NOT already in an active voice-rewrite or quality-recovery campaign (dedup)
+
+**Prioritization:** rank by GSC impressions (last 30 days) descending. Rewriting high-impression AI-generic articles moves the AIO grade fastest per dollar of AI budget.
+
+**Scale:** top 50 articles per site per week × 6 sites = 300 items/week cap. At campaign-executor's 3 items / 30 min processing rate, one site's 50 articles clear in ~8 hours.
+
+**Operation:** `add_authenticity` only (rewrites AI-generic opening + injects first-hand experience markers). Does NOT expand content or change structure — voice-only.
+
+**Config stamped:**
+- `source: "ai-voice-rewrite"`
+- `autoTriggered: true`
+- `rankingSignal: "gsc_impressions_30d"`
+- `candidateCount` + `rankedCount` for post-run diagnostics
+
+**Expected impact:** +10-15 AIO points over 2 months across all active sites. Closes the gap Chrome Bridge flagged in the grading session.
+
+**Coexistence with quality-recovery-runner:**
+- Dedup check prevents both crons from targeting the same article simultaneously
+- Different priorities: quality-recovery=3 (higher), ai-voice-rewrite=4 (lower)
+- Different scope: quality-recovery targets not_indexed only; ai-voice-rewrite targets all published
+
+---
+
+## 2026-04-20.19 — Full automation: zero-manual-step audit loop
+
+**Goal: Khaled never runs a curl, taps "Mark Fixed," or triggers anything by hand.** Only unautomatable step remaining is applying to new CJ affiliate programs (third-party dashboard — Anthropic cannot log in).
+
+**Added to `content-auto-fix` cron (runs every 2h):**
+- **Section 23: `[REDIRECTED]` meta pollution cleanup.** Scans all BlogPosts for `meta_description_{en,ar}` or `meta_title_{en,ar}` starting with `[REDIRECTED to /slug]`. Strips prefix via regex. Idempotent, 50 articles/run cap. Replaces manual curl to `/fix-redirected-meta` (that endpoint stays for one-shot runs).
+- **Section 24: Auto-mark ChromeAuditReport fixed.** When a report is `status=fix_queued` and the linked AgentTask has `status=completed` and the report is 6h+ old, auto-sets `status=fixed` + `fixedAt=now`. Closes the audit loop automatically — no Mark Fixed tap needed.
+
+**New cron: `quality-recovery-runner` (weekly Sunday 07:30 UTC, maxDuration 300s):**
+- Scans each active site for ≥5 not-indexed pages (Google "Crawled - currently not indexed" quality signal).
+- Runs the same triage + plan logic as `POST /enhance-not-indexed`.
+- Auto-creates `Campaign` + `CampaignItems` targeting the worst offenders.
+- Skips sites with recent (<7d) campaigns to let prior work finish.
+- Replaces manual curl to `/enhance-not-indexed`. Fully hands-off.
+
+**Full hands-off audit→fix loop now:**
+1. Weekly Sunday: `quality-recovery-runner` checks each site, auto-creates campaigns if needed
+2. Continuous (every 30min): `campaign-executor` processes 3 items per run with AI enhancement
+3. Continuous (every 2h): `content-auto-fix` strips any new `[REDIRECTED]` pollution
+4. Continuous (every 2h): `content-auto-fix` auto-marks completed audits as fixed
+5. Continuous (every 3h): `seo-agent` resubmits improved URLs to IndexNow
+6. After 14d: `/impact` endpoint measures CTR/position/commission delta per fixed audit
+
+Chrome Bridge sessions see confirmed improvements in next audit's `delta.resolved` array without Khaled touching anything.
+
+**Remaining manual step (unautomatable):**
+- Apply to CJ programs in CJ dashboard (Booking.com UK, GetYourGuide, Agoda UK, Hotels.com UK, IHG AMER — top EPC). Once approved, existing `affiliate-injection` cron picks them up within 1h. No code change needed.
+
+---
+
+## 2026-04-20.18 — Sitewide audit response: meta cleanup + quality-recovery campaigns
+
+**First audit cycle complete.** Report `cmo7o396r0000l204khl2b9dl` (sitewide/critical, 5 findings, 6 actions) processed end-to-end: uploaded → viewer → Apply Fix → CLI pick-up → fixes committed.
+
+**Fixes from audit findings:**
+- **Finding #1 (meta pollution):** new `POST /api/admin/fix-redirected-meta` endpoint strips `[REDIRECTED to /target-slug]` prefix from BlogPost meta fields. Dry-run mode via `?dryRun=1`. Auth: requireAdminOrCron.
+- **Finding #2 (affiliate coverage):** confirmed existing `affiliate-injection` cron already handles 16 brands × 6 sites, including Booking.com + GetYourGuide. When a CJ advertiser becomes JOINED, cron auto-wraps body mentions on next run. No code change needed; Khaled needs to apply on CJ dashboard.
+- **Finding #4 (three 500 endpoints):** already fixed earlier this session (`d0dbb0d` + `fd21720`):
+  - `/gsc/coverage-summary`: removed invalid Prisma orderBy, sort client-side
+  - `/overview` + `/page/[id]`: graceful fallback when ChromeAuditReport table missing (table was missing in prod until migration ran mid-session)
+- **Finding #6 (playbook traffic floor):** documented in Revenue + Monetization pillar — `/revenue` classifier needs ≥200 organic clicks/month; below that, use affiliate family endpoints instead.
+- **Finding #3 (29 not_indexed pages):** two new endpoints close the quality-recovery loop:
+  - `GET /api/admin/chrome-bridge/not-indexed-details?siteId=X` — per-URL diagnostic (word count, authenticity signals, AI-generic phrase count, author attribution, triage bucket)
+  - `POST /api/admin/chrome-bridge/enhance-not-indexed` — creates Campaign + CampaignItems using existing Campaign infrastructure. Triage-to-operation mapping: thin_content → expand+authenticity, ai_generic_heavy → rewrite authentic voice, low_seo_score → meta fixes + internal links, shallow_depth → expand + links. Skips generic_author (manual reassignment) + no_blogpost (legacy URLs). Runs via existing campaign-executor cron at 3/30min.
+
+**Findings not auto-fixed (defer to human):**
+- **#1b (redirect decisions):** per-page judgment needed which slug is canonical
+- **#2a (CJ applications):** manual in CJ dashboard (priority: Booking.com UK, GetYourGuide, Agoda UK, Hotels.com UK, IHG)
+- **#3 (29 not_indexed rewrites):** content work, per-article rewriting with E-E-A-T signals
+- **#5 (Excellence Collection $0 EPC):** data hygiene — one-click DB edit or verify attribution
+
+**To mark report fixed:**
+```
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
+  https://www.yalla-london.com/api/admin/chrome-audits \
+  -d '{"reportId":"cmo7o396r0000l204khl2b9dl","action":"mark_fixed"}'
+```
+Or tap "Mark Fixed" on the viewer card at `/admin/chrome-audits`.
+
+---
+
 All changes to the Claude Chrome Bridge capabilities, versioned.
 
 Format: `version` (ISO date + increment). Claude Chrome checks `bridgeVersion`

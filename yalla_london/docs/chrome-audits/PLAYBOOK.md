@@ -133,6 +133,7 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 - **Citation consistency** — NAP (name, address, phone) across directories matches
 
 ### 6. Revenue + Monetization (Phase 5.2 + 7.6)
+- **Traffic floor caveat** — the `/revenue` classifier needs ≥200 organic clicks/month on a site to produce non-empty buckets. Below that threshold, all pages land in `fresh` or `cold`, which isn't diagnostic. Use `/affiliate/gaps` + `/affiliate/approval-queue` + `/affiliate/recommendations` as the revenue-family proxy until traffic crosses that floor.
 - **Per-page classification** — `GET /revenue?siteId=X` labels every page:
   - `earner` — protect mode (title/meta tweaks only, no invasive rewrites)
   - `dead_weight` — high organic traffic, $0 revenue, has affiliate links → audit CTAs, placement, anchor text
@@ -140,6 +141,7 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
   - `fresh` — <14 days old (excluded from classification)
   - `cold` — not enough data
 - **Affiliate gaps** — `GET /affiliate/gaps?siteId=X` finds brand mentions (Booking, Agoda, HalalBooking, etc.) not wrapped in affiliate tracking.
+- **Affiliate wrapping infrastructure** — the `affiliate-injection` cron already has rules for 16 brands × 6 sites. When a CJ advertiser becomes JOINED (status=JOINED in CjAdvertiser), the cron auto-generates deep links and wraps body mentions on the next run. **No code change needed when applying to new programs** — just get approved on CJ dashboard, and the existing cron picks them up within 1h.
 - **Commission velocity** — `GET /affiliate/commission-trends?siteId=X` surfaces declining / rising / inactive partners.
 - **Program recommendations** — `GET /affiliate/recommendations?siteId=X` ranks affiliate programs to apply for by GSC intent volume + existing coverage + typical EPC.
 

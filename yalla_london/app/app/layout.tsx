@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import React, { Suspense } from "react";
 import { headers } from "next/headers";
-import Script from "next/script";
 import {
   Anybody,
   Source_Serif_4,
@@ -27,6 +26,7 @@ import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { MonetizationScripts } from "@/components/integrations/monetization-scripts";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
+import { GoogleAnalyticsLoader } from "@/components/google-analytics-loader";
 import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
@@ -197,11 +197,16 @@ export default async function RootLayout({
         {/* Hreflang handled by generateMetadata().alternates.languages per page — no component needed */}
         {/* Fonts loaded via next/font/google — self-hosted woff2, no render-blocking CSS, no external requests */}
 
-        {/* DNS prefetch + preconnect for Google Analytics domains — reduces connection latency */}
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
-        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
-        <link rel="preconnect" href="https://www.google-analytics.com" crossOrigin="" />
+        {/* DNS prefetch + preconnect for Google Analytics domains — reduces connection latency.
+            Skipped on /admin/* so admin pages emit zero googletagmanager traffic. */}
+        {!isAdminRoute && (
+          <>
+            <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+            <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+            <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
+            <link rel="preconnect" href="https://www.google-analytics.com" crossOrigin="" />
+          </>
+        )}
 
         {/* DNS prefetch for common image CDNs used in content */}
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
@@ -272,7 +277,10 @@ export default async function RootLayout({
           </BrandThemeProvider>
         </NextAuthSessionProvider>
 
-        {/* Google Analytics — per-site via GA4_MEASUREMENT_ID_{SITE_KEY} */}
+        {/* Google Analytics — per-site via GA4_MEASUREMENT_ID_{SITE_KEY}.
+            Loads via client component that blocks internal traffic (/admin/*,
+            /hassan*, *.vercel.app, internal=true cookie) so 96% internal
+            session pollution stops. See lib/analytics/is-internal-traffic.ts. */}
         {(() => {
           const envKey = siteId.toUpperCase().replace(/-/g, "_");
           const gaId = (
@@ -280,30 +288,11 @@ export default async function RootLayout({
             process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
             ""
           ).trim();
-          return gaId ? (
-            <>
-              <Script
-                src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-                strategy="afterInteractive"
-              />
-              <Script id="google-analytics" strategy="afterInteractive">
-                {`
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${gaId}', {
-                    page_title: document.title,
-                    page_location: window.location.href,
-                    send_page_view: true,
-                    cookie_flags: 'SameSite=None;Secure',
-                  });
-                `}
-              </Script>
-            </>
-          ) : null;
+          return gaId ? <GoogleAnalyticsLoader gaId={gaId} /> : null;
         })()}
 
-        {/* Scroll depth tracking — CWV now handled by WebVitalsReporter component using web-vitals library */}
+        {/* Scroll depth tracking — the typeof gtag!=='undefined' guard already
+            short-circuits when internal traffic blocked gtag from loading. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `

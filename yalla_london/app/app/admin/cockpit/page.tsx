@@ -32,6 +32,11 @@ import {
   AdminAlertBanner,
   AdminTabs,
 } from "@/components/admin/admin-ui";
+import {
+  isInternalTraffic,
+  markBrowserInternal,
+  unmarkBrowserInternal,
+} from "@/lib/analytics/is-internal-traffic";
 import { MissionControl } from "./components/mission-control";
 import { ContentTab } from "./components/content-tab";
 import { TubeMap } from "./components/tube-map/tube-map";
@@ -6239,9 +6244,48 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         </div>
       </Card>
 
+      <InternalTrafficToggle />
+
       {/* Action Logs overlay */}
       {showActionLogs && <ActionLogsPanel onClose={() => setShowActionLogs(false)} />}
     </div>
+  );
+}
+
+function InternalTrafficToggle() {
+  const [isMarked, setIsMarked] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsMarked(isInternalTraffic());
+  }, []);
+
+  const handleToggle = () => {
+    if (isMarked) {
+      unmarkBrowserInternal();
+      setIsMarked(false);
+    } else {
+      markBrowserInternal();
+      setIsMarked(true);
+    }
+  };
+
+  if (isMarked === null) return null;
+
+  return (
+    <Card className="p-4 mt-4">
+      <h3 className="text-sm font-semibold text-[#3B4043] mb-2">GA4 Internal Traffic</h3>
+      <p className="text-xs text-[#6B7280] mb-3">
+        {isMarked
+          ? "This browser is marked internal — GA4 will NOT track your visits on the public site. Unmark to test the real-user view."
+          : "This browser is NOT marked internal — your visits on the public site would be tracked by GA4. Re-mark after testing."}
+      </p>
+      <AdminButton
+        variant={isMarked ? "secondary" : "primary"}
+        onClick={handleToggle}
+      >
+        {isMarked ? "Unmark internal (track this browser)" : "Mark internal (stop tracking this browser)"}
+      </AdminButton>
+    </Card>
   );
 }
 

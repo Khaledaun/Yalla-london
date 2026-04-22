@@ -1,36 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
+import { searchPhotos, trackDownload, buildImageUrl } from "@/lib/apis/unsplash";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/integrations/hotel-photos?hotels=The+Dorchester,The+Ritz+London
  *
- * Returns real hotel property photos from Hotellook CDN (via Travelpayouts).
- * Uses pre-resolved hotel IDs for London luxury hotels (no API call needed).
- * Falls back to Hotellook lookup API for unknown hotels.
+ * Returns hotel photos from Unsplash matched to each hotel name.
+ * Uses 24h in-memory cache to stay within Unsplash's 50 req/hr free tier.
+ *
+ * Previously used Hotellook CDN URLs (photo.hotellook.com/image_v2/...),
+ * but those 403'd in production — the CDN appears to block non-affiliate
+ * hotlinking. Chrome Audit flagged broken hotel images on /hotels.
+ *
+ * Response shape unchanged for backward compat — client reads
+ * `photos[name].urls.medium` and falls back to its static `hotel.image`
+ * if null.
  */
 
-// Pre-resolved London hotel IDs — these are verified correct IDs from Hotellook
-// Bypasses the lookup API entirely for instant response
-const LONDON_HOTEL_IDS: Record<string, number> = {
-  "The Dorchester": 30450,
-  "The Ritz London": 30562,
-  "Claridge's": 30176,
-  "The Savoy": 30667,
-  "The Langham, London": 30487,
-  "Four Seasons Hotel London at Park Lane": 362498,
-  "Corinthia London": 422756,
-  "The Connaught": 30205,
-  "Shangri-La The Shard, London": 707299,
-  "Bulgari Hotel London": 514396,
+type CachedPhoto = {
+  urls: { thumbnail: string; medium: string; large: string };
+  attribution: { name: string; profileUrl: string };
+  expiresAt: number;
 };
 
-function buildPhotoUrls(hotelId: number) {
-  return {
-    thumbnail: `https://photo.hotellook.com/image_v2/crop/h${hotelId}/400/300.auto`,
-    medium: `https://photo.hotellook.com/image_v2/crop/h${hotelId}/800/600.auto`,
-    large: `https://photo.hotellook.com/image_v2/crop/h${hotelId}/1200/800.auto`,
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const photoCache = new Map<string, CachedPhoto>();
+
+async function fetchHotelPhoto(
+  hotelName: string
+): Promise<CachedPhoto | null> {
+  const cached = photoCache.get(hotelName);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached;
+  }
+
+  const query = `${hotelName} london luxury hotel`;
+  const photos = await searchPhotos(query, { perPage: 1, orientation: "landscape" });
+  const photo = photos[0];
+  if (!photo) return null;
+
+  // Unsplash ToS — fire-and-forget download tracking
+  trackDownload(photo.downloadUrl).catch((err) =>
+    console.warn("[hotel-photos] trackDownload failed:", err instanceof Error ? err.message : String(err))
+  );
+
+  const entry: CachedPhoto = {
+    urls: {
+      thumbnail: buildImageUrl(photo.urls.raw, { width: 400, quality: 80 }),
+      medium: buildImageUrl(photo.urls.raw, { width: 800, quality: 80 }),
+      large: buildImageUrl(photo.urls.raw, { width: 1200, quality: 85 }),
+    },
+    attribution: {
+      name: photo.photographer.name,
+      profileUrl: photo.photographer.profileUrl,
+    },
+    expiresAt: Date.now() + CACHE_TTL_MS,
   };
+  photoCache.set(hotelName, entry);
+  return entry;
 }
 
 export async function GET(request: NextRequest) {
@@ -44,40 +72,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Provide ?hotels=Name1,Name2" }, { status: 400 });
   }
 
-  const results: Record<string, { hotelId: number; urls: ReturnType<typeof buildPhotoUrls> } | null> = {};
+  const results: Record<string, { urls: CachedPhoto["urls"]; attribution: CachedPhoto["attribution"] } | null> = {};
 
-  for (const name of hotelNames) {
-    // Try pre-resolved ID first (instant)
-    const knownId = LONDON_HOTEL_IDS[name];
-    if (knownId) {
-      results[name] = { hotelId: knownId, urls: buildPhotoUrls(knownId) };
-      continue;
-    }
-
-    // Fallback: lookup via Hotellook API
-    try {
-      const res = await fetch(
-        `https://engine.hotellook.com/api/v2/lookup.json?query=${encodeURIComponent(name + " London")}&lang=en&lookFor=hotel&limit=1`,
-        { signal: AbortSignal.timeout(5000) },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const hotel = data?.results?.hotels?.[0];
-        if (hotel?.id) {
-          results[name] = { hotelId: hotel.id, urls: buildPhotoUrls(hotel.id) };
-          continue;
-        }
+  // Parallel fetch with per-hotel graceful fallback
+  await Promise.all(
+    hotelNames.map(async (name) => {
+      try {
+        const entry = await fetchHotelPhoto(name);
+        results[name] = entry
+          ? { urls: entry.urls, attribution: entry.attribution }
+          : null;
+      } catch (err) {
+        console.warn(`[hotel-photos] ${name}:`, err instanceof Error ? err.message : String(err));
+        results[name] = null;
       }
-    } catch {
-      // Lookup failed — leave as null
-    }
-
-    results[name] = null;
-  }
+    })
+  );
 
   return NextResponse.json({
     photos: results,
-    source: "hotellook",
+    source: "unsplash",
     cacheHint: "24h",
   });
 }

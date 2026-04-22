@@ -27,7 +27,7 @@ const hotels = {
       rating: 4.9,
       reviews: 3412,
       price: 650,
-      image: "https://photo.hotellook.com/image_v2/crop/h30450/600/400.auto",
+      image: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=800&q=80&auto=format",
       badge: "Palace Hotel",
       description:
         "Overlooking Hyde Park since 1931, The Dorchester is one of London's most iconic luxury hotels. Home to three-Michelin-starred Alain Ducasse at The Dorchester, a world-class spa with nine treatment rooms, and legendary afternoon tea in The Promenade. The hotel's 250 rooms and suites blend classic English style with contemporary comfort, many offering direct views over Hyde Park. The Dorchester Rooftop penthouse suite is among London's most exclusive, with a private terrace and panoramic skyline views. The Spatisserie offers lighter dining, while The Grill at The Dorchester serves refined British cuisine. During summer, the hotel's terraces become a favourite gathering spot for Gulf families enjoying the park.",
@@ -52,7 +52,7 @@ const hotels = {
       rating: 4.8,
       reviews: 4256,
       price: 750,
-      image: "https://photo.hotellook.com/image_v2/crop/h30562/600/400.auto",
+      image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80&auto=format",
       badge: "5 Star",
       description:
         "The epitome of English grandeur on Piccadilly. Famous for its opulent Louis XVI interiors, the legendary afternoon tea in the Palm Court is a London institution requiring weeks of advance booking. The Ritz Restaurant features a breathtaking gilded ceiling, hand-painted murals, and a menu of refined French cuisine. With 136 individually designed rooms and suites, each adorned with antique furnishings and marble bathrooms, the hotel feels like a private palace. The Ritz Club casino adds an exclusive nightlife dimension, while Green Park is just steps from the front entrance. The hotel's dedicated shopping concierge can arrange private after-hours sessions at Bond Street boutiques.",
@@ -77,7 +77,7 @@ const hotels = {
       rating: 4.9,
       reviews: 2187,
       price: 580,
-      image: "https://photo.hotellook.com/image_v2/crop/h30176/600/400.auto",
+      image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80&auto=format",
       badge: "Art Deco Icon",
       description:
         "The quintessential Mayfair hotel. Claridge's Art Deco masterpiece has hosted royalty and heads of state since the 1850s, and it remains the London residence of choice for Gulf royal families during summer visits. Gordon Ramsay at Claridge's holds a Michelin star and serves exquisite seasonal British cuisine, while the Fumoir bar offers rare cognacs and an intimate jazz atmosphere. The hotel's 190 rooms feature the signature black-and-white marble bathrooms and bespoke English furnishings. The Christmas tree designed by a different fashion house each year is a London talking point. Davies and Brook by Daniel Humm adds a contemporary fine dining option, and the Painter's Room serves creative afternoon teas.",
@@ -102,7 +102,7 @@ const hotels = {
       rating: 4.8,
       reviews: 3876,
       price: 520,
-      image: "https://photo.hotellook.com/image_v2/crop/h30667/600/400.auto",
+      image: "https://images.unsplash.com/photo-1455587734955-081b22074882?w=800&q=80&auto=format",
       badge: "Historic Landmark",
       description:
         "London's first luxury hotel, opened in 1889 on the banks of the Thames. The Savoy's extraordinary history includes hosting Monet, Churchill, and Frank Sinatra. The hotel blends Edwardian grandeur in the River Restaurant with Art Deco glamour in the Beaufort Bar. Thames-view suites on the upper floors offer sweeping panoramas of the South Bank and London Eye. The American Bar, repeatedly voted among the world's best cocktail bars, has its own resident pianist every evening. Kaspar's seafood bar and grill provides a more relaxed dining experience. The hotel's heated indoor pool and full-service spa are an oasis in the heart of the West End, with Covent Garden's theatres and boutiques just a two-minute walk away.",
@@ -127,7 +127,7 @@ const hotels = {
       rating: 4.7,
       reviews: 2432,
       price: 480,
-      image: "https://photo.hotellook.com/image_v2/crop/h30487/600/400.auto",
+      image: "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&q=80&auto=format",
       badge: "Heritage",
       description:
         "Europe's first grand hotel, established in 1865 near Regent Street, The Langham set the standard for luxury hospitality that every London hotel has followed since. The award-winning Chuan Body + Soul spa draws on Traditional Chinese Medicine for its treatments, offering a tranquil escape across 16,000 square feet of wellness space. Roux at The Landau, helmed by the legendary Roux family, serves refined European cuisine in a stunning curved dining room. The Artesian cocktail bar has won multiple World's Best Bar awards and is famous for its theatrical presentations. Located in Marylebone, guests enjoy easy access to Oxford Street shopping, BBC Broadcasting House, and the quieter boutique charm of Marylebone High Street. The Palm Court here pioneered the tradition of afternoon tea in London.",
@@ -152,7 +152,7 @@ const hotels = {
       rating: 4.8,
       reviews: 2845,
       price: 720,
-      image: "https://photo.hotellook.com/image_v2/crop/h362498/600/400.auto",
+      image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80&auto=format",
       badge: "Premium",
       description:
         "Commanding the prime stretch of Park Lane with views over Hyde Park, the Four Seasons delivers the brand's signature blend of warmth and precision. The rooftop spa on the 10th floor offers treatment rooms with floor-to-ceiling windows overlooking the London skyline, and the vitality pool is one of the city's most scenic. Amaranto serves refined Italian cuisine in an intimate setting, while the lounge bar is a favourite for Mayfair power meetings. Rooms are among the largest in London, with the Conservatory Suites featuring private terraces and the Presidential Suite spanning over 3,000 square feet. The hotel's Kids For All Seasons programme makes it particularly popular with Gulf families travelling with children during summer holidays.",
@@ -177,7 +177,7 @@ const hotels = {
       rating: 4.8,
       reviews: 2567,
       price: 550,
-      image: "https://photo.hotellook.com/image_v2/crop/h422756/600/400.auto",
+      image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80&auto=format",
       badge: "Modern Grand",
       description:
         "A Victorian grande dame reimagined for modern luxury near Embankment. The Corinthia occupies an 1885 building that once served as the Ministry of Defence, and its restoration blends original grandeur with cutting-edge contemporary design. The ESPA Life spa is one of London's largest at over 3,300 square metres, featuring a stainless steel pool, amphitheatre sauna, and Daniel Galvin hair salon. Kerridge's Bar & Grill by two-Michelin-starred Tom Kerridge serves elevated British pub classics. The penthouse suites command direct views of Big Ben, the London Eye, and the Houses of Parliament. The hotel's lobby, with its dramatic crystal chandeliers and sweeping marble staircase, is one of London's most photographed interiors. Northall restaurant offers seasonal British menus with private dining options.",
@@ -202,7 +202,7 @@ const hotels = {
       rating: 4.9,
       reviews: 1876,
       price: 690,
-      image: "https://photo.hotellook.com/image_v2/crop/h30205/600/400.auto",
+      image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80&auto=format",
       badge: "Exclusive",
       description:
         "Understated elegance in the heart of Mayfair, The Connaught is the hotel of choice for those who value discretion and impeccable taste above all else. Hélène Darroze's two-Michelin-starred restaurant showcases Basque-inspired cuisine with British seasonal ingredients in an intimate dining room. The Connaught Bar, designed by the late David Collins, has been named the World's Best Bar multiple times and serves bespoke martinis prepared tableside from a gleaming trolley. The Aman Spa brings the serene philosophy of the Aman resort brand to central London, with treatment rooms that feel a world away from Mayfair's bustle. The hotel has just 121 rooms, giving it the feel of a private members' club. Carlos Place, the quiet Mayfair square outside, is home to the Damien Hirst sculpture Charity.",
@@ -227,7 +227,7 @@ const hotels = {
       rating: 4.7,
       reviews: 3124,
       price: 450,
-      image: "https://photo.hotellook.com/image_v2/crop/h707299/600/400.auto",
+      image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80&auto=format",
       badge: "Sky High",
       description:
         "Occupying floors 34 to 52 of The Shard, Western Europe's tallest building, this is London's most dramatic hotel address. Every one of the 202 rooms offers floor-to-ceiling views stretching up to 40 miles across the capital, with the Tower of London, St Paul's Cathedral, and the Thames winding below. The infinity pool on the 52nd floor is the highest in Western Europe, offering a swimming experience unlike anything else in London. TING restaurant on the 35th floor serves Pan-Asian cuisine with views that make every table a window seat. GONG bar on the 52nd floor has become one of London's most sought-after cocktail destinations. The hotel's Asian heritage means an innate understanding of hospitality for Gulf travellers, with genuine warmth and attentiveness to cultural preferences.",
@@ -252,7 +252,7 @@ const hotels = {
       rating: 4.8,
       reviews: 1654,
       price: 780,
-      image: "https://photo.hotellook.com/image_v2/crop/h514396/600/400.auto",
+      image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80&auto=format",
       badge: "Ultra Luxury",
       description:
         "Italian craftsmanship meets British heritage just steps from Harrods in the heart of Knightsbridge. The Bulgari Hotel features 85 exquisitely designed rooms clad in mahogany, silver, and silk, with Italian marble bathrooms equipped with Bulgari amenities. The 25-metre swimming pool is one of the finest hotel pools in London, with a stunning silver-leaf ceiling. The Bulgari Spa offers signature Italian treatments including facials using Bulgari skincare. Il Ristorante by three-Michelin-starred Niko Romito delivers contemporary Italian cuisine with a focus on purity and simplicity. The private 47-seat cinema screens first-run films, and the ballroom with its Swarovski crystal chandeliers hosts London's most exclusive events. The Niko Romito Bulgari Bar serves aperitivo-style cocktails in a sophisticated setting.",
@@ -304,7 +304,7 @@ const hotels = {
       rating: 4.8,
       reviews: 4256,
       price: 750,
-      image: "https://photo.hotellook.com/image_v2/crop/h30562/600/400.auto",
+      image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80&auto=format",
       badge: "5 نجوم",
       description:
         "قمة الفخامة الإنجليزية على شارع بيكاديلي. يشتهر بديكوراته الفخمة على طراز لويس السادس عشر وشاي بعد الظهر الأسطوري في بالم كورت الذي يتطلب حجزاً مسبقاً بأسابيع. يضم مطعم ريتز بسقفه المذهب ولوحاته الجدارية المرسومة يدوياً وقائمة طعام فرنسية راقية. يحتوي على 136 غرفة وجناح مصمم بشكل فردي مع أثاث أنتيك وحمامات رخامية. نادي ريتز كازينو يضيف بُعداً حصرياً للحياة الليلية، وحديقة غرين بارك على بعد خطوات من المدخل الرئيسي.",
@@ -329,7 +329,7 @@ const hotels = {
       rating: 4.9,
       reviews: 2187,
       price: 580,
-      image: "https://photo.hotellook.com/image_v2/crop/h30176/600/400.auto",
+      image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80&auto=format",
       badge: "أيقونة آرت ديكو",
       description:
         "فندق مايفير المثالي. تحفة آرت ديكو استضافت الملوك ورؤساء الدول منذ خمسينيات القرن التاسع عشر ولا يزال الخيار المفضل للعائلات الملكية الخليجية خلال زياراتهم الصيفية. يحمل مطعم غوردون رامزي في كلاريدجز نجمة ميشلان ويقدم مأكولات بريطانية موسمية رائعة. يحتوي الفندق على 190 غرفة تتميز بحماماتها الرخامية بالأبيض والأسود والمفروشات الإنجليزية المصممة خصيصاً. يضيف مطعم ديفيز أند بروك خيار طعام فاخر معاصر، وتقدم غرفة الرسام شاي بعد الظهر الإبداعي.",
@@ -354,7 +354,7 @@ const hotels = {
       rating: 4.8,
       reviews: 3876,
       price: 520,
-      image: "https://photo.hotellook.com/image_v2/crop/h30667/600/400.auto",
+      image: "https://images.unsplash.com/photo-1455587734955-081b22074882?w=800&q=80&auto=format",
       badge: "معلم تاريخي",
       description:
         "أول فندق فاخر في لندن، افتتح عام 1889 على ضفاف نهر التايمز. يتضمن تاريخ الفندق الاستثنائي استضافة مونيه وتشرشل وفرانك سيناترا. يمزج بين الفخامة الإدواردية في مطعم النهر وبريق آرت ديكو في بار بوفورت. توفر الأجنحة في الطوابق العليا إطلالات بانورامية على الضفة الجنوبية وعين لندن. البار الأمريكي الشهير يضم عازف بيانو كل مساء. يحتوي الفندق على مسبح داخلي مدفأ وسبا متكامل في قلب الويست إند، مع مسارح ومتاجر كوفنت غاردن على بعد دقيقتين سيراً.",
@@ -379,7 +379,7 @@ const hotels = {
       rating: 4.7,
       reviews: 2432,
       price: 480,
-      image: "https://photo.hotellook.com/image_v2/crop/h30487/600/400.auto",
+      image: "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&q=80&auto=format",
       badge: "تراثي",
       description:
         "أول فندق كبير في أوروبا، تأسس عام 1865 بالقرب من شارع ريجنت، وضع لانغهام معيار الضيافة الفاخرة الذي اتبعته كل فنادق لندن. يمتد سبا شوان بودي آند سول الحائز على جوائز على مساحة 16,000 قدم مربع مع علاجات مستوحاة من الطب الصيني التقليدي. مطعم رو في ذا لانداو يقدم مأكولات أوروبية راقية في قاعة طعام منحنية مذهلة. بار أرتيزان فاز بجوائز أفضل بار في العالم عدة مرات. يقع في ماريليبون مع سهولة الوصول إلى تسوق أكسفورد ستريت وسحر بوتيكات شارع ماريليبون الهاي. هنا في بالم كورت بدأ تقليد شاي بعد الظهر في لندن.",
@@ -404,7 +404,7 @@ const hotels = {
       rating: 4.8,
       reviews: 2845,
       price: 720,
-      image: "https://photo.hotellook.com/image_v2/crop/h362498/600/400.auto",
+      image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80&auto=format",
       badge: "مميز",
       description:
         "يسيطر على الموقع المتميز من بارك لين مع إطلالات على هايد بارك. يقدم فور سيزونز مزيج العلامة التجارية المميز من الدفء والدقة. يقع السبا على السطح في الطابق العاشر مع غرف علاج بنوافذ من الأرض حتى السقف تطل على أفق لندن. يقدم أمارانتو مأكولات إيطالية راقية. تعد الغرف من الأكبر في لندن، وتتميز أجنحة الكونسيرفاتوري بشرفات خاصة. يجعل برنامج كيدز فور أول سيزونز الفندق محبوباً بشكل خاص لدى العائلات الخليجية المسافرة مع أطفالهم خلال العطلات الصيفية.",
@@ -429,7 +429,7 @@ const hotels = {
       rating: 4.8,
       reviews: 2567,
       price: 550,
-      image: "https://photo.hotellook.com/image_v2/crop/h422756/600/400.auto",
+      image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80&auto=format",
       badge: "فخامة عصرية",
       description:
         "فندق فيكتوري أعيد تصميمه للفخامة الحديثة بالقرب من إمبانكمنت. يشغل كورينثيا مبنى عام 1885 كان يخدم سابقاً وزارة الدفاع، وترميمه يمزج بين الفخامة الأصلية والتصميم المعاصر المتطور. يعد سبا ESPA Life من أكبر المنتجعات الصحية في لندن بمساحة تزيد عن 3,300 متر مربع مع مسبح من الفولاذ المقاوم للصدأ وساونا مدرج. يقدم مطعم كيريدج بار آند غريل من توم كيريدج أطباقاً بريطانية كلاسيكية راقية. أجنحة البنتهاوس تطل على بيغ بن وعين لندن ومبنى البرلمان.",
@@ -454,7 +454,7 @@ const hotels = {
       rating: 4.9,
       reviews: 1876,
       price: 690,
-      image: "https://photo.hotellook.com/image_v2/crop/h30205/600/400.auto",
+      image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80&auto=format",
       badge: "حصري",
       description:
         "أناقة هادئة في قلب مايفير، كونوت هو الفندق المفضل لمن يقدرون الخصوصية والذوق الرفيع فوق كل شيء. يعرض مطعم هيلين داروز الحائز على نجمتي ميشلان مأكولات مستوحاة من إقليم الباسك مع مكونات بريطانية موسمية. تم تسمية بار كونوت كأفضل بار في العالم عدة مرات ويقدم كوكتيلات مارتيني مخصصة يتم تحضيرها من عربة لامعة بجانب الطاولة. يجلب سبا آمان فلسفة منتجعات آمان الهادئة إلى وسط لندن. يحتوي الفندق على 121 غرفة فقط مما يمنحه أجواء النادي الخاص.",
@@ -479,7 +479,7 @@ const hotels = {
       rating: 4.7,
       reviews: 3124,
       price: 450,
-      image: "https://photo.hotellook.com/image_v2/crop/h707299/600/400.auto",
+      image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80&auto=format",
       badge: "في السماء",
       description:
         "يحتل الطوابق 34 إلى 52 من ذا شارد، أطول مبنى في أوروبا الغربية، وهو العنوان الأكثر دراماتيكية في لندن. كل غرفة من الغرف الـ 202 توفر إطلالات من الأرض حتى السقف تمتد حتى 40 ميلاً عبر العاصمة مع برج لندن وكاتدرائية سانت بول ونهر التايمز أسفلها. مسبح الإنفينيتي في الطابق 52 هو الأعلى في أوروبا الغربية. يقدم مطعم TING في الطابق 35 مأكولات آسيوية شاملة. بار GONG في الطابق 52 أصبح من أكثر وجهات الكوكتيل المرغوبة في لندن. تراث الفندق الآسيوي يعني فهماً فطرياً للضيافة والاهتمام بالتفضيلات الثقافية.",
@@ -504,7 +504,7 @@ const hotels = {
       rating: 4.8,
       reviews: 1654,
       price: 780,
-      image: "https://photo.hotellook.com/image_v2/crop/h514396/600/400.auto",
+      image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80&auto=format",
       badge: "فخامة مطلقة",
       description:
         "الحرفية الإيطالية تلتقي بالتراث البريطاني على بعد خطوات من هارودز في نايتسبريدج. يقدم بولغاري لندن تجربة فاخرة لا مثيل لها مع مسبح بطول 25 متراً يضاء بإضاءة مزاجية وسبا بولغاري الحصري الذي يستخدم منتجات العناية الإيطالية الفاخرة. يقدم مطعم سيتا موريزا مأكولات إيطالية أصيلة مع مكونات موسمية من أجود الموردين. يضم الفندق أيضاً سينما خاصة بـ 47 مقعداً وبار بولغاري الأنيق. الأجنحة مصممة بأناقة إيطالية معاصرة مع حمامات رخامية وإطلالات على حدائق نايتسبريدج الهادئة.",

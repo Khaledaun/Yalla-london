@@ -16,6 +16,7 @@ import {
   Breadcrumbs,
 } from "@/components/brand-kit";
 import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
+import { sanitizeHtml } from "@/lib/html-sanitizer";
 
 const hotels = {
   en: [
@@ -567,12 +568,12 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArea, setSelectedArea] = useState("All Areas");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const [realPhotos, setRealPhotos] = useState<Record<string, string>>({});
+  const [realPhotos, setRealPhotos] = useState<Record<string, { url: string; attribution: string }>>({});
   // Track which photos failed to load so we can fall back to the branded
   // gradient placeholder instead of showing a broken-image icon.
   const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
 
-  // Fetch real hotel photos from Hotellook CDN (Travelpayouts) on mount.
+  // Fetch real hotel photos from Google Places API on mount.
   // These are actual property photos, not stock images.
   useEffect(() => {
     const hotelNames = hotels.en.map((h) => h.name).join(",");
@@ -580,10 +581,15 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data?.photos) return;
-        const photoMap: Record<string, string> = {};
+        const photoMap: Record<string, { url: string; attribution: string }> = {};
         for (const [name, info] of Object.entries(data.photos)) {
-          const photo = info as { urls?: { medium?: string } } | null;
-          if (photo?.urls?.medium) photoMap[name] = photo.urls.medium;
+          const photo = info as { urls?: { medium?: string }; attribution?: string } | null;
+          if (photo?.urls?.medium) {
+            photoMap[name] = {
+              url: photo.urls.medium,
+              attribution: photo.attribution ?? "",
+            };
+          }
         }
         if (Object.keys(photoMap).length > 0) setRealPhotos(photoMap);
       })
@@ -745,15 +751,24 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
             <BrandCardLight key={hotel.id} className="overflow-hidden group">
               <div className="relative h-56">
                 {realPhotos[hotel.name] && !failedPhotos.has(hotel.name) ? (
-                  <Image
-                    src={realPhotos[hotel.name]}
-                    alt={hotel.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
-                    onError={() => handlePhotoError(hotel.name)}
-                    unoptimized
-                  />
+                  <>
+                    <Image
+                      src={realPhotos[hotel.name].url}
+                      alt={hotel.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
+                      onError={() => handlePhotoError(hotel.name)}
+                      unoptimized
+                    />
+                    {/* Google Places requires visible attribution per terms */}
+                    {realPhotos[hotel.name].attribution && (
+                      <div
+                        className={`absolute bottom-2 ${isRTL ? "left-2" : "right-2"} bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[9px] text-white/80 font-mono max-w-[60%] truncate`}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(realPhotos[hotel.name].attribution) }}
+                      />
+                    )}
+                  </>
                 ) : (
                   // No verified property photo — render a branded gradient placeholder
                   // instead of a generic/wrong stock photo. Real photos are fetched

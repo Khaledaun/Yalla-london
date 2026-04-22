@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Star, MapPin, Clock, Search, ChevronDown, ChevronUp, Users, BookOpen, Utensils, MapPinned, Ticket, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
@@ -8,6 +8,7 @@ import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import AffiliateDisclosure from '@/components/affiliate/AffiliateDisclosure'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 const experiences = {
   en: [
@@ -390,6 +391,45 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(t.categories[0])
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [realPhotos, setRealPhotos] = useState<Record<string, { url: string; attribution: string }>>({})
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set())
+
+  // Fetch verified attraction photos from Google Places on mount.
+  useEffect(() => {
+    const locations = experiences.en.map((e) => ({
+      name: e.title,
+      context: `${e.location}, London`,
+    }))
+    fetch('/api/integrations/location-photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.photos) return
+        const map: Record<string, { url: string; attribution: string }> = {}
+        for (const [name, info] of Object.entries(data.photos)) {
+          const photo = info as { urls?: { medium?: string }; attribution?: string } | null
+          if (photo?.urls?.medium) {
+            map[name] = { url: photo.urls.medium, attribution: photo.attribution ?? '' }
+          }
+        }
+        if (Object.keys(map).length > 0) setRealPhotos(map)
+      })
+      .catch((err) => {
+        console.warn('[experiences] photo fetch failed:', err instanceof Error ? err.message : String(err))
+      })
+  }, [])
+
+  const handlePhotoError = (title: string) => {
+    setFailedPhotos((prev) => {
+      if (prev.has(title)) return prev
+      const next = new Set(prev)
+      next.add(title)
+      return next
+    })
+  }
 
   const filteredExperiences = experiences[locale].filter(exp => {
     const matchesSearch = !searchQuery || exp.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -492,7 +532,39 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
           {filteredExperiences.map((exp) => (
             <BrandCardLight key={exp.id} className="overflow-hidden group">
               <div className="relative aspect-[4/3]">
-                <Image src={exp.image} alt={exp.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
+                {realPhotos[exp.title] && !failedPhotos.has(exp.title) ? (
+                  <>
+                    <Image
+                      src={realPhotos[exp.title].url}
+                      alt={exp.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
+                      onError={() => handlePhotoError(exp.title)}
+                      unoptimized
+                    />
+                    {realPhotos[exp.title].attribution && (
+                      <div
+                        className={`absolute bottom-2 ${isRTL ? 'left-2' : 'right-2'} bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[9px] text-white/80 font-mono max-w-[60%] truncate`}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(realPhotos[exp.title].attribution) }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
+                    style={{
+                      background: 'linear-gradient(135deg, #0f1621 0%, #1a2234 40%, #C49A2A 100%)',
+                    }}
+                  >
+                    <h4 className={`text-white font-heading font-bold text-lg ${isRTL ? 'font-arabic' : ''}`}>
+                      {exp.title}
+                    </h4>
+                    <p className="font-mono text-[9px] text-white/50 uppercase tracking-[0.2em] mt-3">
+                      {exp.location}
+                    </p>
+                  </div>
+                )}
                 {exp.featured && (
                   <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
                     <BrandTag color="red">{t.featured}</BrandTag>

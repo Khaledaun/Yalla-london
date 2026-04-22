@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Star, MapPin, Phone, Globe, Search, ChevronDown, ChevronUp, Utensils, Users, CalendarCheck, ShoppingBag, Banknote, Train } from 'lucide-react'
@@ -8,6 +8,7 @@ import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink, type AffiliateCategory } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import AffiliateDisclosure from '@/components/affiliate/AffiliateDisclosure'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 const recommendations = [
   {
@@ -225,6 +226,45 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [realPhotos, setRealPhotos] = useState<Record<string, { url: string; attribution: string }>>({})
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set())
+
+  // Fetch verified place photos from Google Places on mount.
+  useEffect(() => {
+    const locations = recommendations.map((r) => ({
+      name: r.name_en,
+      context: r.address_en,
+    }))
+    fetch('/api/integrations/location-photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.photos) return
+        const map: Record<string, { url: string; attribution: string }> = {}
+        for (const [name, info] of Object.entries(data.photos)) {
+          const photo = info as { urls?: { medium?: string }; attribution?: string } | null
+          if (photo?.urls?.medium) {
+            map[name] = { url: photo.urls.medium, attribution: photo.attribution ?? '' }
+          }
+        }
+        if (Object.keys(map).length > 0) setRealPhotos(map)
+      })
+      .catch((err) => {
+        console.warn('[recommendations] photo fetch failed:', err instanceof Error ? err.message : String(err))
+      })
+  }, [])
+
+  const handlePhotoError = (name: string) => {
+    setFailedPhotos((prev) => {
+      if (prev.has(name)) return prev
+      const next = new Set(prev)
+      next.add(name)
+      return next
+    })
+  }
 
   const labels = typeLabels[locale]
 
@@ -423,13 +463,39 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
           {filtered.map((item) => (
             <BrandCardLight key={item.id} className="overflow-hidden group">
               <div className="relative aspect-video">
-                <Image
-                  src={item.image}
-                  alt={locale === 'en' ? item.name_en : item.name_ar}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+                {realPhotos[item.name_en] && !failedPhotos.has(item.name_en) ? (
+                  <>
+                    <Image
+                      src={realPhotos[item.name_en].url}
+                      alt={locale === 'en' ? item.name_en : item.name_ar}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={() => handlePhotoError(item.name_en)}
+                      unoptimized
+                    />
+                    {realPhotos[item.name_en].attribution && (
+                      <div
+                        className={`absolute bottom-2 ${isRTL ? 'left-2' : 'right-2'} bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[9px] text-white/80 font-mono max-w-[60%] truncate`}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(realPhotos[item.name_en].attribution) }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
+                    style={{
+                      background: 'linear-gradient(135deg, #0f1621 0%, #1a2234 40%, #C49A2A 100%)',
+                    }}
+                  >
+                    <h4 className={`text-white font-heading font-bold text-xl ${isRTL ? 'font-arabic' : ''}`}>
+                      {locale === 'en' ? item.name_en : item.name_ar}
+                    </h4>
+                    <p className="font-mono text-[10px] text-white/50 uppercase tracking-[0.2em] mt-3">
+                      {locale === 'en' ? item.address_en : item.address_ar}
+                    </p>
+                  </div>
+                )}
                 <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
                   <BrandTag color="neutral">
                     {labels[item.type as keyof typeof labels]}

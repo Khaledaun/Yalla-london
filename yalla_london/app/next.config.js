@@ -42,6 +42,33 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
       },
       {
+        // Google Places Photos API — returns 302 redirect to googleusercontent
+        protocol: 'https',
+        hostname: 'maps.googleapis.com',
+        pathname: '/maps/api/place/photo',
+      },
+      {
+        // Where Google Places photos actually resolve to after the 302
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh4.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh5.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh6.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh7.googleusercontent.com',
+      },
+      {
         protocol: 'https',
         hostname: 'plus.unsplash.com',
       },

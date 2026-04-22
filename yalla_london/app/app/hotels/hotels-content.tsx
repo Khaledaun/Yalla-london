@@ -765,13 +765,10 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
                       background: "linear-gradient(135deg, #0f1621 0%, #1a2234 40%, #C49A2A 100%)",
                     }}
                   >
-                    <span className="font-mono text-[10px] text-white/50 uppercase tracking-[0.2em] mb-2">
-                      {hotel.badge}
-                    </span>
-                    <h4 className={`text-white font-heading font-bold text-lg ${isRTL ? "font-arabic" : ""}`}>
+                    <h4 className={`text-white font-heading font-bold text-xl ${isRTL ? "font-arabic" : ""}`}>
                       {hotel.name}
                     </h4>
-                    <p className="font-mono text-[9px] text-white/40 uppercase tracking-[0.15em] mt-3">
+                    <p className="font-mono text-[10px] text-white/50 uppercase tracking-[0.2em] mt-3">
                       {hotel.location}
                     </p>
                   </div>

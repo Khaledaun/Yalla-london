@@ -568,6 +568,9 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
   const [selectedArea, setSelectedArea] = useState("All Areas");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [realPhotos, setRealPhotos] = useState<Record<string, string>>({});
+  // Track which photos failed to load so we can fall back to the branded
+  // gradient placeholder instead of showing a broken-image icon.
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
 
   // Fetch real hotel photos from Hotellook CDN (Travelpayouts) on mount.
   // These are actual property photos, not stock images.
@@ -584,8 +587,19 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
         }
         if (Object.keys(photoMap).length > 0) setRealPhotos(photoMap);
       })
-      .catch(() => {}); // Graceful — falls back to static Unsplash URLs
+      .catch((err) => {
+        console.warn("[hotels] photo fetch failed:", err instanceof Error ? err.message : String(err));
+      });
   }, []);
+
+  const handlePhotoError = (hotelName: string) => {
+    setFailedPhotos((prev) => {
+      if (prev.has(hotelName)) return prev;
+      const next = new Set(prev);
+      next.add(hotelName);
+      return next;
+    });
+  };
 
   const areaKeys = Object.keys(areaMap);
   const selectedAreaKey = t.areas.indexOf(selectedArea) > 0 ? areaKeys[t.areas.indexOf(selectedArea) - 1] : null;
@@ -730,16 +744,16 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
           {filteredHotels.map((hotel) => (
             <BrandCardLight key={hotel.id} className="overflow-hidden group">
               <div className="relative h-56">
-                {realPhotos[hotel.name] ? (
-                  <>
-                    <Image
-                      src={realPhotos[hotel.name]}
-                      alt={hotel.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
-                    />
-                  </>
+                {realPhotos[hotel.name] && !failedPhotos.has(hotel.name) ? (
+                  <Image
+                    src={realPhotos[hotel.name]}
+                    alt={hotel.name}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
+                    onError={() => handlePhotoError(hotel.name)}
+                    unoptimized
+                  />
                 ) : (
                   // No verified property photo — render a branded gradient placeholder
                   // instead of a generic/wrong stock photo. Real photos are fetched

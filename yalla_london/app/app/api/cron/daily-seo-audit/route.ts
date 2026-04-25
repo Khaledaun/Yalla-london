@@ -53,34 +53,33 @@ async function handleDailySeoAudit(request: NextRequest) {
     }
 
     try {
-      // Call the audit endpoint internally (reuse existing runAudit logic)
-      const baseUrl = request.nextUrl.origin;
-      const auditUrl = `${baseUrl}/api/admin/seo-audit?siteId=${encodeURIComponent(siteId)}&triggeredBy=scheduled`;
+      // Direct function call — avoids cross-function HTTP auth race conditions
+      // (rule #100: never internal-fetch from a cron to itself).
+      const { runAudit } = await import("@/app/api/admin/seo-audit/route");
+      const auditData = (await runAudit(siteId)) as unknown as Record<string, unknown>;
 
-      const headers: Record<string, string> = {};
-      // Forward admin auth if present
-      const adminCookie = request.headers.get("cookie");
-      if (adminCookie) headers["cookie"] = adminCookie;
-      // For internal calls, use the admin-bypass header if cron secret is available
-      if (cronSecret) headers["authorization"] = `Bearer ${cronSecret}`;
-
-      const resp = await fetch(auditUrl, {
-        headers,
-        signal: AbortSignal.timeout(45_000),
-      });
-
-      if (!resp.ok) {
-        results.push({ siteId, healthScore: 0, findings: 0, critical: 0, high: 0, saved: false, error: `HTTP ${resp.status}` });
-        continue;
+      // Persist to SeoAuditReport (mirrors what the GET handler does on direct calls)
+      try {
+        await prisma.seoAuditReport.create({
+          data: {
+            siteId,
+            healthScore: (auditData.healthScore as number) || 0,
+            totalFindings: (auditData.totalFindings as number) || 0,
+            criticalCount: (auditData.criticalCount as number) || 0,
+            highCount: (auditData.highCount as number) || 0,
+            mediumCount: (auditData.mediumCount as number) || 0,
+            lowCount: (auditData.lowCount as number) || 0,
+            report: auditData,
+            summary: auditData.summary as string,
+            triggeredBy: "scheduled",
+          },
+        });
+      } catch (createErr) {
+        console.warn(`[daily-seo-audit] Failed to persist report for ${siteId}:`, createErr instanceof Error ? createErr.message : createErr);
       }
 
-      const auditData = await resp.json();
-
-      // The GET endpoint auto-persists to SeoAuditReport, so it's already saved.
-      // Generate and save the action-oriented JSON summary separately.
+      // Generate and attach the compact action-oriented JSON summary.
       const jsonSummary = buildActionSummary(auditData, siteId, getSiteConfig(siteId), getSiteDomain(siteId));
-
-      // Update the most recent report with the JSON summary
       try {
         const latestReport = await prisma.seoAuditReport.findFirst({
           where: { siteId },
@@ -107,10 +106,10 @@ async function handleDailySeoAudit(request: NextRequest) {
 
       results.push({
         siteId,
-        healthScore: auditData.healthScore || 0,
-        findings: auditData.totalFindings || 0,
-        critical: auditData.criticalCount || 0,
-        high: auditData.highCount || 0,
+        healthScore: (auditData.healthScore as number) || 0,
+        findings: (auditData.totalFindings as number) || 0,
+        critical: (auditData.criticalCount as number) || 0,
+        high: (auditData.highCount as number) || 0,
         saved: true,
       });
     } catch (err) {

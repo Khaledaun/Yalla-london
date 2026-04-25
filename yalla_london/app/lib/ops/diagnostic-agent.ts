@@ -234,6 +234,18 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
         category = "database_unavailable";
       } else if (combinedMsg.includes("no consumable topic") || combinedMsg.includes("no topic") || combinedMsg.includes("topic pool") || combinedMsg.includes("nothing to process")) {
         category = "topic_starvation";
+      } else if (
+        // AI cascade patterns (must come BEFORE generic timeout/api checks):
+        // - "All AI providers failed: grok: ... timeout; claude: ... timeout"
+        // - "N/N articles failed to generate" (daily-content-generate top-level error)
+        // - "X failed to generate" or "AI generation"
+        combinedMsg.includes("all ai providers failed") ||
+        combinedMsg.includes("articles failed to generate") ||
+        combinedMsg.includes("ai generation") ||
+        combinedMsg.includes("circuit open") ||
+        combinedMsg.includes("circuit breaker")
+      ) {
+        category = "provider_down";
       } else if (errorMsg.includes("timeout") || errorMsg.includes("aborted")) {
         category = "timeout";
       } else if (errorMsg.includes("api") || errorMsg.includes("429") || errorMsg.includes("503")) {

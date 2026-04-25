@@ -37,7 +37,7 @@ interface AuditSection {
   findings: AuditFinding[];
 }
 
-async function runAudit(siteId: string) {
+export async function runAudit(siteId: string) {
   const auditStart = Date.now();
   const BUDGET_MS = 53_000;
 

@@ -23,9 +23,17 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const { isCjConfigured} = await import("@/lib/affiliate/cj-client");
+    const { isCjConfigured, resetCircuitBreaker } = await import("@/lib/affiliate/cj-client");
     if (!isCjConfigured()) {
       return NextResponse.json({ success: true, skipped: true, message: "CJ_API_TOKEN not configured" });
+    }
+
+    // CEO Inbox auto-fix path: ?reset=true forces circuit breaker reset before sync.
+    // Without this, the auto-fix call hits the cooldown wall and times out.
+    const shouldReset = request.nextUrl.searchParams.get("reset") === "true";
+    if (shouldReset) {
+      resetCircuitBreaker();
+      console.log("[affiliate-sync-advertisers] Circuit breaker reset (?reset=true)");
     }
 
     const BUDGET_MS = 53_000;
@@ -34,7 +42,9 @@ export async function GET(request: NextRequest) {
 
     // If newly approved, log notification
     if (result.newlyApproved.length > 0) {
-      console.log(`[affiliate-sync-advertisers] ${result.newlyApproved.length} advertiser(s) newly approved! IDs: ${result.newlyApproved.join(", ")}`);
+      console.log(
+        `[affiliate-sync-advertisers] ${result.newlyApproved.length} advertiser(s) newly approved! IDs: ${result.newlyApproved.join(", ")}`,
+      );
     }
 
     const { logCronExecution } = await import("@/lib/cron-logger");
@@ -63,19 +73,27 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    await onCronFailure({ jobName: "affiliate-sync-advertisers", error }).catch((err: Error) => console.warn("[affiliate-sync-advertisers] failure hook failed:", err.message));
+    await onCronFailure({ jobName: "affiliate-sync-advertisers", error }).catch((err: Error) =>
+      console.warn("[affiliate-sync-advertisers] failure hook failed:", err.message),
+    );
 
     // Surface the actual error message for dashboard visibility
-    const errorMsg = error instanceof Error ? error.message :
-      (error && typeof error === "object" && "message" in error) ? String((error as { message: string }).message) :
-      String(error);
+    const errorMsg =
+      error instanceof Error
+        ? error.message
+        : error && typeof error === "object" && "message" in error
+          ? String((error as { message: string }).message)
+          : String(error);
     console.error(`[affiliate-sync-advertisers] Failed: ${errorMsg}`);
 
-    return NextResponse.json({
-      success: false,
-      error: `CJ advertiser sync failed: ${errorMsg.substring(0, 300)}`,
-      durationMs: Date.now() - startTime,
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: `CJ advertiser sync failed: ${errorMsg.substring(0, 300)}`,
+        durationMs: Date.now() - startTime,
+      },
+      { status: 500 },
+    );
   }
 }
 

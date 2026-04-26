@@ -53,17 +53,20 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     path: "/api/affiliate/cron/sync-commissions",
     prePath: "/api/affiliate/cron/sync-advertisers",
     label: "Sync advertisers first, then commissions",
-    manualInstructions: "Go to Affiliate HQ → Actions tab → tap 'Full Sync'. If it fails, check CJ API token in Settings.",
+    manualInstructions:
+      "Go to Affiliate HQ → Actions tab → tap 'Full Sync'. If it fails, check CJ API token in Settings.",
   },
   "sync-advertisers": {
     path: "/api/affiliate/cron/sync-advertisers",
     label: "Retry advertiser sync",
-    manualInstructions: "Go to Affiliate HQ → Actions tab → tap 'Sync Advertisers'. Check CJ_API_TOKEN env var if it fails.",
+    manualInstructions:
+      "Go to Affiliate HQ → Actions tab → tap 'Sync Advertisers'. Check CJ_API_TOKEN env var if it fails.",
   },
   "gsc-sync": {
     path: "/api/cron/gsc-sync",
     label: "Retry GSC sync",
-    manualInstructions: "Go to Cockpit → Crons tab → find GSC Sync → tap 'Run'. Check Google credentials if it keeps failing.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find GSC Sync → tap 'Run'. Check Google credentials if it keeps failing.",
   },
   "content-auto-fix": {
     path: "/api/cron/content-auto-fix",
@@ -95,7 +98,8 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "daily-content-generate": {
     path: "/api/cron/daily-content-generate",
     label: "Retry daily content generation",
-    manualInstructions: "Go to Cockpit → Content tab → tap 'Generate Content'. Usually an AI provider timeout — check AI Config tab.",
+    manualInstructions:
+      "Go to Cockpit → Content tab → tap 'Generate Content'. Usually an AI provider timeout — check AI Config tab.",
   },
   "content-auto-fix-lite": {
     path: "/api/cron/content-auto-fix-lite",
@@ -105,23 +109,26 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "reserve-publisher": {
     path: "/api/cron/reserve-publisher",
     label: "Retry reserve publisher",
-    manualInstructions: "Go to Cockpit → Crons tab → find Reserve Publisher → tap 'Run'. Ensures at least 1 article/day.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Reserve Publisher → tap 'Run'. Ensures at least 1 article/day.",
   },
   "schedule-executor": {
     path: "/api/cron/schedule-executor",
     label: "Retry schedule executor",
-    manualInstructions: "Go to Cockpit → Crons tab → find Schedule Executor → tap 'Run'. Creates drafts from schedule rules.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Schedule Executor → tap 'Run'. Creates drafts from schedule rules.",
   },
   "content-freshness": {
     path: "/api/cron/content-freshness",
     label: "Retry content freshness check",
     manualInstructions: "Go to Cockpit → Crons tab → find Content Freshness → tap 'Run'.",
   },
-  "sweeper": {
+  sweeper: {
     path: "/api/cron/sweeper",
     label: "Retry sweeper",
     prePath: "/api/cron/diagnostic-sweep",
-    manualInstructions: "Go to Cockpit → Pipeline tab → tap 'Run Sweeper'. If stuck drafts persist, run Diagnostics first.",
+    manualInstructions:
+      "Go to Cockpit → Pipeline tab → tap 'Run Sweeper'. If stuck drafts persist, run Diagnostics first.",
   },
   "campaign-executor": {
     path: "/api/cron/campaign-executor",
@@ -146,19 +153,22 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "image-pipeline": {
     path: "/api/cron/image-pipeline",
     label: "Retry image pipeline",
-    manualInstructions: "Go to Cockpit → Crons tab → find Image Pipeline → tap 'Run'. Check UNSPLASH_ACCESS_KEY if failing.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Image Pipeline → tap 'Run'. Check UNSPLASH_ACCESS_KEY if failing.",
   },
 
   // ─── SEO & Indexing ────────────────────────────────────────────────────────
   "seo-deep-review": {
     path: "/api/cron/seo-deep-review",
     label: "Retry SEO deep review",
-    manualInstructions: "Go to Cockpit → Crons tab → find SEO Deep Review → tap 'Run'. Usually a timeout — AI expansion is heavy.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find SEO Deep Review → tap 'Run'. Usually a timeout — AI expansion is heavy.",
   },
   "seo-orchestrator": {
     path: "/api/cron/seo-orchestrator",
     label: "Retry SEO orchestrator",
-    manualInstructions: "Go to Cockpit → Crons tab → find SEO Orchestrator → tap 'Run'. Handles both daily and weekly modes.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find SEO Orchestrator → tap 'Run'. Handles both daily and weekly modes.",
   },
   "seo-audit-runner": {
     path: "/api/cron/seo-audit-runner",
@@ -183,7 +193,8 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "process-indexing-queue": {
     path: "/api/cron/process-indexing-queue",
     label: "Retry IndexNow queue",
-    manualInstructions: "Go to Cockpit → Crons tab → find Process Indexing Queue → tap 'Run'. Check INDEXNOW_KEY if rejections.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Process Indexing Queue → tap 'Run'. Check INDEXNOW_KEY if rejections.",
   },
   "google-indexing": {
     path: "/api/cron/google-indexing",
@@ -202,7 +213,7 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   },
 
   // ─── Analytics & Intelligence ──────────────────────────────────────────────
-  "analytics": {
+  analytics: {
     path: "/api/cron/analytics",
     label: "Retry analytics sync",
     manualInstructions: "Go to Cockpit → Crons tab → find Analytics → tap 'Run'. Check GA4 credentials if failing.",
@@ -231,7 +242,7 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   },
 
   // ─── Social & Email ────────────────────────────────────────────────────────
-  "social": {
+  social: {
     path: "/api/cron/social",
     label: "Retry social posting",
     manualInstructions: "Go to Cockpit → Crons tab → find Social → tap 'Run'. Check Twitter API keys if failing.",
@@ -239,7 +250,8 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "subscriber-emails": {
     path: "/api/cron/subscriber-emails",
     label: "Retry subscriber emails",
-    manualInstructions: "Go to Cockpit → Crons tab → find Subscriber Emails → tap 'Run'. Check RESEND_API_KEY if failing.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Subscriber Emails → tap 'Run'. Check RESEND_API_KEY if failing.",
   },
   "retention-executor": {
     path: "/api/cron/retention-executor",
@@ -273,7 +285,8 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   "events-sync": {
     path: "/api/cron/events-sync",
     label: "Retry events sync",
-    manualInstructions: "Go to Cockpit → Crons tab → find Events Sync → tap 'Run'. Check TICKETMASTER_API_KEY if failing.",
+    manualInstructions:
+      "Go to Cockpit → Crons tab → find Events Sync → tap 'Run'. Check TICKETMASTER_API_KEY if failing.",
   },
 
   // ─── Agent Maintenance ────────────────────────────────────────────────────
@@ -284,10 +297,13 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
   },
 
   // ─── Affiliate Circuit Breaker ───────────────────────────────────────────
+  // ?reset=true forces resetCircuitBreaker() in-process before sync —
+  // otherwise the call hits the 5-min cooldown wall and times out.
   "cj-circuit-breaker": {
-    path: "/api/affiliate/cron/sync-advertisers",
+    path: "/api/affiliate/cron/sync-advertisers?reset=true",
     label: "Reset CJ circuit breaker & re-sync advertisers",
-    manualInstructions: "Go to Affiliate HQ → System tab → tap 'Reset Circuit Breaker', then 'Sync Advertisers'. If it keeps failing, check CJ_API_TOKEN in Settings.",
+    manualInstructions:
+      "Go to Affiliate HQ → System tab → tap 'Reset Circuit Breaker', then 'Sync Advertisers'. If it keeps failing, check CJ_API_TOKEN in Settings.",
   },
 };
 
@@ -338,12 +354,12 @@ export async function handleCronFailureNotice(
     if (todayAlertCount >= ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS) {
       console.log(
         `[ceo-inbox] Daily alert limit reached (${todayAlertCount}/${ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS}). ` +
-        `Batching "${jobName}" failure into digest instead of new alert.`
+          `Batching "${jobName}" failure into digest instead of new alert.`,
       );
       // Still attempt auto-fix, just don't create another alert
       if (fixStrategy) {
-        await attemptAutoFix(jobName, fixStrategy, baseUrl).catch(
-          (err) => console.warn("[ceo-inbox] Silent auto-fix failed:", err instanceof Error ? err.message : err)
+        await attemptAutoFix(jobName, fixStrategy, baseUrl).catch((err) =>
+          console.warn("[ceo-inbox] Silent auto-fix failed:", err instanceof Error ? err.message : err),
         );
       }
       return null;
@@ -361,7 +377,9 @@ export async function handleCronFailureNotice(
       },
     });
     if (recentSameJob > 0) {
-      console.log(`[ceo-inbox] Cooldown active for "${jobName}" — skipping duplicate alert (${ESCALATION_POLICY.ALERT_COOLDOWN_MINUTES}min window)`);
+      console.log(
+        `[ceo-inbox] Cooldown active for "${jobName}" — skipping duplicate alert (${ESCALATION_POLICY.ALERT_COOLDOWN_MINUTES}min window)`,
+      );
       return null;
     }
 
@@ -402,7 +420,9 @@ export async function handleCronFailureNotice(
       const { getQueueSnapshot } = await import("@/lib/content-pipeline/queue-monitor");
       const snapshot = await getQueueSnapshot();
       if (snapshot.overallHealth === "critical" || snapshot.overallHealth === "stalled") {
-        console.log(`[ceo-inbox] Queue health: ${snapshot.overallHealth} — ${snapshot.totalActive} active drafts, rules: ${snapshot.healthRules.map(r => r.id).join(", ")}`);
+        console.log(
+          `[ceo-inbox] Queue health: ${snapshot.overallHealth} — ${snapshot.totalActive} active drafts, rules: ${snapshot.healthRules.map((r) => r.id).join(", ")}`,
+        );
         // Run auto-fixes from queue monitor first (clears backlog before retrying the failed cron)
         const { autoFixAll } = await import("@/lib/content-pipeline/queue-monitor");
         const queueFixes = await autoFixAll();
@@ -412,12 +432,15 @@ export async function handleCronFailureNotice(
         }
       }
     } catch (queueErr) {
-      console.warn("[ceo-inbox] Queue health check failed (non-fatal):", queueErr instanceof Error ? queueErr.message : queueErr);
+      console.warn(
+        "[ceo-inbox] Queue health check failed (non-fatal):",
+        queueErr instanceof Error ? queueErr.message : queueErr,
+      );
     }
 
     // 3. Email notifications — rate-limited (1 per condition per hour)
-    sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
-      (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
+    sendAlertEmail(jobName, diagnosis, fixStrategy).catch((err) =>
+      console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
     );
 
     // 4. Attempt auto-fix
@@ -428,7 +451,9 @@ export async function handleCronFailureNotice(
       await updateInboxEntry(entry.id, {
         status: fixResult.success ? "retesting" : "failed",
         fixResult,
-      }).catch((err) => console.warn("[ceo-inbox] Fix result update failed:", err instanceof Error ? err.message : err));
+      }).catch((err) =>
+        console.warn("[ceo-inbox] Fix result update failed:", err instanceof Error ? err.message : err),
+      );
     }
 
     // 4. Schedule retest (fire-and-forget — new serverless invocation)
@@ -486,12 +511,15 @@ async function attemptAutoFix(
       }
     }
 
-    // Run main fix
+    // Run main fix.
+    // 75s covers crons that consistently take 50-60s on schedule
+    // (e.g., affiliate-sync-advertisers ~54s). 45s was too tight and
+    // every CJ circuit-breaker auto-fix was timing out.
     console.log(`[ceo-inbox] Auto-fixing "${jobName}": ${strategy.path}`);
     const res = await fetch(`${resolvedUrl}${strategy.path}`, {
       method: "POST",
       headers,
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(75_000),
     });
     const body = await res.json().catch(() => ({}));
     const success = res.ok && body.success !== false;
@@ -563,7 +591,9 @@ export async function retestCronJob(
       success: false,
       message: `Retest error: ${err instanceof Error ? err.message : String(err)}`,
     };
-    await updateInboxEntry(entryId, { status: "failed", retestResult }).catch((e) => console.warn("[ceo-inbox] Retest update failed:", e instanceof Error ? e.message : e));
+    await updateInboxEntry(entryId, { status: "failed", retestResult }).catch((e) =>
+      console.warn("[ceo-inbox] Retest update failed:", e instanceof Error ? e.message : e),
+    );
     return retestResult;
   }
 }
@@ -590,7 +620,11 @@ export async function getInboxAlerts(limit = 20, siteId?: string): Promise<Inbox
         originalJob: (summary.originalJob as string) || "unknown",
         siteId: (summary.siteId as string) || e.site_id || undefined,
         error: (summary.error as string) || e.error_message || "",
-        diagnosis: (summary.diagnosis as InterpretedError) || { plain: e.error_message || "", fix: "", severity: "warning" },
+        diagnosis: (summary.diagnosis as InterpretedError) || {
+          plain: e.error_message || "",
+          fix: "",
+          severity: "warning",
+        },
         fixStrategy: (summary.fixStrategy as FixStrategy) || null,
         fixResult: (summary.fixResult as InboxAlert["fixResult"]) || null,
         retestResult: (summary.retestResult as InboxAlert["retestResult"]) || null,
@@ -643,9 +677,10 @@ async function updateInboxEntry(
       data: {
         status: updates.status === "resolved" ? "completed" : updates.status === "failed" ? "failed" : "running",
         completed_at: updates.status === "resolved" || updates.status === "failed" ? new Date() : undefined,
-        duration_ms: updates.status === "resolved" || updates.status === "failed"
-          ? Math.max(0, Date.now() - (existing ? new Date().getTime() : Date.now()))
-          : undefined,
+        duration_ms:
+          updates.status === "resolved" || updates.status === "failed"
+            ? Math.max(0, Date.now() - (existing ? new Date().getTime() : Date.now()))
+            : undefined,
         result_summary: merged,
       },
     });
@@ -687,13 +722,18 @@ async function sendAlertEmail(
     // Rate limit: 1 email per job per hour
     const lastSent = emailRateMap.get(jobName) || 0;
     if (Date.now() - lastSent < EMAIL_COOLDOWN_MS) {
-      console.log(`[ceo-inbox] Skipping email for "${jobName}" — sent ${Math.round((Date.now() - lastSent) / 60000)}m ago (cooldown: 60m)`);
+      console.log(
+        `[ceo-inbox] Skipping email for "${jobName}" — sent ${Math.round((Date.now() - lastSent) / 60000)}m ago (cooldown: 60m)`,
+      );
       return;
     }
     emailRateMap.set(jobName, Date.now());
 
     const { sendEmail } = await import("@/lib/email/sender");
-    const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
     if (adminEmails.length === 0) {
       console.warn("[ceo-inbox] No ADMIN_EMAILS configured — skipping email");
       return;
@@ -712,22 +752,30 @@ async function sendAlertEmail(
             <p style="font-size:16px;margin:0 0 8px;font-weight:600;">${diagnosis.plain}</p>
             <p style="font-size:14px;color:#666;margin:0;">${diagnosis.fix}</p>
           </div>
-          ${fixStrategy ? `
+          ${
+            fixStrategy
+              ? `
             <div style="background:#F0FDF4;border-left:4px solid #2D5A3D;padding:16px;border-radius:8px;margin:16px 0;">
               <p style="font-weight:600;margin:0 0 8px;">Auto-fix attempted: ${fixStrategy.label}</p>
               <p style="font-size:14px;color:#666;margin:0;">Retest will run in 2 minutes. You'll get another email with the result.</p>
             </div>
-          ` : ""}
+          `
+              : ""
+          }
           <div style="margin-top:20px;">
             <a href="${baseUrl}/admin/cockpit" style="display:inline-block;background:#C8322B;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
               Open Cockpit
             </a>
           </div>
-          ${fixStrategy ? `
+          ${
+            fixStrategy
+              ? `
             <p style="font-size:13px;color:#999;margin-top:16px;">
               <strong>If auto-fix fails:</strong> ${fixStrategy.manualInstructions}
             </p>
-          ` : ""}
+          `
+              : ""
+          }
         </div>
       `,
     });
@@ -738,13 +786,13 @@ async function sendAlertEmail(
   }
 }
 
-async function sendRetestEmail(
-  jobName: string,
-  result: { success: boolean; message: string },
-): Promise<void> {
+async function sendRetestEmail(jobName: string, result: { success: boolean; message: string }): Promise<void> {
   try {
     const { sendEmail } = await import("@/lib/email/sender");
-    const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
     if (adminEmails.length === 0) return;
 
     const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");

@@ -76,8 +76,7 @@ export const SITES: Record<string, SiteConfig> = {
     currency: "GBP",
     primaryColor: "#1C1917",
     secondaryColor: "#C8322B",
-    systemPromptEN:
-      `You are a senior travel content writer for Yalla London, a premium London travel blog for all visitors — tourists, families, couples, solo travellers, and anyone planning a trip to London. You combine first-hand London expertise with SEO mastery.
+    systemPromptEN: `You are a senior travel content writer for Yalla London, a premium London travel blog for all visitors — tourists, families, couples, solo travellers, and anyone planning a trip to London. You combine first-hand London expertise with SEO mastery.
 
 AUDIENCE: All travellers visiting London. Write for a universal international audience. Cover London's attractions, hotels, restaurants, itineraries, neighbourhoods, day trips, nightlife, shopping, and seasonal events.
 - 80% of content should target general travel topics (highest search volume, broadest authority)
@@ -113,8 +112,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى سفر متمرس لمنصة يالا لندن، مدونة سفر متميزة تغطي أفضل تجارب لندن لجميع الزوار والسياح. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
+    systemPromptAR: `أنت كاتب محتوى سفر متمرس لمنصة يالا لندن، مدونة سفر متميزة تغطي أفضل تجارب لندن لجميع الزوار والسياح. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
 
 الجمهور: جميع المسافرين الذين يزورون لندن — سياح، عائلات، أزواج، مسافرون بمفردهم. اكتب لجمهور دولي عام دون استهداف أي مجموعة عرقية أو دينية أو ثقافية محددة.
 
@@ -142,136 +140,257 @@ Always respond with valid JSON.`,
       // ─── Core Attractions ─────────────────────────────────────────
       {
         keyword: "things to do in London",
-        longtails: ["things to do in london for first timers", "unusual and quirky things to do in london", "places to visit in london in 3 days"],
-        questions: ["What are the best things to do in London for first time visitors?", "What are unusual things to do in London?"],
+        longtails: [
+          "things to do in london for first timers",
+          "unusual and quirky things to do in london",
+          "places to visit in london in 3 days",
+        ],
+        questions: [
+          "What are the best things to do in London for first time visitors?",
+          "What are unusual things to do in London?",
+        ],
         pageType: "listicle",
       },
       {
         keyword: "tower of london tickets",
-        longtails: ["best things to see at the tower of london", "tower of london guided tour", "tower of london crown jewels tips"],
+        longtails: [
+          "best things to see at the tower of london",
+          "tower of london guided tour",
+          "tower of london crown jewels tips",
+        ],
         questions: ["How much are Tower of London tickets?", "What are the best things to see at the Tower of London?"],
         pageType: "guide",
       },
       {
         keyword: "big ben and houses of parliament tour",
-        longtails: ["best time to visit big ben", "big ben and houses of parliament guided tour", "big ben photography tips"],
+        longtails: [
+          "best time to visit big ben",
+          "big ben and houses of parliament guided tour",
+          "big ben photography tips",
+        ],
         questions: ["Can you go inside Big Ben?", "What is the best time to visit Big Ben?"],
         pageType: "guide",
       },
       {
         keyword: "tower bridge glass floor tickets",
-        longtails: ["tower bridge vs london bridge difference", "tower bridge exhibition tickets", "tower bridge photo spots"],
-        questions: ["What is the difference between Tower Bridge and London Bridge?", "How much are Tower Bridge tickets?"],
+        longtails: [
+          "tower bridge vs london bridge difference",
+          "tower bridge exhibition tickets",
+          "tower bridge photo spots",
+        ],
+        questions: [
+          "What is the difference between Tower Bridge and London Bridge?",
+          "How much are Tower Bridge tickets?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "buckingham palace tour tickets",
-        longtails: ["buckingham palace changing of the guard time", "buckingham palace state rooms tour tickets", "buckingham palace summer opening"],
+        longtails: [
+          "buckingham palace changing of the guard time",
+          "buckingham palace state rooms tour tickets",
+          "buckingham palace summer opening",
+        ],
         questions: ["When is the Changing of the Guard at Buckingham Palace?", "Can you tour Buckingham Palace?"],
         pageType: "guide",
       },
       {
         keyword: "london eye tickets fast track",
-        longtails: ["best time of day for london eye views", "london eye at night vs day", "london eye skip the line tickets"],
+        longtails: [
+          "best time of day for london eye views",
+          "london eye at night vs day",
+          "london eye skip the line tickets",
+        ],
         questions: ["What is the best time to ride the London Eye?", "Is the London Eye worth it?"],
         pageType: "guide",
       },
       {
         keyword: "british museum highlights self guided tour",
-        longtails: ["how many hours at british museum", "british museum must see exhibits", "british museum free entry guide"],
-        questions: ["How long should I spend at the British Museum?", "What are the must-see exhibits at the British Museum?"],
+        longtails: [
+          "how many hours at british museum",
+          "british museum must see exhibits",
+          "british museum free entry guide",
+        ],
+        questions: [
+          "How long should I spend at the British Museum?",
+          "What are the must-see exhibits at the British Museum?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "natural history museum london",
-        longtails: ["best things to see at natural history museum london", "natural history museum london free entry guide", "natural history museum with kids"],
-        questions: ["Is the Natural History Museum in London free?", "What are the best exhibits at the Natural History Museum?"],
+        longtails: [
+          "best things to see at natural history museum london",
+          "natural history museum london free entry guide",
+          "natural history museum with kids",
+        ],
+        questions: [
+          "Is the Natural History Museum in London free?",
+          "What are the best exhibits at the Natural History Museum?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "harry potter studio tour from london",
-        longtails: ["how to get to harry potter studios from london", "harry potter studio tour from london with transport", "harry potter studio tour tickets price"],
-        questions: ["How do I get to Harry Potter Studios from London?", "How much are Harry Potter Studio Tour tickets?"],
+        longtails: [
+          "how to get to harry potter studios from london",
+          "harry potter studio tour from london with transport",
+          "harry potter studio tour tickets price",
+        ],
+        questions: [
+          "How do I get to Harry Potter Studios from London?",
+          "How much are Harry Potter Studio Tour tickets?",
+        ],
         pageType: "guide",
       },
       // ─── Itineraries ──────────────────────────────────────────────
       {
         keyword: "3 day london itinerary",
-        longtails: ["3 days in london first time itinerary", "3 day london itinerary with kids and stroller", "3 day london itinerary on a budget"],
-        questions: ["How should I spend 3 days in London?", "What is the best 3-day London itinerary for first timers?"],
+        longtails: [
+          "3 days in london first time itinerary",
+          "3 day london itinerary with kids and stroller",
+          "3 day london itinerary on a budget",
+        ],
+        questions: [
+          "How should I spend 3 days in London?",
+          "What is the best 3-day London itinerary for first timers?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "4 day london itinerary",
-        longtails: ["4 days in london itinerary for couples", "4 day london itinerary on a budget", "4 day london itinerary with day trips"],
+        longtails: [
+          "4 days in london itinerary for couples",
+          "4 day london itinerary on a budget",
+          "4 day london itinerary with day trips",
+        ],
         questions: ["What should I do in London for 4 days?", "What is a good 4-day London itinerary for couples?"],
         pageType: "guide",
       },
       {
         keyword: "7 days in london itinerary",
-        longtails: ["1 week london itinerary without car", "7 day london itinerary with day trips by train", "7 days in london and surrounds"],
+        longtails: [
+          "1 week london itinerary without car",
+          "7 day london itinerary with day trips by train",
+          "7 days in london and surrounds",
+        ],
         questions: ["How should I plan a week in London?", "What day trips can I take from London by train?"],
         pageType: "guide",
       },
       {
         keyword: "london travel tips first time visitors",
-        longtails: ["things to know before going to london", "london travel tips for americans", "london travel mistakes to avoid"],
+        longtails: [
+          "things to know before going to london",
+          "london travel tips for americans",
+          "london travel mistakes to avoid",
+        ],
         questions: ["What should first-time visitors know about London?", "What mistakes do tourists make in London?"],
         pageType: "guide",
       },
       {
         keyword: "london on a budget",
-        longtails: ["cheap and free things to do in london", "how to visit london on a budget", "london budget travel tips"],
+        longtails: [
+          "cheap and free things to do in london",
+          "how to visit london on a budget",
+          "london budget travel tips",
+        ],
         questions: ["How can I visit London on a budget?", "What free things can I do in London?"],
         pageType: "guide",
       },
       // ─── Areas & Stays ────────────────────────────────────────────
       {
         keyword: "best areas to stay in london for tourists",
-        longtails: ["where to stay in london first time", "best area to stay in london with kids", "best neighborhoods in london for tourists"],
-        questions: ["Where should I stay in London as a tourist?", "What are the best areas to stay in London with family?"],
+        longtails: [
+          "where to stay in london first time",
+          "best area to stay in london with kids",
+          "best neighborhoods in london for tourists",
+        ],
+        questions: [
+          "Where should I stay in London as a tourist?",
+          "What are the best areas to stay in London with family?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "best budget hotels in central london",
-        longtails: ["family friendly hotels in central london", "cheap hotels near london attractions", "best value hotels london zone 1"],
-        questions: ["What are the best budget hotels in central London?", "Which family-friendly hotels are in central London?"],
+        longtails: [
+          "family friendly hotels in central london",
+          "cheap hotels near london attractions",
+          "best value hotels london zone 1",
+        ],
+        questions: [
+          "What are the best budget hotels in central London?",
+          "Which family-friendly hotels are in central London?",
+        ],
         pageType: "list",
       },
       {
         keyword: "best day trips from london by train",
-        longtails: ["london to stonehenge day trip tour", "day trips from london to bath and cotswolds", "best day trips from london in summer"],
+        longtails: [
+          "london to stonehenge day trip tour",
+          "day trips from london to bath and cotswolds",
+          "best day trips from london in summer",
+        ],
         questions: ["What are the best day trips from London by train?", "How do I get from London to Stonehenge?"],
         pageType: "listicle",
       },
       {
         keyword: "coolest neighborhoods in london",
-        longtails: ["best london neighborhoods for nightlife and bars", "trendy areas in london to explore", "london hidden gem neighborhoods"],
+        longtails: [
+          "best london neighborhoods for nightlife and bars",
+          "trendy areas in london to explore",
+          "london hidden gem neighborhoods",
+        ],
         questions: ["What are the coolest neighbourhoods in London?", "Which London areas are best for nightlife?"],
         pageType: "guide",
       },
       // ─── Themes ───────────────────────────────────────────────────
       {
         keyword: "best restaurants in london for first time visitors",
-        longtails: ["where to eat in london on a budget", "best restaurants in london for couples", "best restaurants soho covent garden"],
-        questions: ["Where should first-time visitors eat in London?", "What are the best cheap restaurants in London?"],
+        longtails: [
+          "where to eat in london on a budget",
+          "best restaurants in london for couples",
+          "best restaurants soho covent garden",
+        ],
+        questions: [
+          "Where should first-time visitors eat in London?",
+          "What are the best cheap restaurants in London?",
+        ],
         pageType: "listicle",
       },
       {
         keyword: "london nightlife guide for tourists",
-        longtails: ["best traditional pubs in london for real ale", "free things to do in london after dark", "best rooftop bars london"],
-        questions: ["What is the nightlife like in London for tourists?", "What are the best traditional pubs in London?"],
+        longtails: [
+          "best traditional pubs in london for real ale",
+          "free things to do in london after dark",
+          "best rooftop bars london",
+        ],
+        questions: [
+          "What is the nightlife like in London for tourists?",
+          "What are the best traditional pubs in London?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "best places to shop in london",
-        longtails: ["oxford street vs regent street which is better for shopping", "best markets in london", "london shopping guide for tourists"],
-        questions: ["What are the best shopping areas in London?", "Is Oxford Street or Regent Street better for shopping?"],
+        longtails: [
+          "oxford street vs regent street which is better for shopping",
+          "best markets in london",
+          "london shopping guide for tourists",
+        ],
+        questions: [
+          "What are the best shopping areas in London?",
+          "Is Oxford Street or Regent Street better for shopping?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "free things to do in london",
-        longtails: ["free museums in london list", "free things to do in london after dark", "free walking tours london"],
+        longtails: [
+          "free museums in london list",
+          "free things to do in london after dark",
+          "free walking tours london",
+        ],
         questions: ["What free things can I do in London?", "Which museums in London are free?"],
         pageType: "listicle",
       },
@@ -283,57 +402,103 @@ Always respond with valid JSON.`,
       },
       {
         keyword: "romantic things to do in london for couples",
-        longtails: ["most romantic hotels in london for couples", "romantic weekend in london itinerary", "romantic restaurants london"],
-        questions: ["What are the most romantic things to do in London?", "What are the best romantic hotels in London?"],
+        longtails: [
+          "most romantic hotels in london for couples",
+          "romantic weekend in london itinerary",
+          "romantic restaurants london",
+        ],
+        questions: [
+          "What are the most romantic things to do in London?",
+          "What are the best romantic hotels in London?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "solo travel london tips",
-        longtails: ["solo london itinerary 3 days", "is london safe for solo female travellers at night", "best hostels for solo travellers london"],
+        longtails: [
+          "solo london itinerary 3 days",
+          "is london safe for solo female travellers at night",
+          "best hostels for solo travellers london",
+        ],
         questions: ["Is London safe for solo female travellers?", "What is a good solo travel itinerary for London?"],
         pageType: "guide",
       },
       {
         keyword: "things to do in london at christmas",
-        longtails: ["best christmas markets in london", "london christmas lights guide", "winter wonderland london tips"],
-        questions: ["What are the best things to do in London at Christmas?", "Where are the best Christmas markets in London?"],
+        longtails: [
+          "best christmas markets in london",
+          "london christmas lights guide",
+          "winter wonderland london tips",
+        ],
+        questions: [
+          "What are the best things to do in London at Christmas?",
+          "Where are the best Christmas markets in London?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "things to do in london in summer",
         longtails: ["outdoor things to do in london in summer", "london parks in summer guide", "summer events london"],
-        questions: ["What are the best things to do in London in summer?", "What outdoor activities are there in London?"],
+        questions: [
+          "What are the best things to do in London in summer?",
+          "What outdoor activities are there in London?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "london oyster card vs travelcard",
-        longtails: ["london oyster card vs travelcard which is cheaper", "how to use oyster card london", "london transport tips for tourists"],
+        longtails: [
+          "london oyster card vs travelcard which is cheaper",
+          "how to use oyster card london",
+          "london transport tips for tourists",
+        ],
         questions: ["Is Oyster Card or Travelcard better for tourists?", "How does the Oyster Card work in London?"],
         pageType: "comparison",
       },
       {
         keyword: "best afternoon tea in london",
-        longtails: ["afternoon tea at the ritz london", "best afternoon tea with champagne london", "themed afternoon tea london"],
+        longtails: [
+          "afternoon tea at the ritz london",
+          "best afternoon tea with champagne london",
+          "themed afternoon tea london",
+        ],
         questions: ["Where is the best afternoon tea in London?", "How much does afternoon tea cost at The Ritz?"],
         pageType: "list",
       },
       // ─── Niche (20% of content mix) ───────────────────────────────
       {
         keyword: "halal restaurants in London",
-        longtails: ["best halal fine dining London", "halal restaurants Knightsbridge Mayfair", "halal steak restaurants London"],
-        questions: ["Where are the best halal restaurants in London?", "Which Michelin restaurants in London serve halal food?"],
+        longtails: [
+          "best halal fine dining London",
+          "halal restaurants Knightsbridge Mayfair",
+          "halal steak restaurants London",
+        ],
+        questions: [
+          "Where are the best halal restaurants in London?",
+          "Which Michelin restaurants in London serve halal food?",
+        ],
         pageType: "list",
       },
       {
         keyword: "Arab friendly hotels in London",
-        longtails: ["hotels with Arabic speaking staff London", "halal friendly hotels London", "best hotels for Gulf tourists London"],
-        questions: ["Which London hotels cater to Arab guests?", "What hotels in London have Arabic-speaking concierge?"],
+        longtails: [
+          "hotels with Arabic speaking staff London",
+          "halal friendly hotels London",
+          "best hotels for Gulf tourists London",
+        ],
+        questions: [
+          "Which London hotels cater to Arab guests?",
+          "What hotels in London have Arabic-speaking concierge?",
+        ],
         pageType: "guide",
       },
       {
         keyword: "halal afternoon tea London",
         longtails: ["halal afternoon tea Knightsbridge", "halal high tea London", "alcohol free afternoon tea London"],
-        questions: ["Where can I find halal afternoon tea in London?", "Which London hotels offer halal afternoon tea?"],
+        questions: [
+          "Where can I find halal afternoon tea in London?",
+          "Which London hotels offer halal afternoon tea?",
+        ],
         pageType: "list",
       },
       {
@@ -351,7 +516,10 @@ Always respond with valid JSON.`,
       {
         keyword: "mosques near London tourist areas",
         longtails: ["prayer rooms central London", "mosques near Oxford Street", "Friday prayer London tourist areas"],
-        questions: ["Where are the closest mosques to London tourist areas?", "Are there prayer rooms in central London?"],
+        questions: [
+          "Where are the closest mosques to London tourist areas?",
+          "Are there prayer rooms in central London?",
+        ],
         pageType: "guide",
       },
     ],
@@ -399,14 +567,7 @@ Always respond with valid JSON.`,
         pageType: "listicle",
       },
     ],
-    affiliateCategories: [
-      "hotel",
-      "restaurant",
-      "activity",
-      "tickets",
-      "shopping",
-      "transport",
-    ],
+    affiliateCategories: ["hotel", "restaurant", "activity", "tickets", "shopping", "transport"],
     primaryKeywordsEN: [
       // General (80%) — high-volume travel queries
       "things to do in london",
@@ -429,12 +590,7 @@ Always respond with valid JSON.`,
       "arab friendly hotels london",
       "halal afternoon tea london",
     ],
-    primaryKeywordsAR: [
-      "السياحة في لندن",
-      "أفضل فنادق لندن",
-      "أماكن سياحية في لندن",
-      "برنامج سياحي لندن",
-    ],
+    primaryKeywordsAR: ["السياحة في لندن", "أفضل فنادق لندن", "أماكن سياحية في لندن", "برنامج سياحي لندن"],
     categoryName: { en: "London Guide", ar: "دليل لندن" },
     authors: [
       { name: "Khaled Aun", role: "Founder", url: "/about" },
@@ -459,8 +615,7 @@ Always respond with valid JSON.`,
     currency: "USD",
     primaryColor: "#0891B2",
     secondaryColor: "#06B6D4",
-    systemPromptEN:
-      `You are a senior luxury travel content writer for Arabaldives, an Arabic-first premium platform for Arab travelers visiting the Maldives. You specialize in overwater villas, halal resorts, diving, and island luxury.
+    systemPromptEN: `You are a senior luxury travel content writer for Arabaldives, an Arabic-first premium platform for Arab travelers visiting the Maldives. You specialize in overwater villas, halal resorts, diving, and island luxury.
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
@@ -490,8 +645,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة عربالديف، منصة عربية متميزة للمسافرين العرب الذين يزورون المالديف. تتخصص في الفيلات فوق الماء والمنتجعات الحلال والغوص والتجارب الجزرية الفاخرة.
+    systemPromptAR: `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة عربالديف، منصة عربية متميزة للمسافرين العرب الذين يزورون المالديف. تتخصص في الفيلات فوق الماء والمنتجعات الحلال والغوص والتجارب الجزرية الفاخرة.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
@@ -547,155 +701,75 @@ Always respond with valid JSON.`,
           "whale shark snorkeling Maldives",
           "house reef snorkeling Maldives resorts",
         ],
-        questions: [
-          "Can beginners dive in the Maldives?",
-          "Which resorts have the best house reefs?",
-        ],
+        questions: ["Can beginners dive in the Maldives?", "Which resorts have the best house reefs?"],
         pageType: "guide",
       },
       {
         keyword: "Maldives honeymoon planning guide complete",
-        longtails: [
-          "romantic Maldives resorts",
-          "private island honeymoon Maldives",
-          "sunset cruise Maldives couples",
-        ],
-        questions: [
-          "How to plan the perfect Maldives honeymoon?",
-          "What romantic experiences are available?",
-        ],
+        longtails: ["romantic Maldives resorts", "private island honeymoon Maldives", "sunset cruise Maldives couples"],
+        questions: ["How to plan the perfect Maldives honeymoon?", "What romantic experiences are available?"],
         pageType: "guide",
       },
       {
         keyword: "Maldives water sports and island activities",
-        longtails: [
-          "jet skiing Maldives",
-          "parasailing Maldives resorts",
-          "fishing trips Maldives",
-        ],
-        questions: [
-          "What water sports are available in the Maldives?",
-          "Can you do deep sea fishing in the Maldives?",
-        ],
+        longtails: ["jet skiing Maldives", "parasailing Maldives resorts", "fishing trips Maldives"],
+        questions: ["What water sports are available in the Maldives?", "Can you do deep sea fishing in the Maldives?"],
         pageType: "list",
       },
       {
         keyword: "Maldives spa and wellness retreat experiences",
-        longtails: [
-          "overwater spa Maldives",
-          "Ayurvedic treatments Maldives",
-          "couples spa Maldives luxury",
-        ],
-        questions: [
-          "Which Maldives resorts have the best spas?",
-          "What unique spa treatments are available?",
-        ],
+        longtails: ["overwater spa Maldives", "Ayurvedic treatments Maldives", "couples spa Maldives luxury"],
+        questions: ["Which Maldives resorts have the best spas?", "What unique spa treatments are available?"],
         pageType: "guide",
       },
       {
         keyword: "how to choose the right Maldives resort atoll",
-        longtails: [
-          "North Male Atoll resorts",
-          "South Ari Atoll best resorts",
-          "Baa Atoll UNESCO biosphere",
-        ],
-        questions: [
-          "Which Maldives atoll is best for families?",
-          "How do seaplane transfers work in Maldives?",
-        ],
+        longtails: ["North Male Atoll resorts", "South Ari Atoll best resorts", "Baa Atoll UNESCO biosphere"],
+        questions: ["Which Maldives atoll is best for families?", "How do seaplane transfers work in Maldives?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
         keyword: "أفضل فيلات فوق الماء في المالديف للعائلات العربية 2026",
-        longtails: [
-          "منتجعات حلال المالديف",
-          "فيلات خاصة بمسبح المالديف",
-          "أجنحة عائلية فوق الماء المالديف",
-        ],
-        questions: [
-          "ما هي أفضل المنتجعات الحلال في المالديف؟",
-          "أي فيلات فوق الماء مناسبة للعائلات؟",
-        ],
+        longtails: ["منتجعات حلال المالديف", "فيلات خاصة بمسبح المالديف", "أجنحة عائلية فوق الماء المالديف"],
+        questions: ["ما هي أفضل المنتجعات الحلال في المالديف؟", "أي فيلات فوق الماء مناسبة للعائلات؟"],
         pageType: "guide",
       },
       {
         keyword: "مقارنة منتجعات المالديف الفاخرة الشاملة",
-        longtails: [
-          "أفضل منتجعات شاملة المالديف",
-          "منتجعات شهر عسل المالديف",
-          "منتجعات للكبار فقط المالديف",
-        ],
-        questions: [
-          "أي منتجع شامل في المالديف يقدم أفضل قيمة؟",
-          "ما هو أفضل وقت لزيارة المالديف؟",
-        ],
+        longtails: ["أفضل منتجعات شاملة المالديف", "منتجعات شهر عسل المالديف", "منتجعات للكبار فقط المالديف"],
+        questions: ["أي منتجع شامل في المالديف يقدم أفضل قيمة؟", "ما هو أفضل وقت لزيارة المالديف؟"],
         pageType: "list",
       },
       {
         keyword: "دليل الغوص والسنوركل في المالديف للمبتدئين",
-        longtails: [
-          "أفضل مواقع غوص المالديف",
-          "سنوركل مع قرش الحوت المالديف",
-          "شعاب مرجانية المالديف",
-        ],
-        questions: [
-          "هل يمكن للمبتدئين الغوص في المالديف؟",
-          "أي منتجعات لديها أفضل شعاب مرجانية؟",
-        ],
+        longtails: ["أفضل مواقع غوص المالديف", "سنوركل مع قرش الحوت المالديف", "شعاب مرجانية المالديف"],
+        questions: ["هل يمكن للمبتدئين الغوص في المالديف؟", "أي منتجعات لديها أفضل شعاب مرجانية؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل شامل لشهر العسل في المالديف",
-        longtails: [
-          "منتجعات رومانسية المالديف",
-          "جزيرة خاصة شهر عسل",
-          "رحلة غروب للأزواج المالديف",
-        ],
-        questions: [
-          "كيف تخطط لشهر عسل مثالي في المالديف؟",
-          "ما التجارب الرومانسية المتاحة؟",
-        ],
+        longtails: ["منتجعات رومانسية المالديف", "جزيرة خاصة شهر عسل", "رحلة غروب للأزواج المالديف"],
+        questions: ["كيف تخطط لشهر عسل مثالي في المالديف؟", "ما التجارب الرومانسية المتاحة؟"],
         pageType: "guide",
       },
       {
         keyword: "الرياضات المائية والأنشطة في جزر المالديف",
-        longtails: [
-          "جت سكي المالديف",
-          "باراسيلينغ المالديف",
-          "رحلات صيد المالديف",
-        ],
-        questions: [
-          "ما الرياضات المائية المتاحة في المالديف؟",
-          "هل يمكن الصيد في أعماق البحر؟",
-        ],
+        longtails: ["جت سكي المالديف", "باراسيلينغ المالديف", "رحلات صيد المالديف"],
+        questions: ["ما الرياضات المائية المتاحة في المالديف؟", "هل يمكن الصيد في أعماق البحر؟"],
         pageType: "list",
       },
       {
         keyword: "تجارب السبا والاستجمام في المالديف",
-        longtails: [
-          "سبا فوق الماء المالديف",
-          "علاجات أيورفيدا المالديف",
-          "سبا للأزواج المالديف",
-        ],
-        questions: [
-          "أي منتجعات المالديف لديها أفضل سبا؟",
-          "ما العلاجات الفريدة المتاحة؟",
-        ],
+        longtails: ["سبا فوق الماء المالديف", "علاجات أيورفيدا المالديف", "سبا للأزواج المالديف"],
+        questions: ["أي منتجعات المالديف لديها أفضل سبا؟", "ما العلاجات الفريدة المتاحة؟"],
         pageType: "guide",
       },
       {
         keyword: "كيف تختار الجزيرة المناسبة في المالديف",
-        longtails: [
-          "منتجعات أتول نورث مالي",
-          "أفضل منتجعات جنوب أري أتول",
-          "محمية بيئية أتول با",
-        ],
-        questions: [
-          "أي أتول في المالديف الأفضل للعائلات؟",
-          "كيف تعمل رحلات الطائرة المائية؟",
-        ],
+        longtails: ["منتجعات أتول نورث مالي", "أفضل منتجعات جنوب أري أتول", "محمية بيئية أتول با"],
+        questions: ["أي أتول في المالديف الأفضل للعائلات؟", "كيف تعمل رحلات الطائرة المائية؟"],
         pageType: "guide",
       },
     ],
@@ -706,12 +780,7 @@ Always respond with valid JSON.`,
       "overwater villas maldives",
       "maldives family holiday",
     ],
-    primaryKeywordsAR: [
-      "منتجعات المالديف للعرب",
-      "المالديف حلال",
-      "فيلات فوق الماء",
-      "عطلة عائلية المالديف",
-    ],
+    primaryKeywordsAR: ["منتجعات المالديف للعرب", "المالديف حلال", "فيلات فوق الماء", "عطلة عائلية المالديف"],
     categoryName: { en: "Maldives Guide", ar: "دليل المالديف" },
     authors: [
       { name: "Khaled Aun", role: "Founder", url: "/about" },
@@ -736,8 +805,7 @@ Always respond with valid JSON.`,
     currency: "EUR",
     primaryColor: "#1E3A5F",
     secondaryColor: "#D4AF37",
-    systemPromptEN:
-      `You are a senior luxury travel content writer for Yalla Riviera, a premium platform for Arab travelers exploring the French Riviera (Côte d'Azur). You specialize in palace hotels, Michelin dining, yacht charters, beach clubs, and Monaco luxury from Saint-Tropez to Monte Carlo.
+    systemPromptEN: `You are a senior luxury travel content writer for Yalla Riviera, a premium platform for Arab travelers exploring the French Riviera (Côte d'Azur). You specialize in palace hotels, Michelin dining, yacht charters, beach clubs, and Monaco luxury from Saint-Tropez to Monte Carlo.
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
@@ -767,8 +835,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا ريفييرا، منصة متميزة للمسافرين العرب الذين يستكشفون الريفييرا الفرنسية (كوت دازور). تتخصص في الفنادق الفخمة ومطاعم ميشلان وتأجير اليخوت والنوادي الشاطئية من سان تروبيه إلى موناكو.
+    systemPromptAR: `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا ريفييرا، منصة متميزة للمسافرين العرب الذين يستكشفون الريفييرا الفرنسية (كوت دازور). تتخصص في الفنادق الفخمة ومطاعم ميشلان وتأجير اليخوت والنوادي الشاطئية من سان تروبيه إلى موناكو.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
@@ -819,11 +886,7 @@ Always respond with valid JSON.`,
       },
       {
         keyword: "yacht charter French Riviera luxury guide",
-        longtails: [
-          "superyacht rental Saint-Tropez",
-          "day yacht charter Monaco",
-          "Cannes yacht week guide",
-        ],
+        longtails: ["superyacht rental Saint-Tropez", "day yacht charter Monaco", "Cannes yacht week guide"],
         questions: [
           "How much does a yacht charter cost on the French Riviera?",
           "Best yacht charter companies in Monaco?",
@@ -876,77 +939,39 @@ Always respond with valid JSON.`,
           "luxury hotels during Cannes Film Festival",
           "exclusive parties Cannes Festival",
         ],
-        questions: [
-          "Can tourists attend the Cannes Film Festival?",
-          "Best hotels near the Palais des Festivals?",
-        ],
+        questions: ["Can tourists attend the Cannes Film Festival?", "Best hotels near the Palais des Festivals?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
         keyword: "أفضل فنادق الريفييرا الفرنسية الفاخرة 2026",
-        longtails: [
-          "فنادق فاخرة نيس بروميناد دي زونغليه",
-          "منتجعات كاب فيرا الفاخرة",
-          "فنادق خمس نجوم كان كروازيت",
-        ],
-        questions: [
-          "أي فنادق الريفييرا الفرنسية تقدم خدمة كونسيرج بالعربية؟",
-          "ما أكثر الفنادق حصرية في سان تروبيه؟",
-        ],
+        longtails: ["فنادق فاخرة نيس بروميناد دي زونغليه", "منتجعات كاب فيرا الفاخرة", "فنادق خمس نجوم كان كروازيت"],
+        questions: ["أي فنادق الريفييرا الفرنسية تقدم خدمة كونسيرج بالعربية؟", "ما أكثر الفنادق حصرية في سان تروبيه؟"],
         pageType: "guide",
       },
       {
         keyword: "مطاعم ميشلان الريفييرا الفرنسية دليل المطاعم",
-        longtails: [
-          "مطاعم ميشلان موناكو مونت كارلو",
-          "أفضل مطاعم حلال نيس",
-          "مطاعم فاخرة كان على البحر",
-        ],
-        questions: [
-          "هل توجد خيارات حلال للمطاعم الفاخرة في الريفييرا الفرنسية؟",
-          "ما أفضل مطاعم ميشلان في موناكو؟",
-        ],
+        longtails: ["مطاعم ميشلان موناكو مونت كارلو", "أفضل مطاعم حلال نيس", "مطاعم فاخرة كان على البحر"],
+        questions: ["هل توجد خيارات حلال للمطاعم الفاخرة في الريفييرا الفرنسية؟", "ما أفضل مطاعم ميشلان في موناكو؟"],
         pageType: "list",
       },
       {
         keyword: "استئجار يخوت الريفييرا الفرنسية دليل فاخر",
-        longtails: [
-          "تأجير يخت فاخر سان تروبيه",
-          "رحلة يخت يومية موناكو",
-          "دليل أسبوع اليخوت كان",
-        ],
-        questions: [
-          "كم تكلفة استئجار يخت في الريفييرا الفرنسية؟",
-          "أفضل شركات تأجير اليخوت في موناكو؟",
-        ],
+        longtails: ["تأجير يخت فاخر سان تروبيه", "رحلة يخت يومية موناكو", "دليل أسبوع اليخوت كان"],
+        questions: ["كم تكلفة استئجار يخت في الريفييرا الفرنسية؟", "أفضل شركات تأجير اليخوت في موناكو؟"],
         pageType: "guide",
       },
       {
         keyword: "نوادي شاطئية حصرية الريفييرا الفرنسية 2026",
-        longtails: [
-          "أفضل نوادي شاطئية سان تروبيه بامبلون",
-          "نوادي شاطئية خاصة نيس",
-          "نوادي شاطئية فاخرة كان",
-        ],
-        questions: [
-          "ما أكثر النوادي الشاطئية حصرية في سان تروبيه؟",
-          "هل يجب حجز النوادي الشاطئية مسبقاً؟",
-        ],
+        longtails: ["أفضل نوادي شاطئية سان تروبيه بامبلون", "نوادي شاطئية خاصة نيس", "نوادي شاطئية فاخرة كان"],
+        questions: ["ما أكثر النوادي الشاطئية حصرية في سان تروبيه؟", "هل يجب حجز النوادي الشاطئية مسبقاً؟"],
         pageType: "list",
       },
       {
         keyword: "سباق جائزة موناكو الكبرى تجربة فاخرة",
-        longtails: [
-          "باقات ضيافة VIP سباق موناكو",
-          "أفضل فنادق عطلة سباق موناكو",
-          "مشاهدة السباق من اليخت موناكو",
-        ],
-        questions: [
-          "كيف تعيش تجربة سباق موناكو الكبرى بفخامة؟",
-          "أفضل أماكن مشاهدة سباق موناكو؟",
-        ],
+        longtails: ["باقات ضيافة VIP سباق موناكو", "أفضل فنادق عطلة سباق موناكو", "مشاهدة السباق من اليخت موناكو"],
+        questions: ["كيف تعيش تجربة سباق موناكو الكبرى بفخامة؟", "أفضل أماكن مشاهدة سباق موناكو؟"],
         pageType: "guide",
       },
       {
@@ -956,34 +981,17 @@ Always respond with valid JSON.`,
           "بوتيكات فاخرة موناكو الدائرة الذهبية",
           "محلات فاخرة المدينة القديمة نيس",
         ],
-        questions: [
-          "أين تجد التسوق الفاخر في الريفييرا الفرنسية؟",
-          "هل التسوق معفى من الضرائب للسياح في فرنسا؟",
-        ],
+        questions: ["أين تجد التسوق الفاخر في الريفييرا الفرنسية؟", "هل التسوق معفى من الضرائب للسياح في فرنسا؟"],
         pageType: "guide",
       },
       {
         keyword: "مهرجان كان السينمائي دليل السفر الفاخر",
-        longtails: [
-          "دخول VIP مهرجان كان السينمائي",
-          "فنادق فاخرة أثناء مهرجان كان",
-          "حفلات حصرية مهرجان كان",
-        ],
-        questions: [
-          "هل يمكن للسياح حضور مهرجان كان السينمائي؟",
-          "أفضل الفنادق بالقرب من قصر المهرجانات؟",
-        ],
+        longtails: ["دخول VIP مهرجان كان السينمائي", "فنادق فاخرة أثناء مهرجان كان", "حفلات حصرية مهرجان كان"],
+        questions: ["هل يمكن للسياح حضور مهرجان كان السينمائي؟", "أفضل الفنادق بالقرب من قصر المهرجانات؟"],
         pageType: "guide",
       },
     ],
-    affiliateCategories: [
-      "hotel",
-      "restaurant",
-      "activity",
-      "yacht",
-      "shopping",
-      "transport",
-    ],
+    affiliateCategories: ["hotel", "restaurant", "activity", "yacht", "shopping", "transport"],
     primaryKeywordsEN: [
       "french riviera luxury guide",
       "best hotels cote d'azur",
@@ -1020,8 +1028,7 @@ Always respond with valid JSON.`,
     currency: "TRY",
     primaryColor: "#DC2626",
     secondaryColor: "#F97316",
-    systemPromptEN:
-      `You are a senior luxury travel content writer for Yalla Istanbul, a premium platform for Arab travelers visiting Istanbul and Turkey. You specialize in Ottoman heritage, Bosphorus luxury, bazaar culture, Turkish cuisine, hammam experiences, and boutique hotels.
+    systemPromptEN: `You are a senior luxury travel content writer for Yalla Istanbul, a premium platform for Arab travelers visiting Istanbul and Turkey. You specialize in Ottoman heritage, Bosphorus luxury, bazaar culture, Turkish cuisine, hammam experiences, and boutique hotels.
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
@@ -1051,8 +1058,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا إسطنبول، منصة متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. تتخصص في التراث العثماني والفخامة على البوسفور وثقافة البازارات والمطبخ التركي والحمامات والفنادق البوتيك.
+    systemPromptAR: `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا إسطنبول، منصة متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. تتخصص في التراث العثماني والفخامة على البوسفور وثقافة البازارات والمطبخ التركي والحمامات والفنادق البوتيك.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
@@ -1077,11 +1083,7 @@ Always respond with valid JSON.`,
     topicsEN: [
       {
         keyword: "best luxury hotels Istanbul Bosphorus view 2026",
-        longtails: [
-          "Bosphorus view hotels Istanbul",
-          "Sultanahmet luxury hotels",
-          "boutique hotels Beyoglu Istanbul",
-        ],
+        longtails: ["Bosphorus view hotels Istanbul", "Sultanahmet luxury hotels", "boutique hotels Beyoglu Istanbul"],
         questions: [
           "Which Istanbul hotels have the best Bosphorus views?",
           "Is Sultanahmet or Beyoglu better for tourists?",
@@ -1095,10 +1097,7 @@ Always respond with valid JSON.`,
           "Spice Bazaar best buys",
           "Istanbul bazaar bargaining guide",
         ],
-        questions: [
-          "How to navigate the Grand Bazaar?",
-          "What are the best things to buy at the Spice Market?",
-        ],
+        questions: ["How to navigate the Grand Bazaar?", "What are the best things to buy at the Spice Market?"],
         pageType: "guide",
       },
       {
@@ -1108,23 +1107,13 @@ Always respond with valid JSON.`,
           "rooftop dining Istanbul Bosphorus",
           "Turkish breakfast Istanbul guide",
         ],
-        questions: [
-          "What are the must-try dishes in Istanbul?",
-          "Best places for Turkish breakfast?",
-        ],
+        questions: ["What are the must-try dishes in Istanbul?", "Best places for Turkish breakfast?"],
         pageType: "list",
       },
       {
         keyword: "Istanbul historical sites and mosque guide",
-        longtails: [
-          "Hagia Sophia visiting guide",
-          "Blue Mosque Istanbul tips",
-          "Topkapi Palace tour guide",
-        ],
-        questions: [
-          "What is the best time to visit Hagia Sophia?",
-          "Can tourists visit the Blue Mosque?",
-        ],
+        longtails: ["Hagia Sophia visiting guide", "Blue Mosque Istanbul tips", "Topkapi Palace tour guide"],
+        questions: ["What is the best time to visit Hagia Sophia?", "Can tourists visit the Blue Mosque?"],
         pageType: "guide",
       },
       {
@@ -1134,129 +1123,63 @@ Always respond with valid JSON.`,
           "sunset cruise Istanbul dinner",
           "Istanbul boat tour Asian side",
         ],
-        questions: [
-          "What are the best Bosphorus cruise options?",
-          "How long is a typical Bosphorus cruise?",
-        ],
+        questions: ["What are the best Bosphorus cruise options?", "How long is a typical Bosphorus cruise?"],
         pageType: "guide",
       },
       {
         keyword: "Istanbul spa and Turkish hammam experiences",
-        longtails: [
-          "best hammam Istanbul traditional",
-          "luxury spa hotels Istanbul",
-          "Turkish bath experience guide",
-        ],
-        questions: [
-          "What are the best hammams in Istanbul?",
-          "What to expect at a Turkish bath?",
-        ],
+        longtails: ["best hammam Istanbul traditional", "luxury spa hotels Istanbul", "Turkish bath experience guide"],
+        questions: ["What are the best hammams in Istanbul?", "What to expect at a Turkish bath?"],
         pageType: "list",
       },
       {
         keyword: "Istanbul shopping guide luxury brands and carpets",
-        longtails: [
-          "Istinye Park Istanbul luxury",
-          "Nişantaşı shopping Istanbul",
-          "Turkish carpet buying guide",
-        ],
-        questions: [
-          "Where to buy luxury brands in Istanbul?",
-          "How to choose an authentic Turkish carpet?",
-        ],
+        longtails: ["Istinye Park Istanbul luxury", "Nişantaşı shopping Istanbul", "Turkish carpet buying guide"],
+        questions: ["Where to buy luxury brands in Istanbul?", "How to choose an authentic Turkish carpet?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
         keyword: "أفضل فنادق إسطنبول الفاخرة بإطلالة على البوسفور 2026",
-        longtails: [
-          "فنادق إطلالة البوسفور إسطنبول",
-          "فنادق فاخرة السلطان أحمد",
-          "فنادق بوتيك بيوغلو إسطنبول",
-        ],
-        questions: [
-          "أي فنادق إسطنبول لديها أفضل إطلالة على البوسفور؟",
-          "هل السلطان أحمد أو بيوغلو أفضل للسياح؟",
-        ],
+        longtails: ["فنادق إطلالة البوسفور إسطنبول", "فنادق فاخرة السلطان أحمد", "فنادق بوتيك بيوغلو إسطنبول"],
+        questions: ["أي فنادق إسطنبول لديها أفضل إطلالة على البوسفور؟", "هل السلطان أحمد أو بيوغلو أفضل للسياح؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل البازار الكبير وسوق التوابل في إسطنبول",
-        longtails: [
-          "نصائح تسوق البازار الكبير",
-          "أفضل مشتريات سوق التوابل",
-          "دليل المساومة في بازارات إسطنبول",
-        ],
-        questions: [
-          "كيف تتنقل في البازار الكبير؟",
-          "ما أفضل المشتريات من سوق التوابل؟",
-        ],
+        longtails: ["نصائح تسوق البازار الكبير", "أفضل مشتريات سوق التوابل", "دليل المساومة في بازارات إسطنبول"],
+        questions: ["كيف تتنقل في البازار الكبير؟", "ما أفضل المشتريات من سوق التوابل؟"],
         pageType: "guide",
       },
       {
         keyword: "أفضل المطاعم والأكل التركي في إسطنبول",
-        longtails: [
-          "أفضل مطاعم كباب إسطنبول",
-          "مطاعم سطح البوسفور إسطنبول",
-          "دليل الفطور التركي إسطنبول",
-        ],
-        questions: [
-          "ما الأطباق الضرورية في إسطنبول؟",
-          "أفضل أماكن الفطور التركي؟",
-        ],
+        longtails: ["أفضل مطاعم كباب إسطنبول", "مطاعم سطح البوسفور إسطنبول", "دليل الفطور التركي إسطنبول"],
+        questions: ["ما الأطباق الضرورية في إسطنبول؟", "أفضل أماكن الفطور التركي؟"],
         pageType: "list",
       },
       {
         keyword: "دليل المعالم التاريخية والمساجد في إسطنبول",
-        longtails: [
-          "دليل زيارة آيا صوفيا",
-          "نصائح زيارة المسجد الأزرق",
-          "دليل جولة قصر توبكابي",
-        ],
-        questions: [
-          "ما أفضل وقت لزيارة آيا صوفيا؟",
-          "هل يمكن للسياح زيارة المسجد الأزرق؟",
-        ],
+        longtails: ["دليل زيارة آيا صوفيا", "نصائح زيارة المسجد الأزرق", "دليل جولة قصر توبكابي"],
+        questions: ["ما أفضل وقت لزيارة آيا صوفيا؟", "هل يمكن للسياح زيارة المسجد الأزرق؟"],
         pageType: "guide",
       },
       {
         keyword: "رحلة البوسفور في إسطنبول الخيارات الفاخرة",
-        longtails: [
-          "رحلة بوسفور خاصة إسطنبول",
-          "رحلة غروب عشاء إسطنبول",
-          "جولة بحرية الجانب الآسيوي",
-        ],
-        questions: [
-          "ما أفضل خيارات رحلات البوسفور؟",
-          "كم مدة رحلة البوسفور النموذجية؟",
-        ],
+        longtails: ["رحلة بوسفور خاصة إسطنبول", "رحلة غروب عشاء إسطنبول", "جولة بحرية الجانب الآسيوي"],
+        questions: ["ما أفضل خيارات رحلات البوسفور؟", "كم مدة رحلة البوسفور النموذجية؟"],
         pageType: "guide",
       },
       {
         keyword: "تجارب السبا والحمام التركي في إسطنبول",
-        longtails: [
-          "أفضل حمام تقليدي إسطنبول",
-          "فنادق سبا فاخرة إسطنبول",
-          "دليل تجربة الحمام التركي",
-        ],
-        questions: [
-          "ما أفضل الحمامات في إسطنبول؟",
-          "ماذا تتوقع في الحمام التركي؟",
-        ],
+        longtails: ["أفضل حمام تقليدي إسطنبول", "فنادق سبا فاخرة إسطنبول", "دليل تجربة الحمام التركي"],
+        questions: ["ما أفضل الحمامات في إسطنبول؟", "ماذا تتوقع في الحمام التركي؟"],
         pageType: "list",
       },
       {
         keyword: "دليل التسوق في إسطنبول الماركات الفاخرة والسجاد",
-        longtails: [
-          "إستينيا بارك إسطنبول",
-          "تسوق نيشانتاشي إسطنبول",
-          "دليل شراء السجاد التركي",
-        ],
-        questions: [
-          "أين تشتري الماركات الفاخرة في إسطنبول؟",
-          "كيف تختار سجادة تركية أصلية؟",
-        ],
+        longtails: ["إستينيا بارك إسطنبول", "تسوق نيشانتاشي إسطنبول", "دليل شراء السجاد التركي"],
+        questions: ["أين تشتري الماركات الفاخرة في إسطنبول؟", "كيف تختار سجادة تركية أصلية؟"],
         pageType: "guide",
       },
     ],
@@ -1267,12 +1190,7 @@ Always respond with valid JSON.`,
       "istanbul luxury hotels",
       "istanbul for arab travelers",
     ],
-    primaryKeywordsAR: [
-      "دليل إسطنبول للعرب",
-      "السياحة في تركيا",
-      "فنادق إسطنبول الفاخرة",
-      "إسطنبول للمسافرين العرب",
-    ],
+    primaryKeywordsAR: ["دليل إسطنبول للعرب", "السياحة في تركيا", "فنادق إسطنبول الفاخرة", "إسطنبول للمسافرين العرب"],
     categoryName: { en: "Istanbul Guide", ar: "دليل إسطنبول" },
     authors: [
       { name: "Khaled Aun", role: "Founder", url: "/about" },
@@ -1297,8 +1215,7 @@ Always respond with valid JSON.`,
     currency: "THB",
     primaryColor: "#059669",
     secondaryColor: "#D97706",
-    systemPromptEN:
-      `You are a senior luxury travel content writer for Yalla Thailand, a premium platform for Arab travelers visiting Thailand. You specialize in tropical islands, temple culture, Thai wellness and spas, halal dining, luxury beach resorts, and Chiang Mai experiences.
+    systemPromptEN: `You are a senior luxury travel content writer for Yalla Thailand, a premium platform for Arab travelers visiting Thailand. You specialize in tropical islands, temple culture, Thai wellness and spas, halal dining, luxury beach resorts, and Chiang Mai experiences.
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
@@ -1328,8 +1245,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا تايلاند، منصة متميزة للمسافرين العرب الذين يزورون تايلاند. تتخصص في الجزر الاستوائية وثقافة المعابد والسبا التايلاندي والمطاعم الحلال والمنتجعات الشاطئية وتجارب شيانغ ماي.
+    systemPromptAR: `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا تايلاند، منصة متميزة للمسافرين العرب الذين يزورون تايلاند. تتخصص في الجزر الاستوائية وثقافة المعابد والسبا التايلاندي والمطاعم الحلال والمنتجعات الشاطئية وتجارب شيانغ ماي.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
@@ -1354,80 +1270,38 @@ Always respond with valid JSON.`,
     topicsEN: [
       {
         keyword: "best luxury resorts Phuket for Arab families 2026",
-        longtails: [
-          "halal resorts Phuket Thailand",
-          "family beach resorts Phuket",
-          "private villa Phuket luxury",
-        ],
-        questions: [
-          "Which Phuket resorts offer halal food?",
-          "What are the best family resorts in Phuket?",
-        ],
+        longtails: ["halal resorts Phuket Thailand", "family beach resorts Phuket", "private villa Phuket luxury"],
+        questions: ["Which Phuket resorts offer halal food?", "What are the best family resorts in Phuket?"],
         pageType: "guide",
       },
       {
         keyword: "Bangkok luxury hotels and nightlife guide",
-        longtails: [
-          "Sukhumvit luxury hotels Bangkok",
-          "riverside hotels Bangkok best",
-          "rooftop bars Bangkok guide",
-        ],
-        questions: [
-          "Which area is best to stay in Bangkok?",
-          "What are the best rooftop bars in Bangkok?",
-        ],
+        longtails: ["Sukhumvit luxury hotels Bangkok", "riverside hotels Bangkok best", "rooftop bars Bangkok guide"],
+        questions: ["Which area is best to stay in Bangkok?", "What are the best rooftop bars in Bangkok?"],
         pageType: "guide",
       },
       {
         keyword: "Thailand island hopping guide Phi Phi Koh Samui",
-        longtails: [
-          "Phi Phi Islands day trip guide",
-          "Koh Samui luxury resorts",
-          "Krabi islands tour Thailand",
-        ],
-        questions: [
-          "How to plan island hopping in Thailand?",
-          "Which Thai island is best for couples?",
-        ],
+        longtails: ["Phi Phi Islands day trip guide", "Koh Samui luxury resorts", "Krabi islands tour Thailand"],
+        questions: ["How to plan island hopping in Thailand?", "Which Thai island is best for couples?"],
         pageType: "guide",
       },
       {
         keyword: "halal food guide Thailand Bangkok and Phuket",
-        longtails: [
-          "halal street food Bangkok",
-          "halal restaurants Phuket",
-          "Muslim-friendly dining Thailand",
-        ],
-        questions: [
-          "Is it easy to find halal food in Thailand?",
-          "Best halal restaurants in Bangkok?",
-        ],
+        longtails: ["halal street food Bangkok", "halal restaurants Phuket", "Muslim-friendly dining Thailand"],
+        questions: ["Is it easy to find halal food in Thailand?", "Best halal restaurants in Bangkok?"],
         pageType: "list",
       },
       {
         keyword: "Thailand temple tours and cultural experiences",
-        longtails: [
-          "Wat Arun visiting guide Bangkok",
-          "Chiang Mai temples tour",
-          "Grand Palace Bangkok tips",
-        ],
-        questions: [
-          "What are the must-visit temples in Thailand?",
-          "What is the dress code for Thai temples?",
-        ],
+        longtails: ["Wat Arun visiting guide Bangkok", "Chiang Mai temples tour", "Grand Palace Bangkok tips"],
+        questions: ["What are the must-visit temples in Thailand?", "What is the dress code for Thai temples?"],
         pageType: "guide",
       },
       {
         keyword: "Thailand spa and wellness retreat luxury",
-        longtails: [
-          "Thai massage luxury spa Bangkok",
-          "wellness retreats Koh Samui",
-          "detox retreat Thailand",
-        ],
-        questions: [
-          "What are the best luxury spas in Thailand?",
-          "Are Thai massage spas safe?",
-        ],
+        longtails: ["Thai massage luxury spa Bangkok", "wellness retreats Koh Samui", "detox retreat Thailand"],
+        questions: ["What are the best luxury spas in Thailand?", "Are Thai massage spas safe?"],
         pageType: "list",
       },
       {
@@ -1437,103 +1311,51 @@ Always respond with valid JSON.`,
           "hill tribe trekking Chiang Mai",
           "night bazaar Chiang Mai guide",
         ],
-        questions: [
-          "Are elephant sanctuaries in Chiang Mai ethical?",
-          "Best time to visit Chiang Mai?",
-        ],
+        questions: ["Are elephant sanctuaries in Chiang Mai ethical?", "Best time to visit Chiang Mai?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
         keyword: "أفضل منتجعات بوكيت الفاخرة للعائلات العربية 2026",
-        longtails: [
-          "منتجعات حلال بوكيت تايلاند",
-          "منتجعات شاطئية عائلية بوكيت",
-          "فيلا خاصة بوكيت فاخرة",
-        ],
-        questions: [
-          "أي منتجعات بوكيت تقدم طعام حلال؟",
-          "ما أفضل المنتجعات العائلية في بوكيت؟",
-        ],
+        longtails: ["منتجعات حلال بوكيت تايلاند", "منتجعات شاطئية عائلية بوكيت", "فيلا خاصة بوكيت فاخرة"],
+        questions: ["أي منتجعات بوكيت تقدم طعام حلال؟", "ما أفضل المنتجعات العائلية في بوكيت؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل فنادق بانكوك الفاخرة والحياة الليلية",
-        longtails: [
-          "فنادق فاخرة سوخومفيت بانكوك",
-          "أفضل فنادق على النهر بانكوك",
-          "بارات سطح بانكوك",
-        ],
-        questions: [
-          "أي منطقة أفضل للإقامة في بانكوك؟",
-          "ما أفضل بارات السطح في بانكوك؟",
-        ],
+        longtails: ["فنادق فاخرة سوخومفيت بانكوك", "أفضل فنادق على النهر بانكوك", "بارات سطح بانكوك"],
+        questions: ["أي منطقة أفضل للإقامة في بانكوك؟", "ما أفضل بارات السطح في بانكوك؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل التنقل بين جزر تايلاند في في وكوه ساموي",
-        longtails: [
-          "رحلة يومية جزر في في",
-          "منتجعات فاخرة كوه ساموي",
-          "جولة جزر كرابي تايلاند",
-        ],
-        questions: [
-          "كيف تخطط للتنقل بين الجزر في تايلاند؟",
-          "أي جزيرة تايلاندية الأفضل للأزواج؟",
-        ],
+        longtails: ["رحلة يومية جزر في في", "منتجعات فاخرة كوه ساموي", "جولة جزر كرابي تايلاند"],
+        questions: ["كيف تخطط للتنقل بين الجزر في تايلاند؟", "أي جزيرة تايلاندية الأفضل للأزواج؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل الطعام الحلال في تايلاند بانكوك وبوكيت",
-        longtails: [
-          "طعام شارع حلال بانكوك",
-          "مطاعم حلال بوكيت",
-          "مطاعم صديقة للمسلمين تايلاند",
-        ],
-        questions: [
-          "هل من السهل إيجاد طعام حلال في تايلاند؟",
-          "أفضل المطاعم الحلال في بانكوك؟",
-        ],
+        longtails: ["طعام شارع حلال بانكوك", "مطاعم حلال بوكيت", "مطاعم صديقة للمسلمين تايلاند"],
+        questions: ["هل من السهل إيجاد طعام حلال في تايلاند؟", "أفضل المطاعم الحلال في بانكوك؟"],
         pageType: "list",
       },
       {
         keyword: "جولات المعابد والتجارب الثقافية في تايلاند",
-        longtails: [
-          "دليل زيارة وات أرون بانكوك",
-          "جولة معابد شيانغ ماي",
-          "نصائح القصر الكبير بانكوك",
-        ],
-        questions: [
-          "ما المعابد الضرورية في تايلاند؟",
-          "ما قواعد اللباس في المعابد التايلاندية؟",
-        ],
+        longtails: ["دليل زيارة وات أرون بانكوك", "جولة معابد شيانغ ماي", "نصائح القصر الكبير بانكوك"],
+        questions: ["ما المعابد الضرورية في تايلاند؟", "ما قواعد اللباس في المعابد التايلاندية؟"],
         pageType: "guide",
       },
       {
         keyword: "سبا واستجمام فاخر في تايلاند",
-        longtails: [
-          "مساج تايلاندي سبا فاخر بانكوك",
-          "منتجعات استجمام كوه ساموي",
-          "ريتريت ديتوكس تايلاند",
-        ],
-        questions: [
-          "ما أفضل مراكز السبا الفاخرة في تايلاند؟",
-          "هل مراكز المساج التايلاندي آمنة؟",
-        ],
+        longtails: ["مساج تايلاندي سبا فاخر بانكوك", "منتجعات استجمام كوه ساموي", "ريتريت ديتوكس تايلاند"],
+        questions: ["ما أفضل مراكز السبا الفاخرة في تايلاند؟", "هل مراكز المساج التايلاندي آمنة؟"],
         pageType: "list",
       },
       {
         keyword: "دليل شيانغ ماي القبائل الجبلية ومحميات الأفيال",
-        longtails: [
-          "محمية أفيال أخلاقية شيانغ ماي",
-          "رحلة قبائل جبلية شيانغ ماي",
-          "بازار ليلي شيانغ ماي",
-        ],
-        questions: [
-          "هل محميات الأفيال في شيانغ ماي أخلاقية؟",
-          "أفضل وقت لزيارة شيانغ ماي؟",
-        ],
+        longtails: ["محمية أفيال أخلاقية شيانغ ماي", "رحلة قبائل جبلية شيانغ ماي", "بازار ليلي شيانغ ماي"],
+        questions: ["هل محميات الأفيال في شيانغ ماي أخلاقية؟", "أفضل وقت لزيارة شيانغ ماي؟"],
         pageType: "guide",
       },
     ],
@@ -1544,12 +1366,7 @@ Always respond with valid JSON.`,
       "luxury resorts phuket",
       "thailand for arab families",
     ],
-    primaryKeywordsAR: [
-      "دليل تايلاند للعرب",
-      "تايلاند حلال",
-      "منتجعات فاخرة بوكيت",
-      "تايلاند للعائلات العربية",
-    ],
+    primaryKeywordsAR: ["دليل تايلاند للعرب", "تايلاند حلال", "منتجعات فاخرة بوكيت", "تايلاند للعائلات العربية"],
     categoryName: { en: "Thailand Guide", ar: "دليل تايلاند" },
     authors: [
       { name: "Khaled Aun", role: "Founder", url: "/about" },
@@ -1574,8 +1391,7 @@ Always respond with valid JSON.`,
     currency: "EUR",
     primaryColor: "#0F1621",
     secondaryColor: "#C49A2A",
-    systemPromptEN:
-      `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
+    systemPromptEN: `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
 
 BRAND POSITIONING (mandatory):
 - Zenitha Yachts is a Western-style luxury yacht charter specialist for Mediterranean & Gulf destinations.
@@ -1614,8 +1430,7 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
-    systemPromptAR:
-      `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
+    systemPromptAR: `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
@@ -1698,10 +1513,7 @@ Always respond with valid JSON.`,
           "best anchorages Croatian islands",
           "luxury yacht charter Croatia 2026",
         ],
-        questions: [
-          "Is Croatia good for yacht charter?",
-          "What is the best route from Dubrovnik to Split by yacht?",
-        ],
+        questions: ["Is Croatia good for yacht charter?", "What is the best route from Dubrovnik to Split by yacht?"],
         pageType: "guide",
       },
       {
@@ -1711,19 +1523,12 @@ Always respond with valid JSON.`,
           "superyacht charter costs Mediterranean",
           "bareboat vs crewed charter costs",
         ],
-        questions: [
-          "How much does a catamaran charter cost per week?",
-          "What is included in a yacht charter price?",
-        ],
+        questions: ["How much does a catamaran charter cost per week?", "What is included in a yacht charter price?"],
         pageType: "guide",
       },
       {
         keyword: "Turkish Riviera gulet charter luxury sailing",
-        longtails: [
-          "Bodrum gulet charter guide",
-          "Göcek blue cruise luxury",
-          "traditional Turkish gulet experience",
-        ],
+        longtails: ["Bodrum gulet charter guide", "Göcek blue cruise luxury", "traditional Turkish gulet experience"],
         questions: [
           "What is a gulet and how is it different from a yacht?",
           "What are the best gulet charter routes in Turkey?",
@@ -1737,87 +1542,43 @@ Always respond with valid JSON.`,
           "what to pack for yacht charter",
           "bareboat vs crewed charter for beginners",
         ],
-        questions: [
-          "Do I need sailing experience to charter a yacht?",
-          "What should I pack for a week on a yacht?",
-        ],
+        questions: ["Do I need sailing experience to charter a yacht?", "What should I pack for a week on a yacht?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
         keyword: "تأجير يخوت فاخرة البحر المتوسط دليل 2026",
-        longtails: [
-          "أفضل وجهات الإبحار المتوسط",
-          "تأجير كاتاماران الجزر اليونانية",
-          "يخت موتور الريفييرا الفرنسية",
-        ],
-        questions: [
-          "كم تكلفة تأجير يخت في البحر المتوسط؟",
-          "ما أفضل وقت لتأجير يخت في اليونان؟",
-        ],
+        longtails: ["أفضل وجهات الإبحار المتوسط", "تأجير كاتاماران الجزر اليونانية", "يخت موتور الريفييرا الفرنسية"],
+        questions: ["كم تكلفة تأجير يخت في البحر المتوسط؟", "ما أفضل وقت لتأجير يخت في اليونان؟"],
         pageType: "guide",
       },
       {
         keyword: "تأجير يخوت حلال البحر المتوسط عائلي",
-        longtails: [
-          "طعام حلال على اليخوت",
-          "تأجير كاتاماران عائلي",
-          "رحلات إبحار للمسلمين",
-        ],
-        questions: [
-          "هل يمكن الحصول على طعام حلال على اليخت؟",
-          "أي شركات تأجير يخوت توفر طعام حلال؟",
-        ],
+        longtails: ["طعام حلال على اليخوت", "تأجير كاتاماران عائلي", "رحلات إبحار للمسلمين"],
+        questions: ["هل يمكن الحصول على طعام حلال على اليخت؟", "أي شركات تأجير يخوت توفر طعام حلال؟"],
         pageType: "guide",
       },
       {
         keyword: "مسار إبحار الجزر اليونانية 7 أيام",
-        longtails: [
-          "مسار إبحار جزر سيكلاديز",
-          "مسار يخت جزر أيونيان",
-          "مسار أثينا إلى سانتوريني",
-        ],
-        questions: [
-          "ما أفضل مسار إبحار 7 أيام في اليونان؟",
-          "هل يمكن للمبتدئين تأجير يخت في اليونان؟",
-        ],
+        longtails: ["مسار إبحار جزر سيكلاديز", "مسار يخت جزر أيونيان", "مسار أثينا إلى سانتوريني"],
+        questions: ["ما أفضل مسار إبحار 7 أيام في اليونان؟", "هل يمكن للمبتدئين تأجير يخت في اليونان؟"],
         pageType: "guide",
       },
       {
         keyword: "تكلفة تأجير يخت دليل أسبوعي شامل",
-        longtails: [
-          "سعر تأجير كاتاماران أسبوعي",
-          "تكاليف تأجير سوبريخت المتوسط",
-          "مقارنة تكاليف بيرفوت وطاقم",
-        ],
-        questions: [
-          "كم تكلفة تأجير كاتاماران أسبوعياً؟",
-          "ماذا يشمل سعر تأجير اليخت؟",
-        ],
+        longtails: ["سعر تأجير كاتاماران أسبوعي", "تكاليف تأجير سوبريخت المتوسط", "مقارنة تكاليف بيرفوت وطاقم"],
+        questions: ["كم تكلفة تأجير كاتاماران أسبوعياً؟", "ماذا يشمل سعر تأجير اليخت؟"],
         pageType: "guide",
       },
       {
         keyword: "دليل تأجير يخت لأول مرة ماذا تتوقع",
-        longtails: [
-          "نصائح رحلة إبحار أولى",
-          "ماذا تحزم لرحلة يخت",
-          "بيرفوت أم طاقم للمبتدئين",
-        ],
-        questions: [
-          "هل أحتاج خبرة إبحار لتأجير يخت؟",
-          "ماذا يجب أن أحزم لأسبوع على يخت؟",
-        ],
+        longtails: ["نصائح رحلة إبحار أولى", "ماذا تحزم لرحلة يخت", "بيرفوت أم طاقم للمبتدئين"],
+        questions: ["هل أحتاج خبرة إبحار لتأجير يخت؟", "ماذا يجب أن أحزم لأسبوع على يخت؟"],
         pageType: "guide",
       },
     ],
-    affiliateCategories: [
-      "yacht",
-      "hotel",
-      "activity",
-      "transport",
-      "restaurant",
-    ],
+    affiliateCategories: ["yacht", "hotel", "activity", "transport", "restaurant"],
     primaryKeywordsEN: [
       "yacht charter mediterranean",
       "luxury yacht charter",
@@ -1825,12 +1586,7 @@ Always respond with valid JSON.`,
       "halal yacht charter",
       "yacht charter cost",
     ],
-    primaryKeywordsAR: [
-      "تأجير يخوت البحر المتوسط",
-      "تأجير يخوت فاخرة",
-      "تأجير كاتاماران اليونان",
-      "تأجير يخوت حلال",
-    ],
+    primaryKeywordsAR: ["تأجير يخوت البحر المتوسط", "تأجير يخوت فاخرة", "تأجير كاتاماران اليونان", "تأجير يخوت حلال"],
     categoryName: { en: "Yacht Charter Guide", ar: "دليل تأجير اليخوت" },
     authors: [
       { name: "Khaled Aun", role: "Founder", url: "/about" },
@@ -1866,16 +1622,14 @@ Always respond with valid JSON.`,
     primaryKeywordsEN: ["luxury travel", "zenitha luxury", "travel brands"],
     primaryKeywordsAR: ["سفر فاخر", "زينيثا لوكشري"],
     categoryName: { en: "Luxury Travel", ar: "السفر الفاخر" },
-    authors: [
-      { name: "Khaled Aun", role: "Founder & CEO", url: "/about" },
-    ],
+    authors: [{ name: "Khaled Aun", role: "Founder & CEO", url: "/about" }],
     socialLinks: {
       instagram: "https://instagram.com/zenithaluxury",
     },
   },
 
   // ─── WORLD THROUGH MY EYES (WTME) ───────────────────────────────────
-  "worldtme": {
+  worldtme: {
     id: "worldtme",
     name: "World Through My Eyes",
     slug: "worldtme",
@@ -1899,22 +1653,50 @@ Always respond with valid JSON.`,
 الأسلوب: مغامر، فضولي، شخصي. استخدم الملاحظات بصيغة المتكلم.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
-      { keyword: "hidden neighbourhood gems", longtails: ["best hidden spots in local neighbourhoods", "off-the-beaten-path gems locals love"], questions: ["What are the best hidden gems in this neighbourhood?"], pageType: "guide" },
-      { keyword: "local food scene guide", longtails: ["authentic street food markets", "local cuisine deep dive"], questions: ["Where do locals eat?"], pageType: "guide" },
-      { keyword: "cultural traditions explained", longtails: ["local cultural heritage traditions", "cultural experiences for travellers"], questions: ["What cultural traditions should I know about?"], pageType: "deep-dive" },
-      { keyword: "off the beaten path travel", longtails: ["undiscovered destinations for independent travellers", "hidden travel destinations"], questions: ["What destinations are underrated?"], pageType: "listicle" },
+      {
+        keyword: "hidden neighbourhood gems",
+        longtails: ["best hidden spots in local neighbourhoods", "off-the-beaten-path gems locals love"],
+        questions: ["What are the best hidden gems in this neighbourhood?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "local food scene guide",
+        longtails: ["authentic street food markets", "local cuisine deep dive"],
+        questions: ["Where do locals eat?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "cultural traditions explained",
+        longtails: ["local cultural heritage traditions", "cultural experiences for travellers"],
+        questions: ["What cultural traditions should I know about?"],
+        pageType: "deep-dive",
+      },
+      {
+        keyword: "off the beaten path travel",
+        longtails: ["undiscovered destinations for independent travellers", "hidden travel destinations"],
+        questions: ["What destinations are underrated?"],
+        pageType: "listicle",
+      },
     ],
     topicsAR: [
-      { keyword: "جواهر الأحياء المخفية", longtails: ["أفضل الأماكن المخفية في الأحياء المحلية"], questions: ["ما هي أفضل الجواهر المخفية؟"], pageType: "guide" },
-      { keyword: "دليل المطبخ المحلي", longtails: ["أسواق طعام الشارع الأصيلة"], questions: ["أين يأكل السكان المحليون؟"], pageType: "guide" },
+      {
+        keyword: "جواهر الأحياء المخفية",
+        longtails: ["أفضل الأماكن المخفية في الأحياء المحلية"],
+        questions: ["ما هي أفضل الجواهر المخفية؟"],
+        pageType: "guide",
+      },
+      {
+        keyword: "دليل المطبخ المحلي",
+        longtails: ["أسواق طعام الشارع الأصيلة"],
+        questions: ["أين يأكل السكان المحليون؟"],
+        pageType: "guide",
+      },
     ],
     affiliateCategories: ["hotel", "activity", "transport", "food"],
     primaryKeywordsEN: ["travel guide", "local experience", "hidden gems", "neighbourhood guide", "cultural travel"],
     primaryKeywordsAR: ["دليل سفر", "تجربة محلية", "جواهر مخفية"],
     categoryName: { en: "Travel Discovery", ar: "استكشاف السفر" },
-    authors: [
-      { name: "WTME Explorers", role: "Travel Ambassadors", url: "/about" },
-    ],
+    authors: [{ name: "WTME Explorers", role: "Travel Ambassadors", url: "/about" }],
     socialLinks: {
       instagram: "https://instagram.com/worldtme",
     },
@@ -1979,11 +1761,7 @@ export function getDefaultSiteName(): string {
 export function getSiteIdFromHostname(hostname: string): string | undefined {
   // Match against configured site domains
   for (const [id, site] of Object.entries(SITES)) {
-    if (
-      hostname === site.domain ||
-      hostname === `www.${site.domain}` ||
-      hostname.endsWith(`.${site.domain}`)
-    ) {
+    if (hostname === site.domain || hostname === `www.${site.domain}` || hostname.endsWith(`.${site.domain}`)) {
       return id;
     }
   }
@@ -2005,54 +1783,65 @@ export function isParentBrandSite(siteId: string): boolean {
 // generateMetadata() so each domain gets correct metadata, not the Yalla
 // London brand-templates.ts fallback.
 
-const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: string; description: string; descriptionAr: string }> = {
+const SITE_META: Record<
+  string,
+  { tagline: string; taglineAr: string; nameAr: string; description: string; descriptionAr: string }
+> = {
   "yalla-london": {
     tagline: "Luxury London Guide",
     taglineAr: "دليل لندن الفاخر",
     nameAr: "يالا لندن",
-    description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
+    description:
+      "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
     descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية.",
   },
   "zenitha-yachts-med": {
     tagline: "Luxury Mediterranean & Gulf Yacht Charters",
     taglineAr: "رحلات يخوت فاخرة في البحر المتوسط والخليج",
     nameAr: "زينيثا يخوت",
-    description: "Yacht charters in the Greek Islands, Croatian Coast, Turkish & French Riviera, Dubai & Abu Dhabi. Halal-friendly for European, North American & Arab travellers.",
-    descriptionAr: "رحلات يخت في الجزر اليونانية والساحل الكرواتي والريفيرا التركية والفرنسية ودبي وأبوظبي. خيارات حلال للمسافرين من أوروبا وأمريكا الشمالية والدول العربية.",
+    description:
+      "Yacht charters in the Greek Islands, Croatian Coast, Turkish & French Riviera, Dubai & Abu Dhabi. Halal-friendly for European, North American & Arab travellers.",
+    descriptionAr:
+      "رحلات يخت في الجزر اليونانية والساحل الكرواتي والريفيرا التركية والفرنسية ودبي وأبوظبي. خيارات حلال للمسافرين من أوروبا وأمريكا الشمالية والدول العربية.",
   },
-  "arabaldives": {
+  arabaldives: {
     tagline: "Luxury Maldives Guide",
     taglineAr: "دليل المالديف الفاخر",
     nameAr: "عرب المالديف",
-    description: "Arabaldives connects Arab travellers with the finest Maldives resorts, halal dining, and overwater experiences. Arabic-first luxury guide.",
+    description:
+      "Arabaldives connects Arab travellers with the finest Maldives resorts, halal dining, and overwater experiences. Arabic-first luxury guide.",
     descriptionAr: "عرب المالديف يربط المسافرين العرب بأفخم منتجعات المالديف والمطاعم الحلال.",
   },
   "french-riviera": {
     tagline: "Luxury Riviera Guide",
     taglineAr: "دليل الريفيرا الفاخر",
     nameAr: "يالا ريفييرا",
-    description: "Yalla Riviera connects Arab travellers with the finest French Riviera luxury hotels, halal restaurants, and Côte d'Azur experiences.",
+    description:
+      "Yalla Riviera connects Arab travellers with the finest French Riviera luxury hotels, halal restaurants, and Côte d'Azur experiences.",
     descriptionAr: "يالا ريفييرا يربط المسافرين العرب بأفخم فنادق الريفيرا الفرنسية والمطاعم الحلال.",
   },
-  "istanbul": {
+  istanbul: {
     tagline: "Luxury Istanbul Guide",
     taglineAr: "دليل إسطنبول الفاخر",
     nameAr: "يالا إسطنبول",
-    description: "Yalla Istanbul connects Arab travellers with Istanbul's finest luxury hotels, halal restaurants, and cultural experiences.",
+    description:
+      "Yalla Istanbul connects Arab travellers with Istanbul's finest luxury hotels, halal restaurants, and cultural experiences.",
     descriptionAr: "يالا إسطنبول يربط المسافرين العرب بأفخم فنادق إسطنبول والمطاعم الحلال.",
   },
-  "thailand": {
+  thailand: {
     tagline: "Luxury Thailand Guide",
     taglineAr: "دليل تايلاند الفاخر",
     nameAr: "يالا تايلاند",
-    description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
+    description:
+      "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
     descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
   },
   "zenitha-luxury": {
     tagline: "The Art of Exceptional Travel",
     taglineAr: "فن السفر الاستثنائي",
     nameAr: "زينيثا لوكشري",
-    description: "Zenitha.Luxury LLC is the parent company behind a portfolio of luxury travel brands spanning London, the Maldives, the Mediterranean, Istanbul, and beyond.",
+    description:
+      "Zenitha.Luxury LLC is the parent company behind a portfolio of luxury travel brands spanning London, the Maldives, the Mediterranean, Istanbul, and beyond.",
     descriptionAr: "شركة Zenitha.Luxury LLC هي الشركة الأم لمجموعة من علامات السفر الفاخرة.",
   },
 };
@@ -2106,8 +1895,13 @@ const ENV_KEY_ALIASES: Record<string, string[]> = {
   "zenitha-yachts-med": ["ZENITHA_YACHTS_MED", "ZENITHA_YACHTS"],
   "zenitha-luxury": ["ZENITHA_LUXURY"],
   "yalla-london": ["YALLA_LONDON"],
-  "worldtme": ["WORLDTME", "WTME"],
+  worldtme: ["WORLDTME", "WTME"],
 };
+
+// Env vars that are inherently site-specific — never share across sites
+// or you'll get cross-site data contamination (e.g., zenitha-yachts-med
+// reporting yalla-london's GA4 sessions).
+const SITE_SPECIFIC_ENV_PREFIXES = new Set<string>(["GA4_PROPERTY_ID", "GA4_MEASUREMENT_ID", "GSC_SITE_URL"]);
 
 function resolveEnvVar(prefix: string, siteId: string, fallbackVar?: string): string {
   const aliases = ENV_KEY_ALIASES[siteId] || [siteId.toUpperCase().replace(/-/g, "_")];
@@ -2115,7 +1909,23 @@ function resolveEnvVar(prefix: string, siteId: string, fallbackVar?: string): st
     const val = process.env[`${prefix}_${alias}`];
     if (val) return val;
   }
+  // For site-specific keys, the global fallback only applies to the
+  // default site — non-default sites must declare their own per-site
+  // env vars, otherwise the default site's analytics leak into theirs.
+  // Shared keys (e.g., INDEXNOW_KEY) keep the original fallback behavior.
+  if (SITE_SPECIFIC_ENV_PREFIXES.has(prefix)) {
+    const defaultId = getDefaultSiteIdSafe();
+    if (siteId !== defaultId) return "";
+  }
   return (fallbackVar ? process.env[fallbackVar] : "") || "";
+}
+
+// Local helper to avoid forward-reference to getDefaultSiteId() defined later.
+function getDefaultSiteIdSafe(): string {
+  for (const id of Object.keys(SITES)) {
+    if (SITES[id]?.status === "active") return id;
+  }
+  return Object.keys(SITES)[0] || "";
 }
 
 export function getSiteSeoConfig(siteId: string): {
@@ -2128,16 +1938,11 @@ export function getSiteSeoConfig(siteId: string): {
   const site = SITES[siteId];
 
   return {
-    gscSiteUrl:
-      resolveEnvVar("GSC_SITE_URL", siteId, "GSC_SITE_URL") ||
-      (site ? `sc-domain:${site.domain}` : ""),
-    ga4PropertyId:
-      resolveEnvVar("GA4_PROPERTY_ID", siteId, "GA4_PROPERTY_ID"),
-    ga4MeasurementId:
-      resolveEnvVar("GA4_MEASUREMENT_ID", siteId, "GA4_MEASUREMENT_ID"),
+    gscSiteUrl: resolveEnvVar("GSC_SITE_URL", siteId, "GSC_SITE_URL") || (site ? `sc-domain:${site.domain}` : ""),
+    ga4PropertyId: resolveEnvVar("GA4_PROPERTY_ID", siteId, "GA4_PROPERTY_ID"),
+    ga4MeasurementId: resolveEnvVar("GA4_MEASUREMENT_ID", siteId, "GA4_MEASUREMENT_ID"),
     siteUrl: site ? `https://www.${site.domain}` : process.env.NEXT_PUBLIC_SITE_URL || "",
-    indexNowKey:
-      resolveEnvVar("INDEXNOW_KEY", siteId, "INDEXNOW_KEY"),
+    indexNowKey: resolveEnvVar("INDEXNOW_KEY", siteId, "INDEXNOW_KEY"),
   };
 }
 

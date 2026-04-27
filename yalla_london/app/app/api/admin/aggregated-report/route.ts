@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
     let latestAudit: Record<string, unknown> | null = null;
     let auditScore = 0;
     let auditSummary = "";
-    let auditFindings: Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number }> = [];
+    let auditFindings: Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number; affected?: string[] }> = [];
     try {
       const report = await prisma.seoAuditReport.findFirst({
         where: { siteId },
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
         latestAudit = report.report as Record<string, unknown>;
         auditScore = report.healthScore;
         auditSummary = report.summary || "";
-        auditFindings = ((latestAudit?.findings || []) as Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number }>);
+        auditFindings = ((latestAudit?.findings || []) as Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number; affected?: string[] }>);
       }
     } catch (e) { console.warn("[aggregated-report] audit fetch:", e instanceof Error ? e.message : e); }
 
@@ -262,20 +262,33 @@ export async function GET(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════
     // 5. OPERATIONAL HEALTH (cron jobs, AI costs)
     // ═══════════════════════════════════════════════════════════════════════
-    let operations = { cronFailures24h: 0, cronSuccesses24h: 0, failedCrons: [] as string[], aiCost7d: 0, aiCalls7d: 0, aiFailures7d: 0, autoFixes7d: 0 };
+    let operations = { cronFailures24h: 0, cronSuccesses24h: 0, failedCrons: [] as string[], failedCronDetails: [] as Array<{ name: string; error: string; lastFailedAt: string }>, aiCost7d: 0, aiCalls7d: 0, aiFailures7d: 0, autoFixes7d: 0 };
     if (Date.now() - start < BUDGET_MS - 5_000) {
       try {
         const d24h = new Date(Date.now() - 86400000);
         const d7 = new Date(Date.now() - 7 * 86400000);
 
         const cronSiteFilter = siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {};
-        const [cronFail, cronOk, failedNames, aiAgg, autoFixCount] = await Promise.all([
+        const [cronFail, cronOk, failedRecent, aiAgg, autoFixCount] = await Promise.all([
           prisma.cronJobLog.count({ where: { status: "failed", started_at: { gte: d24h }, ...cronSiteFilter } }),
           prisma.cronJobLog.count({ where: { status: "completed", started_at: { gte: d24h }, ...cronSiteFilter } }),
-          prisma.cronJobLog.findMany({ where: { status: "failed", started_at: { gte: d24h }, ...cronSiteFilter }, select: { job_name: true }, distinct: ["job_name"] }),
+          prisma.cronJobLog.findMany({ where: { status: "failed", started_at: { gte: d24h }, ...cronSiteFilter }, select: { job_name: true, error_message: true, started_at: true }, orderBy: { started_at: "desc" }, take: 100 }),
           prisma.apiUsageLog.aggregate({ _sum: { estimatedCostUsd: true, totalTokens: true }, _count: { id: true }, where: { siteId, createdAt: { gte: d7 } } }).catch(() => ({ _sum: { estimatedCostUsd: null, totalTokens: null }, _count: { id: 0 } })),
           prisma.autoFixLog.count({ where: { createdAt: { gte: d7 } } }).catch(() => 0),
         ]);
+
+        // De-dup by job_name keeping the latest failure (failedRecent is already ordered desc)
+        const seenCrons = new Set<string>();
+        const failedCronDetails: Array<{ name: string; error: string; lastFailedAt: string }> = [];
+        for (const f of failedRecent) {
+          if (seenCrons.has(f.job_name)) continue;
+          seenCrons.add(f.job_name);
+          failedCronDetails.push({
+            name: f.job_name,
+            error: (f.error_message || "(no error message captured)").slice(0, 280),
+            lastFailedAt: f.started_at.toISOString(),
+          });
+        }
 
         let aiFailures = 0;
         try {
@@ -284,7 +297,8 @@ export async function GET(request: NextRequest) {
 
         operations = {
           cronFailures24h: cronFail, cronSuccesses24h: cronOk,
-          failedCrons: failedNames.map((f) => f.job_name),
+          failedCrons: failedCronDetails.map((f) => f.name),
+          failedCronDetails,
           aiCost7d: Math.round((aiAgg._sum.estimatedCostUsd || 0) * 100) / 100,
           aiCalls7d: aiAgg._count.id || 0,
           aiFailures7d: aiFailures,
@@ -450,7 +464,7 @@ export async function GET(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════
     // 9. SYNTHESIZE: Issues + Root Causes + Fix Plan
     // ═══════════════════════════════════════════════════════════════════════
-    const issues: Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }> = [];
+    const issues: Array<{ severity: string; category: string; title: string; rootCause: string; fix: string; affected?: string[] }> = [];
 
     // From audit findings
     for (const f of auditFindings.filter((f) => f.severity === "critical" || f.severity === "high")) {
@@ -460,16 +474,21 @@ export async function GET(request: NextRequest) {
         title: f.title,
         rootCause: diagnoseRootCause(f.id, f.category, pipeline, operations, indexing),
         fix: f.fix,
+        ...(f.affected && f.affected.length > 0 ? { affected: f.affected.slice(0, 15) } : {}),
       });
     }
 
     // Operational issues not in audit
     if (operations.cronFailures24h > 3) {
+      const detailLines = operations.failedCronDetails.map((d) => `${d.name}: ${d.error}`);
       issues.push({
         severity: "high", category: "Operations",
         title: `${operations.cronFailures24h} cron failures in last 24h (${operations.failedCrons.join(", ")})`,
-        rootCause: operations.failedCrons.length > 0 ? `Failed crons: ${operations.failedCrons.join(", ")}. Likely causes: DB pool exhaustion, AI provider timeouts, or budget exceeded.` : "Unknown",
+        rootCause: operations.failedCronDetails.length > 0
+          ? `Latest failure per cron — ${operations.failedCronDetails.map((d) => `${d.name}: ${d.error.slice(0, 120)}`).join(" | ")}`
+          : "Unknown",
         fix: "Check CronJobLog for error messages. Run 'Diagnose' from cockpit to auto-fix stuck jobs.",
+        ...(detailLines.length > 0 ? { affected: detailLines } : {}),
       });
     }
     if (pipeline.stuck > 0) {
@@ -990,8 +1009,8 @@ function buildPlainLanguage(
   indexing: { rate: number; indexed: number; errors: number; chronicFailures: number; neverSubmitted: number },
   gsc: { clicks7d: number; impressions7d: number; avgPosition7d: number; avgCtr7d: number; topPages: Array<{ url: string; clicks: number; impressions: number; position: number }> },
   pipeline: { published: number; publishedThisWeek: number; reservoir: number; stuck: number; inPipeline: number; topicsQueued: number },
-  operations: { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; autoFixes7d: number; failedCrons: string[] },
-  issues: Array<{ severity: string; title: string; fix: string }>,
+  operations: { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; autoFixes7d: number; failedCrons: string[]; failedCronDetails?: Array<{ name: string; error: string; lastFailedAt: string }> },
+  issues: Array<{ severity: string; title: string; fix: string; affected?: string[] }>,
   latestArticles: Array<{ title: string; slug: string; indexingStatus: string; clicks: number; impressions: number; position: number }>,
   siteName: string,
 ): string {
@@ -1036,6 +1055,12 @@ function buildPlainLanguage(
   lines.push("─── OPERATIONS ───");
   lines.push(`  Cron success rate: ${operations.cronSuccesses24h}/${operations.cronSuccesses24h + operations.cronFailures24h} (24h)`);
   if (operations.failedCrons.length > 0) lines.push(`  Failed: ${operations.failedCrons.join(", ")}`);
+  if (operations.failedCronDetails && operations.failedCronDetails.length > 0) {
+    for (const d of operations.failedCronDetails.slice(0, 5)) {
+      const err = d.error.length > 90 ? d.error.slice(0, 87) + "..." : d.error;
+      lines.push(`    • ${d.name}: ${err}`);
+    }
+  }
   lines.push(`  AI cost (7d):  $${operations.aiCost7d}`);
   lines.push(`  Auto-fixes:    ${operations.autoFixes7d} (7d)`);
   lines.push("");
@@ -1073,10 +1098,18 @@ function buildPlainLanguage(
     for (const i of criticals) {
       lines.push(`  [CRITICAL] ${i.title}`);
       lines.push(`    → ${i.fix}`);
+      if (i.affected && i.affected.length > 0) {
+        for (const a of i.affected.slice(0, 5)) lines.push(`      · ${a.length > 100 ? a.slice(0, 97) + "..." : a}`);
+        if (i.affected.length > 5) lines.push(`      · ...and ${i.affected.length - 5} more`);
+      }
     }
     for (const i of highs.slice(0, 5)) {
       lines.push(`  [HIGH] ${i.title}`);
       lines.push(`    → ${i.fix}`);
+      if (i.affected && i.affected.length > 0) {
+        for (const a of i.affected.slice(0, 3)) lines.push(`      · ${a.length > 100 ? a.slice(0, 97) + "..." : a}`);
+        if (i.affected.length > 3) lines.push(`      · ...and ${i.affected.length - 3} more`);
+      }
     }
     if (highs.length > 5) lines.push(`  ... and ${highs.length - 5} more high-priority issues`);
   }

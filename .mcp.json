@@ -13,7 +13,12 @@
     "platform-control": {
       "command": "npx",
       "args": ["tsx", "yalla_london/app/scripts/mcp-platform-server.ts"],
-      "env": {}
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}",
+        "DIRECT_URL": "${DIRECT_URL}",
+        "CRON_SECRET": "${CRON_SECRET}",
+        "DEFAULT_SITE_ID": "${DEFAULT_SITE_ID}"
+      }
     }
   }
 }

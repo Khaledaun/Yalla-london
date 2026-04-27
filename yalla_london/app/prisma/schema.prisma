@@ -4383,6 +4383,29 @@ model AutoFixLog {
   @@map("auto_fix_logs")
 }
 
+/// DailyBriefing — Stored daily CEO briefing reports
+/// Spec: docs/briefing/CEO-DAILY-BRIEFING.md
+/// One row per (siteId, briefingDate). siteId=null = aggregate across all sites.
+/// `data` holds the full structured 19-section briefing payload so the MCP can
+/// answer follow-up questions about any section without recomputing.
+model DailyBriefing {
+  id              String   @id @default(cuid())
+  siteId          String?  // null = aggregate brief covering all sites
+  briefingDate    DateTime @db.Date
+  data            Json     // structured briefing data, all 19 sections
+  renderedHtml    String?  @db.Text
+  emailSent       Boolean  @default(false)
+  emailMessageId  String?
+  emailError      String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([siteId, briefingDate])
+  @@index([briefingDate])
+  @@index([siteId, briefingDate])
+  @@map("daily_briefings")
+}
+
 /// SeoAuditReport — Saved comprehensive SEO audit reports
 /// Each report is a full snapshot of site health at a point in time.
 /// Cockpit "Master Audit" button creates one, and previous reports are browsable.

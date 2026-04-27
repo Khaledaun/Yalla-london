@@ -125,6 +125,10 @@ function Section<T>(props: {
   result: SectionResult<T>;
   render: (data: T) => React.ReactNode;
 }): React.ReactElement {
+  // Extract to a local var so TypeScript narrows the discriminated union
+  // cleanly. `props.result.ok` doesn't always narrow on generic property
+  // access in stricter compiler configs.
+  const r = props.result;
   return (
     <div style={{ marginTop: "32px", marginBottom: "24px" }}>
       <h2
@@ -140,11 +144,11 @@ function Section<T>(props: {
       >
         §{props.num}. {props.title}
       </h2>
-      {props.result.ok ? (
-        props.render(props.result.data)
+      {r.ok ? (
+        props.render(r.data)
       ) : (
         <p style={{ fontFamily: FONTS.body, fontSize: "13px", color: BRAND.lightText, fontStyle: "italic", margin: 0 }}>
-          Unavailable: {props.result.error}
+          Unavailable: {r.error}
         </p>
       )}
     </div>

@@ -1006,10 +1006,437 @@ export default function DailyBriefingEmail({ briefing }: Props): React.ReactElem
                           )}
                         />
 
-                        {/* Sections 14-19 land in B4c */}
-                        <p style={{ fontSize: "12px", color: BRAND.lightText, fontStyle: "italic", marginTop: "32px" }}>
-                          Sections 14-19 pending Batch B4c.
-                        </p>
+                        {/* §14 A/B testing */}
+                        <Section
+                          num={14}
+                          title="A/B Testing"
+                          result={s.abTesting}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                <strong>{fmtNum(data.active)}</strong> active ·{" "}
+                                <strong>{fmtNum(data.completed)}</strong> concluded
+                              </p>
+                              {data.recentResults.length === 0 ? (
+                                <p style={{ margin: 0, color: BRAND.lightText, fontStyle: "italic", fontSize: "12px" }}>
+                                  No A/B tests running. Spin one up via the chrome-bridge /ab-test endpoint.
+                                </p>
+                              ) : (
+                                <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                  <thead>
+                                    <tr>
+                                      <th style={TH}>Test</th>
+                                      <th style={TH}>Status</th>
+                                      <th style={TH}>Winner</th>
+                                      <th style={TH}>Confidence</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {data.recentResults.slice(0, 8).map((r, i) => (
+                                      <tr key={i}>
+                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "11px" }}>
+                                          {r.name.slice(0, 60)}
+                                        </td>
+                                        <td style={TD}>
+                                          <span
+                                            style={severityBadge(
+                                              r.status === "active"
+                                                ? "info"
+                                                : r.status === "concluded"
+                                                  ? "low"
+                                                  : "medium",
+                                            )}
+                                          >
+                                            {r.status}
+                                          </span>
+                                        </td>
+                                        <td
+                                          style={{
+                                            ...TD,
+                                            fontWeight: 600,
+                                            color:
+                                              r.winner === "A"
+                                                ? BRAND.blue
+                                                : r.winner === "B"
+                                                  ? BRAND.gold
+                                                  : BRAND.lightText,
+                                          }}
+                                        >
+                                          {r.winner || "—"}
+                                        </td>
+                                        <td style={TD}>
+                                          {r.confidence !== null ? `${(r.confidence * 100).toFixed(0)}%` : "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §15 Technical issues */}
+                        <Section
+                          num={15}
+                          title="Technical Issues"
+                          result={s.technicalIssues}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                <span style={{ color: BRAND.critical }}>{fmtNum(data.criticalCount)} critical</span> ·{" "}
+                                <span style={{ color: BRAND.high }}>{fmtNum(data.highCount)} high</span>
+                              </p>
+                              {Object.keys(data.byCategory).length > 0 && (
+                                <p style={{ margin: "0 0 12px 0", fontSize: "12px", color: BRAND.lightText }}>
+                                  By category:{" "}
+                                  {Object.entries(data.byCategory)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join(" · ")}
+                                </p>
+                              )}
+                              {data.topIssues.length > 0 && (
+                                <div>
+                                  {data.topIssues.slice(0, 8).map((iss, i) => (
+                                    <div
+                                      key={i}
+                                      style={{
+                                        padding: "10px 12px",
+                                        marginBottom: "8px",
+                                        borderLeft: `3px solid ${iss.severity === "critical" ? BRAND.critical : BRAND.high}`,
+                                        backgroundColor: BRAND.cream,
+                                      }}
+                                    >
+                                      <p style={{ margin: "0 0 4px 0", fontSize: "12px" }}>
+                                        <span style={severityBadge(iss.severity)}>{iss.severity}</span>{" "}
+                                        <span
+                                          style={{
+                                            fontFamily: FONTS.mono,
+                                            fontSize: "11px",
+                                            color: BRAND.lightText,
+                                            marginLeft: "6px",
+                                          }}
+                                        >
+                                          {iss.category}
+                                        </span>
+                                      </p>
+                                      <p style={{ margin: "0 0 4px 0", fontSize: "13px", fontWeight: 600 }}>
+                                        {iss.detail}
+                                      </p>
+                                      <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: BRAND.lightText }}>
+                                        <em>Why:</em> {iss.why}
+                                      </p>
+                                      <p style={{ margin: 0, fontSize: "12px", color: BRAND.text }}>
+                                        <em>Plan:</em> {iss.fixPlan}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §16 Fixes applied (24h) */}
+                        <Section
+                          num={16}
+                          title="Fixes Applied (24h)"
+                          result={s.fixesApplied}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                <strong>{fmtNum(data.totalFixes)}</strong> fixes ·{" "}
+                                <span style={{ color: BRAND.good }}>{fmtNum(data.successCount)} succeeded</span> ·{" "}
+                                <span style={{ color: BRAND.critical }}>{fmtNum(data.failureCount)} failed</span>
+                              </p>
+                              {data.byFixType.length > 0 && (
+                                <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                  <thead>
+                                    <tr>
+                                      <th style={TH}>Fix type</th>
+                                      <th style={TH}>Count</th>
+                                      <th style={TH}>Success rate</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {data.byFixType.slice(0, 10).map((f) => (
+                                      <tr key={f.fixType}>
+                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>{f.fixType}</td>
+                                        <td style={TD}>{fmtNum(f.count)}</td>
+                                        <td
+                                          style={{
+                                            ...TD,
+                                            color:
+                                              f.successPct >= 90
+                                                ? BRAND.good
+                                                : f.successPct >= 60
+                                                  ? BRAND.gold
+                                                  : BRAND.critical,
+                                          }}
+                                        >
+                                          {f.successPct}%
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §17 Validation */}
+                        <Section
+                          num={17}
+                          title="How to Validate the Fixes"
+                          result={s.validation}
+                          render={(data) => (
+                            <div>
+                              {data.byFixType.length === 0 ? (
+                                <p style={{ margin: 0, color: BRAND.lightText, fontStyle: "italic" }}>
+                                  No fixes ran in last 24h — nothing to validate.
+                                </p>
+                              ) : (
+                                data.byFixType.map((v, i) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      padding: "10px 12px",
+                                      marginBottom: "8px",
+                                      borderLeft: `3px solid ${BRAND.blue}`,
+                                      backgroundColor: BRAND.cream,
+                                    }}
+                                  >
+                                    <p
+                                      style={{
+                                        margin: "0 0 4px 0",
+                                        fontFamily: FONTS.mono,
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {v.fixType}
+                                    </p>
+                                    <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>{v.how}</p>
+                                    <p style={{ margin: 0, fontSize: "12px", color: BRAND.lightText }}>
+                                      <em>When:</em> {v.whenToCheck}
+                                    </p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §18 KPIs and progress */}
+                        <Section
+                          num={18}
+                          title="KPIs and Progress"
+                          result={s.kpisProgress}
+                          render={(data) => (
+                            <table style={TBL} cellPadding={0} cellSpacing={0}>
+                              <thead>
+                                <tr>
+                                  <th style={TH}>KPI</th>
+                                  <th style={TH}>Actual</th>
+                                  <th style={TH}>Target 30d</th>
+                                  <th style={TH}>Progress</th>
+                                  <th style={TH}>Grade</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {data.kpis.map((k, i) => (
+                                  <tr key={i}>
+                                    <td style={TD}>{k.name}</td>
+                                    <td style={{ ...TD, fontWeight: 600 }}>
+                                      {k.actual !== null
+                                        ? `${fmtNum(k.actual, k.unit === "ratio" ? 4 : 1)} ${k.unit}`
+                                        : "—"}
+                                    </td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>
+                                      {fmtNum(k.target30d, k.unit === "ratio" ? 4 : 1)} {k.unit}
+                                    </td>
+                                    <td style={TD}>
+                                      {k.progressVs30d !== null ? (
+                                        <span
+                                          style={{
+                                            fontFamily: FONTS.mono,
+                                            fontSize: "11px",
+                                            color: k.progressVs30d >= 1 ? BRAND.good : BRAND.high,
+                                          }}
+                                        >
+                                          {bar(k.progressVs30d, 1.2, 10)} {(k.progressVs30d * 100).toFixed(0)}%
+                                        </span>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </td>
+                                    <td
+                                      style={{
+                                        ...TD,
+                                        fontFamily: FONTS.heading,
+                                        fontWeight: 700,
+                                        color: gradeColor(k.grade),
+                                      }}
+                                    >
+                                      {k.grade}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        />
+
+                        {/* §19 Per-site deep dive */}
+                        <Section
+                          num={19}
+                          title="Per-Site Deep Dive"
+                          result={s.perSiteDeepDive}
+                          render={(sites) =>
+                            sites.map((site) => (
+                              <div
+                                key={site.siteId}
+                                style={{
+                                  padding: "16px",
+                                  marginBottom: "16px",
+                                  backgroundColor: BRAND.cream,
+                                  borderRadius: "6px",
+                                  borderLeft: `4px solid ${BRAND.gold}`,
+                                }}
+                              >
+                                <h3
+                                  style={{
+                                    fontFamily: FONTS.heading,
+                                    fontSize: "16px",
+                                    fontWeight: 600,
+                                    margin: "0 0 8px 0",
+                                    color: BRAND.navy,
+                                  }}
+                                >
+                                  {site.siteId}
+                                </h3>
+                                <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>
+                                  <strong>Niche:</strong> {site.niche}
+                                </p>
+                                <p style={{ margin: "0 0 4px 0", fontSize: "13px" }}>
+                                  <strong>Destination:</strong> {site.destination}
+                                </p>
+                                <p
+                                  style={{ margin: "0 0 12px 0", fontSize: "13px", color: BRAND.text, lineHeight: 1.5 }}
+                                >
+                                  <strong>Landscape:</strong> {site.businessLandscape}
+                                </p>
+
+                                {site.algorithmUpdates.length > 0 && (
+                                  <div style={{ marginBottom: "12px" }}>
+                                    <p
+                                      style={{
+                                        margin: "0 0 6px 0",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        color: BRAND.navy,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                      }}
+                                    >
+                                      SEO/AIO/GEO algorithm updates
+                                    </p>
+                                    {site.algorithmUpdates.map((a, i) => (
+                                      <div
+                                        key={i}
+                                        style={{
+                                          padding: "8px 10px",
+                                          marginBottom: "6px",
+                                          backgroundColor: BRAND.white,
+                                          borderRadius: "4px",
+                                          fontSize: "12px",
+                                        }}
+                                      >
+                                        <p style={{ margin: "0 0 2px 0", fontWeight: 600 }}>
+                                          {a.source}{" "}
+                                          <span style={{ color: BRAND.lightText, fontWeight: 400 }}>· {a.date}</span>
+                                        </p>
+                                        <p style={{ margin: "0 0 2px 0" }}>
+                                          <em>Impact:</em> {a.impact}
+                                        </p>
+                                        <p style={{ margin: 0, color: BRAND.lightText }}>
+                                          <em>Our response:</em> {a.ourResponse}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {site.improvementsProposed.length > 0 && (
+                                  <div style={{ marginBottom: "12px" }}>
+                                    <p
+                                      style={{
+                                        margin: "0 0 6px 0",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        color: BRAND.navy,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                      }}
+                                    >
+                                      Improvements proposed
+                                    </p>
+                                    {site.improvementsProposed.map((imp, i) => (
+                                      <div
+                                        key={i}
+                                        style={{
+                                          padding: "8px 10px",
+                                          marginBottom: "6px",
+                                          backgroundColor: BRAND.white,
+                                          borderRadius: "4px",
+                                          fontSize: "12px",
+                                        }}
+                                      >
+                                        <p style={{ margin: "0 0 2px 0", fontWeight: 600 }}>
+                                          {imp.title}{" "}
+                                          <span style={{ color: BRAND.lightText, fontWeight: 400 }}>
+                                            · effort: {imp.effort}
+                                          </span>
+                                        </p>
+                                        <p style={{ margin: "0 0 2px 0", color: BRAND.lightText }}>
+                                          {imp.expectedImpact}
+                                        </p>
+                                        <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px" }}>
+                                          {imp.plan.map((p, j) => (
+                                            <li key={j}>{p}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {site.sevenDayPlan.length > 0 && (
+                                  <div>
+                                    <p
+                                      style={{
+                                        margin: "0 0 6px 0",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        color: BRAND.navy,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                      }}
+                                    >
+                                      7-day plan
+                                    </p>
+                                    <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "12px", lineHeight: 1.6 }}>
+                                      {site.sevenDayPlan.map((p, i) => (
+                                        <li key={i}>{p}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                          }
+                        />
                       </td>
                     </tr>
 

@@ -50,13 +50,14 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "seo-orchestrator": "CRON_SEO_ORCHESTRATOR",
   "seo-deep-review": "CRON_SEO_DEEP_REVIEW",
   "seo-audit-runner": "CRON_SEO_AUDIT_RUNNER",
-  "sweeper": "CRON_SWEEPER",
+  sweeper: "CRON_SWEEPER",
   "diagnostic-sweep": "CRON_DIAGNOSTIC_SWEEP",
+  "audit-roundup": "CRON_AUDIT_ROUNDUP",
   "pipeline-health": "CRON_PIPELINE_HEALTH",
   "scheduled-publish": "CRON_SCHEDULED_PUBLISH",
   "reserve-publisher": "CRON_RESERVE_PUBLISHER",
   "trends-monitor": "CRON_TRENDS_MONITOR",
-  "analytics": "CRON_ANALYTICS",
+  analytics: "CRON_ANALYTICS",
   "gsc-sync": "CRON_GSC_SYNC",
   "affiliate-injection": "CRON_AFFILIATE_INJECTION",
   "google-indexing": "CRON_GOOGLE_INDEXING",
@@ -64,7 +65,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "london-news": "CRON_LONDON_NEWS",
   "fact-verification": "CRON_FACT_VERIFICATION",
   "site-health-check": "CRON_SITE_HEALTH_CHECK",
-  "social": "CRON_SOCIAL",
+  social: "CRON_SOCIAL",
   "subscriber-emails": "CRON_SUBSCRIBER_EMAILS",
   "schedule-executor": "CRON_SCHEDULE_EXECUTOR",
   "affiliate-sync-advertisers": "CRON_AFFILIATE_SYNC_ADVERTISERS",
@@ -113,10 +114,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
  *   const disabled = await checkCronEnabled("content-builder");
  *   if (disabled) return { skipped: true };
  */
-export async function checkCronEnabled(
-  jobName: string,
-  siteId?: string
-): Promise<NextResponse | null> {
+export async function checkCronEnabled(jobName: string, siteId?: string): Promise<NextResponse | null> {
   // Resolve aliases first (e.g. "discover-deals" → "affiliate-discover-deals")
   const canonicalName = CRON_NAME_ALIASES[jobName] || jobName;
   const flagKey = CRON_FLAG_MAP[canonicalName] || `CRON_${canonicalName.toUpperCase().replace(/-/g, "_")}`;

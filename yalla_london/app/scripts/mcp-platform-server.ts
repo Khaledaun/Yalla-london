@@ -20,9 +20,7 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 
 // Load .env.local from the app directory (4 fallback paths)
-const __script_dir = typeof __dirname !== "undefined"
-  ? __dirname
-  : resolve(fileURLToPath(import.meta.url), "..");
+const __script_dir = typeof __dirname !== "undefined" ? __dirname : resolve(fileURLToPath(import.meta.url), "..");
 config({ path: resolve(__script_dir, "../.env.local") });
 config({ path: resolve(__script_dir, "../.env") });
 config({ path: resolve(process.cwd(), "yalla_london/app/.env.local") });
@@ -46,10 +44,10 @@ function getDefaultSiteId(): string {
 function getSiteDomain(siteId: string): string {
   const domains: Record<string, string> = {
     "yalla-london": "https://www.yalla-london.com",
-    "arabaldives": "https://www.arabaldives.com",
+    arabaldives: "https://www.arabaldives.com",
     "french-riviera": "https://www.yallariviera.com",
-    "istanbul": "https://www.yallaistanbul.com",
-    "thailand": "https://www.yallathailand.com",
+    istanbul: "https://www.yallaistanbul.com",
+    thailand: "https://www.yallathailand.com",
     "zenitha-yachts-med": "https://www.zenithayachts.com",
   };
   return domains[siteId] || domains["yalla-london"]!;
@@ -81,7 +79,11 @@ async function callCron(path: string): Promise<{ ok: boolean; data?: unknown; er
     });
     const text = await res.text();
     let data: unknown;
-    try { data = JSON.parse(text); } catch { data = text; }
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
     return { ok: res.ok, data };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -135,13 +137,15 @@ server.tool(
         take: 100,
         select: { job_name: true, status: true, error_message: true, duration_ms: true, started_at: true },
       });
-      const failedCrons = recentCrons.filter(c => c.status === "failed");
+      const failedCrons = recentCrons.filter((c) => c.status === "failed");
 
       // Indexing
       const [indexed, submitted, neverSubmitted] = await Promise.all([
         prisma.uRLIndexingStatus.count({ where: { site_id: site, status: "indexed" } }),
         prisma.uRLIndexingStatus.count({ where: { site_id: site, submitted_indexnow: true } }),
-        prisma.uRLIndexingStatus.count({ where: { site_id: site, submitted_indexnow: false, submitted_google_api: false } }),
+        prisma.uRLIndexingStatus.count({
+          where: { site_id: site, submitted_indexnow: false, submitted_google_api: false },
+        }),
       ]);
 
       // AI costs (last 7 days)
@@ -161,7 +165,7 @@ server.tool(
         where: { site_id: site, status: { in: ["ready", "queued", "planned", "proposed"] } },
       });
 
-      const phases = Object.fromEntries(phaseCounts.map(p => [p.current_phase, p._count]));
+      const phases = Object.fromEntries(phaseCounts.map((p) => [p.current_phase, p._count]));
 
       return json({
         site,
@@ -176,7 +180,7 @@ server.tool(
         crons: {
           last24h: recentCrons.length,
           failed: failedCrons.length,
-          failedJobs: failedCrons.slice(0, 5).map(c => ({
+          failedJobs: failedCrons.slice(0, 5).map((c) => ({
             job: c.job_name,
             error: c.error_message?.substring(0, 100),
             when: c.started_at,
@@ -194,7 +198,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,20 +221,30 @@ server.tool(
       const drafts = await prisma.articleDraft.findMany({
         where: { site_id: site, current_phase: { notIn: ["published", "rejected"] } },
         select: {
-          id: true, keyword: true, current_phase: true, phase_attempts: true,
-          last_error: true, updated_at: true, locale: true, word_count: true, seo_score: true,
+          id: true,
+          keyword: true,
+          current_phase: true,
+          phase_attempts: true,
+          last_error: true,
+          updated_at: true,
+          locale: true,
+          word_count: true,
+          seo_score: true,
         },
         orderBy: { updated_at: "desc" },
         take: 100,
       });
 
-      const stuck24h = drafts.filter(d => d.updated_at < twentyFourHoursAgo);
-      const stuckPipeline = drafts.filter(d => d.updated_at < fourHoursAgo && d.current_phase !== "reservoir");
-      const nearMaxAttempts = drafts.filter(d => (d.phase_attempts || 0) >= 4);
-      const phases = drafts.reduce((acc, d) => {
-        acc[d.current_phase] = (acc[d.current_phase] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      const stuck24h = drafts.filter((d) => d.updated_at < twentyFourHoursAgo);
+      const stuckPipeline = drafts.filter((d) => d.updated_at < fourHoursAgo && d.current_phase !== "reservoir");
+      const nearMaxAttempts = drafts.filter((d) => (d.phase_attempts || 0) >= 4);
+      const phases = drafts.reduce(
+        (acc, d) => {
+          acc[d.current_phase] = (acc[d.current_phase] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       // Health grade
       let grade = "A";
@@ -249,24 +263,34 @@ server.tool(
         totalActive: drafts.length,
         phases,
         stuck24h: stuck24h.length,
-        stuckItems: stuck24h.slice(0, 5).map(d => ({
-          keyword: d.keyword, phase: d.current_phase, attempts: d.phase_attempts,
-          error: d.last_error?.substring(0, 80), lastUpdate: d.updated_at,
+        stuckItems: stuck24h.slice(0, 5).map((d) => ({
+          keyword: d.keyword,
+          phase: d.current_phase,
+          attempts: d.phase_attempts,
+          error: d.last_error?.substring(0, 80),
+          lastUpdate: d.updated_at,
         })),
-        nearMaxAttempts: nearMaxAttempts.map(d => ({
-          keyword: d.keyword, phase: d.current_phase, attempts: d.phase_attempts,
+        nearMaxAttempts: nearMaxAttempts.map((d) => ({
+          keyword: d.keyword,
+          phase: d.current_phase,
+          attempts: d.phase_attempts,
         })),
         publishedLast24h: recentPublished,
-        recommendation: grade === "A" ? "Pipeline healthy — no action needed" :
-          grade === "B" ? "Minor delays — monitor, likely self-healing" :
-          grade === "C" ? "Multiple stuck items — consider running diagnose_pipeline" :
-          grade === "D" ? "Pipeline degraded — run diagnose_pipeline now" :
-          "Pipeline stalled — immediate attention needed",
+        recommendation:
+          grade === "A"
+            ? "Pipeline healthy — no action needed"
+            : grade === "B"
+              ? "Minor delays — monitor, likely self-healing"
+              : grade === "C"
+                ? "Multiple stuck items — consider running diagnose_pipeline"
+                : grade === "D"
+                  ? "Pipeline degraded — run diagnose_pipeline now"
+                  : "Pipeline stalled — immediate attention needed",
       });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -278,7 +302,10 @@ server.tool(
   "List recent articles with title, status, word count, SEO score. Filter by published/draft/all.",
   {
     siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
-    status: z.enum(["published", "draft", "all"]).optional().describe("Filter: published, draft, or all (default: all)"),
+    status: z
+      .enum(["published", "draft", "all"])
+      .optional()
+      .describe("Filter: published, draft, or all (default: all)"),
     limit: z.number().optional().describe("Max results (default: 20, max: 50)"),
   },
   async ({ siteId, status, limit }) => {
@@ -295,10 +322,18 @@ server.tool(
         orderBy: { created_at: "desc" },
         take,
         select: {
-          id: true, title_en: true, slug: true, published: true,
-          seo_score: true, created_at: true, updated_at: true,
-          meta_title_en: true, meta_description_en: true, siteId: true,
-          source_pipeline: true, trace_id: true,
+          id: true,
+          title_en: true,
+          slug: true,
+          published: true,
+          seo_score: true,
+          created_at: true,
+          updated_at: true,
+          meta_title_en: true,
+          meta_description_en: true,
+          siteId: true,
+          source_pipeline: true,
+          trace_id: true,
         },
       });
 
@@ -311,13 +346,13 @@ server.tool(
           });
           const wordCount = full?.content_en ? full.content_en.split(/\s+/).length : 0;
           return { ...a, wordCount };
-        })
+        }),
       );
 
       return json({
         site,
         count: articlesWithCounts.length,
-        articles: articlesWithCounts.map(a => ({
+        articles: articlesWithCounts.map((a) => ({
           title: a.title_en,
           slug: a.slug,
           published: a.published,
@@ -331,7 +366,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -354,7 +389,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -371,7 +406,7 @@ const SAFE_CRONS: Record<string, string> = {
   "content-auto-fix": "/api/cron/content-auto-fix",
   "content-auto-fix-lite": "/api/cron/content-auto-fix-lite",
   "diagnostic-sweep": "/api/cron/diagnostic-sweep",
-  "sweeper": "/api/cron/sweeper",
+  sweeper: "/api/cron/sweeper",
   "affiliate-injection": "/api/cron/affiliate-injection",
   "sync-advertisers": "/api/cron/sync-advertisers",
   "gsc-sync": "/api/cron/gsc-sync",
@@ -384,7 +419,7 @@ const SAFE_CRONS: Record<string, string> = {
   "reserve-publisher": "/api/cron/reserve-publisher",
   "image-pipeline": "/api/cron/image-pipeline",
   "data-refresh": "/api/cron/data-refresh",
-  "analytics": "/api/cron/analytics",
+  analytics: "/api/cron/analytics",
 };
 
 server.tool(
@@ -414,7 +449,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -437,8 +472,12 @@ server.tool(
         orderBy: { started_at: "desc" },
         take: 500,
         select: {
-          job_name: true, status: true, started_at: true,
-          duration_ms: true, error_message: true, items_processed: true,
+          job_name: true,
+          status: true,
+          started_at: true,
+          duration_ms: true,
+          error_message: true,
+          items_processed: true,
         },
       });
 
@@ -452,7 +491,7 @@ server.tool(
 
       const summary = Array.from(byJob.entries()).map(([name, runs]) => {
         const latest = runs[0]!;
-        const failed = runs.filter(r => r.status === "failed").length;
+        const failed = runs.filter((r) => r.status === "failed").length;
         const avgDuration = runs.reduce((s, r) => s + (r.duration_ms || 0), 0) / runs.length;
         return {
           name,
@@ -468,7 +507,7 @@ server.tool(
       summary.sort((a, b) => (b.failures || 0) - (a.failures || 0));
 
       const totalRuns = logs.length;
-      const totalFailed = logs.filter(l => l.status === "failed").length;
+      const totalFailed = logs.filter((l) => l.status === "failed").length;
 
       return json({
         period: `Last ${hours}h`,
@@ -480,7 +519,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -502,8 +541,11 @@ server.tool(
         orderBy: { started_at: "desc" },
         take,
         select: {
-          id: true, status: true, started_at: true,
-          result_summary: true, error_message: true,
+          id: true,
+          status: true,
+          started_at: true,
+          result_summary: true,
+          error_message: true,
         },
       });
 
@@ -521,9 +563,7 @@ server.tool(
         };
       });
 
-      const unresolved = alerts.filter(a =>
-        a.status !== "resolved" && a.status !== "dismissed"
-      );
+      const unresolved = alerts.filter((a) => a.status !== "resolved" && a.status !== "dismissed");
 
       return json({
         totalAlerts: alerts.length,
@@ -533,7 +573,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -563,7 +603,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -586,7 +626,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -607,7 +647,9 @@ server.tool(
       const [indexed, submitted, neverSubmitted, errors, recentSubmissions, chronicFailures] = await Promise.all([
         prisma.uRLIndexingStatus.count({ where: { site_id: site, status: "indexed" } }),
         prisma.uRLIndexingStatus.count({ where: { site_id: site, submitted_indexnow: true } }),
-        prisma.uRLIndexingStatus.count({ where: { site_id: site, submitted_indexnow: false, submitted_google_api: false } }),
+        prisma.uRLIndexingStatus.count({
+          where: { site_id: site, submitted_indexnow: false, submitted_google_api: false },
+        }),
         prisma.uRLIndexingStatus.count({ where: { site_id: site, status: "error" } }),
         prisma.uRLIndexingStatus.findMany({
           where: { site_id: site, last_submitted_at: { gte: weekAgo } },
@@ -632,19 +674,23 @@ server.tool(
         neverSubmitted,
         errors,
         chronicFailures,
-        recentSubmissions: recentSubmissions.map(s => ({
-          url: s.url, status: s.status, submitted: s.last_submitted_at, attempts: s.submission_attempts,
+        recentSubmissions: recentSubmissions.map((s) => ({
+          url: s.url,
+          status: s.status,
+          submitted: s.last_submitted_at,
+          attempts: s.submission_attempts,
         })),
-        recommendation: neverSubmitted > 10
-          ? "Run process-indexing-queue to submit pending pages"
-          : chronicFailures > 5
-            ? "Check IndexNow key file — chronic failures suggest verification issues"
-            : "Indexing pipeline healthy",
+        recommendation:
+          neverSubmitted > 10
+            ? "Run process-indexing-queue to submit pending pages"
+            : chronicFailures > 5
+              ? "Check IndexNow key file — chronic failures suggest verification issues"
+              : "Indexing pipeline healthy",
       });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -685,39 +731,44 @@ server.tool(
       // Articles missing meta
       const missingMeta = await prisma.blogPost.count({
         where: {
-          siteId: site, published: true,
-          OR: [
-            { meta_title_en: { equals: "" } },
-            { meta_description_en: { equals: "" } },
-          ],
+          siteId: site,
+          published: true,
+          OR: [{ meta_title_en: { equals: "" } }, { meta_description_en: { equals: "" } }],
         },
       });
 
       return json({
         site,
-        lastSeoAgentRun: latestSeoAgent ? {
-          when: latestSeoAgent.started_at,
-          duration: `${latestSeoAgent.duration_ms}ms`,
-          result: latestSeoAgent.result_summary,
-        } : null,
-        lastDeepReview: latestDeepReview ? {
-          when: latestDeepReview.started_at,
-          result: latestDeepReview.result_summary,
-        } : null,
-        lowSeoArticles: lowSeoArticles.map(a => ({
-          title: a.title_en, slug: a.slug, score: a.seo_score,
+        lastSeoAgentRun: latestSeoAgent
+          ? {
+              when: latestSeoAgent.started_at,
+              duration: `${latestSeoAgent.duration_ms}ms`,
+              result: latestSeoAgent.result_summary,
+            }
+          : null,
+        lastDeepReview: latestDeepReview
+          ? {
+              when: latestDeepReview.started_at,
+              result: latestDeepReview.result_summary,
+            }
+          : null,
+        lowSeoArticles: lowSeoArticles.map((a) => ({
+          title: a.title_en,
+          slug: a.slug,
+          score: a.seo_score,
         })),
         missingMetaCount: missingMeta,
-        recommendation: lowSeoArticles.length > 5
-          ? "Multiple articles below SEO threshold — run seo-deep-review"
-          : missingMeta > 0
-            ? `${missingMeta} articles missing meta tags — seo-agent will auto-fix`
-            : "SEO health looks good",
+        recommendation:
+          lowSeoArticles.length > 5
+            ? "Multiple articles below SEO threshold — run seo-deep-review"
+            : missingMeta > 0
+              ? `${missingMeta} articles missing meta tags — seo-agent will auto-fix`
+              : "SEO health looks good",
       });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -761,7 +812,8 @@ server.tool(
       // Coverage: articles with affiliate links vs total
       const withAffiliates = await prisma.blogPost.count({
         where: {
-          siteId: site, published: true,
+          siteId: site,
+          published: true,
           content_en: { contains: "affiliate" },
         },
       });
@@ -781,19 +833,21 @@ server.tool(
           totalPublished: publishedCount,
           rate: `${coverageRate}%`,
         },
-        topArticles: topArticles.map(a => ({
-          slug: a.articleSlug, clicks: a._count,
+        topArticles: topArticles.map((a) => ({
+          slug: a.articleSlug,
+          clicks: a._count,
         })),
-        recommendation: coverageRate < 50
-          ? "Low affiliate coverage — run affiliate-injection cron"
-          : clicksRecent === 0
-            ? "Zero clicks — check if affiliate links are visible on articles"
-            : "Affiliate pipeline active",
+        recommendation:
+          coverageRate < 50
+            ? "Low affiliate coverage — run affiliate-injection cron"
+            : clicksRecent === 0
+              ? "Zero clicks — check if affiliate links are visible on articles"
+              : "Affiliate pipeline active",
       });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -867,12 +921,12 @@ server.tool(
           tokens: costsMonth._sum.totalTokens || 0,
           calls: costsMonth._count,
         },
-        byProvider: byProvider.map(p => ({
+        byProvider: byProvider.map((p) => ({
           provider: p.provider,
           cost: `$${(p._sum.estimatedCostUsd || 0).toFixed(4)}`,
           calls: p._count,
         })),
-        byTask: byTask.map(t => ({
+        byTask: byTask.map((t) => ({
           task: t.taskType,
           cost: `$${(t._sum.estimatedCostUsd || 0).toFixed(4)}`,
           calls: t._count,
@@ -881,7 +935,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -909,32 +963,55 @@ server.tool(
           prisma.crmOpportunity.findFirst({ where: { contactEmail: email } }),
         ]);
 
-        if (lead) results.lead = {
-          name: lead.name, email: lead.email, status: lead.status,
-          score: lead.score, source: lead.lead_source, created: lead.created_at,
-        };
-        if (subscriber) results.subscriber = {
-          email: subscriber.email, status: subscriber.status, created: subscriber.created_at,
-        };
-        if (inquiry) results.charterInquiry = {
-          email: inquiry.email, firstName: inquiry.firstName,
-          yachtType: inquiry.yachtType, status: inquiry.status, created: inquiry.createdAt,
-        };
-        if (opportunity) results.opportunity = {
-          stage: opportunity.stage, value: opportunity.value,
-          source: opportunity.source, nextAction: opportunity.nextAction, created: opportunity.createdAt,
-        };
+        if (lead)
+          results.lead = {
+            name: lead.name,
+            email: lead.email,
+            status: lead.status,
+            score: lead.score,
+            source: lead.lead_source,
+            created: lead.created_at,
+          };
+        if (subscriber)
+          results.subscriber = {
+            email: subscriber.email,
+            status: subscriber.status,
+            created: subscriber.created_at,
+          };
+        if (inquiry)
+          results.charterInquiry = {
+            email: inquiry.email,
+            firstName: inquiry.firstName,
+            yachtType: inquiry.yachtType,
+            status: inquiry.status,
+            created: inquiry.createdAt,
+          };
+        if (opportunity)
+          results.opportunity = {
+            stage: opportunity.stage,
+            value: opportunity.value,
+            source: opportunity.source,
+            nextAction: opportunity.nextAction,
+            created: opportunity.createdAt,
+          };
       }
 
       if (phone) {
         const lead = await prisma.lead.findFirst({ where: { phone } });
         const inquiry = await prisma.charterInquiry.findFirst({ where: { phone } });
-        if (lead) results.leadByPhone = {
-          name: lead.name, email: lead.email, status: lead.status, score: lead.score,
-        };
-        if (inquiry) results.inquiryByPhone = {
-          email: inquiry.email, firstName: inquiry.firstName, status: inquiry.status,
-        };
+        if (lead)
+          results.leadByPhone = {
+            name: lead.name,
+            email: lead.email,
+            status: lead.status,
+            score: lead.score,
+          };
+        if (inquiry)
+          results.inquiryByPhone = {
+            email: inquiry.email,
+            firstName: inquiry.firstName,
+            status: inquiry.status,
+          };
       }
 
       const found = Object.keys(results).length > 0;
@@ -946,7 +1023,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -999,7 +1076,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1022,9 +1099,7 @@ server.tool(
     try {
       const where: Record<string, unknown> = { site_id: site };
       if (targetStatus !== "all") {
-        where.status = targetStatus === "ready"
-          ? { in: ["ready", "queued", "planned", "proposed"] }
-          : targetStatus;
+        where.status = targetStatus === "ready" ? { in: ["ready", "queued", "planned", "proposed"] } : targetStatus;
       }
 
       const topics = await prisma.topicProposal.findMany({
@@ -1032,9 +1107,15 @@ server.tool(
         orderBy: { created_at: "desc" },
         take,
         select: {
-          id: true, title: true, status: true, locale: true,
-          primary_keyword: true, intent: true, confidence_score: true,
-          suggested_page_type: true, created_at: true,
+          id: true,
+          title: true,
+          status: true,
+          locale: true,
+          primary_keyword: true,
+          intent: true,
+          confidence_score: true,
+          suggested_page_type: true,
+          created_at: true,
         },
       });
 
@@ -1049,8 +1130,8 @@ server.tool(
         site,
         filter: targetStatus,
         count: topics.length,
-        statusSummary: Object.fromEntries(statusCounts.map(s => [s.status, s._count])),
-        topics: topics.map(t => ({
+        statusSummary: Object.fromEntries(statusCounts.map((s) => [s.status, s._count])),
+        topics: topics.map((t) => ({
           id: t.id,
           title: t.title,
           status: t.status,
@@ -1065,7 +1146,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1093,7 +1174,11 @@ server.tool(
 
       const text = await res.text();
       let data: unknown;
-      try { data = JSON.parse(text); } catch { data = text; }
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
 
       return json({
         action: "research_topics",
@@ -1105,7 +1190,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1126,7 +1211,9 @@ server.tool(
         sites.map(async (site) => {
           const [published, drafts, reservoir, indexed, clicks, aiCost] = await Promise.all([
             prisma.blogPost.count({ where: { siteId: site, published: true } }),
-            prisma.articleDraft.count({ where: { site_id: site, current_phase: { notIn: ["published", "rejected"] } } }),
+            prisma.articleDraft.count({
+              where: { site_id: site, current_phase: { notIn: ["published", "rejected"] } },
+            }),
             prisma.articleDraft.count({ where: { site_id: site, current_phase: "reservoir" } }),
             prisma.uRLIndexingStatus.count({ where: { site_id: site, status: "indexed" } }),
             prisma.cjClickEvent.count({ where: { OR: [{ siteId: site }, { siteId: null }] } }),
@@ -1143,14 +1230,14 @@ server.tool(
             revenue: { affiliateClicks: clicks },
             aiCost7d: `$${(aiCost._sum.estimatedCostUsd || 0).toFixed(4)}`,
           };
-        })
+        }),
       );
 
       return json({ sites: metrics });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1173,7 +1260,7 @@ server.tool(
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1197,7 +1284,11 @@ server.tool(
       const [publishedRecent, draftsStuck, reservoirCount] = await Promise.all([
         prisma.blogPost.count({ where: { siteId: site, published: true, created_at: { gte: twentyFourHoursAgo } } }),
         prisma.articleDraft.count({
-          where: { site_id: site, current_phase: { notIn: ["published", "rejected", "reservoir"] }, updated_at: { lt: twelveHoursAgo } },
+          where: {
+            site_id: site,
+            current_phase: { notIn: ["published", "rejected", "reservoir"] },
+            updated_at: { lt: twelveHoursAgo },
+          },
         }),
         prisma.articleDraft.count({ where: { site_id: site, current_phase: "reservoir" } }),
       ]);
@@ -1208,7 +1299,7 @@ server.tool(
         select: { status: true, job_name: true, error_message: true },
       });
       const cronTotal = cronLogs.length;
-      const cronFailed = cronLogs.filter(c => c.status === "failed").length;
+      const cronFailed = cronLogs.filter((c) => c.status === "failed").length;
       const successRate = cronTotal > 0 ? Math.round(((cronTotal - cronFailed) / cronTotal) * 100) : 0;
 
       // AI provider health
@@ -1228,28 +1319,61 @@ server.tool(
       const issues: { severity: string; category: string; description: string; fix: string }[] = [];
 
       if (publishedRecent === 0) {
-        issues.push({ severity: "high", category: "pipeline", description: "Zero articles published in 24h", fix: "Run publish_ready or diagnose_pipeline" });
+        issues.push({
+          severity: "high",
+          category: "pipeline",
+          description: "Zero articles published in 24h",
+          fix: "Run publish_ready or diagnose_pipeline",
+        });
       }
       if (draftsStuck > 5) {
-        issues.push({ severity: "high", category: "pipeline", description: `${draftsStuck} drafts stuck for 12h+`, fix: "Run diagnose_pipeline" });
+        issues.push({
+          severity: "high",
+          category: "pipeline",
+          description: `${draftsStuck} drafts stuck for 12h+`,
+          fix: "Run diagnose_pipeline",
+        });
       }
       if (reservoirCount > 50) {
-        issues.push({ severity: "medium", category: "pipeline", description: `Reservoir overflow: ${reservoirCount} articles`, fix: "Run publish_ready to drain reservoir" });
+        issues.push({
+          severity: "medium",
+          category: "pipeline",
+          description: `Reservoir overflow: ${reservoirCount} articles`,
+          fix: "Run publish_ready to drain reservoir",
+        });
       }
       if (successRate < 80) {
-        issues.push({ severity: "high", category: "crons", description: `Cron success rate only ${successRate}%`, fix: "Check cron_health for failing jobs" });
+        issues.push({
+          severity: "high",
+          category: "crons",
+          description: `Cron success rate only ${successRate}%`,
+          fix: "Check cron_health for failing jobs",
+        });
       }
       for (const [provider, health] of providerHealth) {
         const rate = health.total > 0 ? (health.success / health.total) * 100 : 0;
         if (rate < 50 && health.total >= 3) {
-          issues.push({ severity: "medium", category: "ai", description: `${provider} failing ${Math.round(100 - rate)}% of calls`, fix: "Check API key / quota" });
+          issues.push({
+            severity: "medium",
+            category: "ai",
+            description: `${provider} failing ${Math.round(100 - rate)}% of calls`,
+            fix: "Check API key / quota",
+          });
         }
       }
 
       // Overall grade
-      const criticalCount = issues.filter(i => i.severity === "high").length;
-      const grade = criticalCount === 0 ? (issues.length === 0 ? "A" : "B") :
-        criticalCount <= 2 ? "C" : criticalCount <= 4 ? "D" : "F";
+      const criticalCount = issues.filter((i) => i.severity === "high").length;
+      const grade =
+        criticalCount === 0
+          ? issues.length === 0
+            ? "A"
+            : "B"
+          : criticalCount <= 2
+            ? "C"
+            : criticalCount <= 4
+              ? "D"
+              : "F";
 
       return json({
         site,
@@ -1264,19 +1388,26 @@ server.tool(
           cronFailed,
         },
         aiProviders: Object.fromEntries(
-          Array.from(providerHealth.entries()).map(([p, h]) => [p, {
-            calls: h.total, successRate: `${h.total > 0 ? Math.round((h.success / h.total) * 100) : 0}%`,
-          }])
+          Array.from(providerHealth.entries()).map(([p, h]) => [
+            p,
+            {
+              calls: h.total,
+              successRate: `${h.total > 0 ? Math.round((h.success / h.total) * 100) : 0}%`,
+            },
+          ]),
         ),
         issues,
-        recommendation: grade === "A" ? "Everything running smoothly" :
-          grade === "B" ? "Minor issues — self-healing systems should resolve" :
-          "Action needed — check issues above",
+        recommendation:
+          grade === "A"
+            ? "Everything running smoothly"
+            : grade === "B"
+              ? "Minor issues — self-healing systems should resolve"
+              : "Action needed — check issues above",
       });
     } catch (err: unknown) {
       return error(err instanceof Error ? err.message : String(err));
     }
-  }
+  },
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1302,7 +1433,11 @@ server.tool(
         orderBy: { created_at: "desc" },
         take,
         select: {
-          id: true, slug: true, title_en: true, seo_score: true, created_at: true,
+          id: true,
+          slug: true,
+          title_en: true,
+          seo_score: true,
+          created_at: true,
         },
       });
       const urls = posts.map((p) => `${domain}/blog/${p.slug}`);
@@ -1351,10 +1486,19 @@ server.tool(
       const post = await prisma.blogPost.findUnique({
         where: { id: pageId },
         select: {
-          id: true, siteId: true, slug: true, title_en: true, title_ar: true,
-          content_en: true, meta_title_en: true, meta_description_en: true,
-          seo_score: true, published: true, created_at: true,
-          source_pipeline: true, enhancement_log: true,
+          id: true,
+          siteId: true,
+          slug: true,
+          title_en: true,
+          title_ar: true,
+          content_en: true,
+          meta_title_en: true,
+          meta_description_en: true,
+          seo_score: true,
+          published: true,
+          created_at: true,
+          source_pipeline: true,
+          enhancement_log: true,
         },
       });
       if (!post) return error(`Page not found: ${pageId}`);
@@ -1372,8 +1516,12 @@ server.tool(
         prisma.uRLIndexingStatus.findFirst({
           where: { site_id: post.siteId || undefined, url },
           select: {
-            status: true, coverage_state: true, indexing_state: true,
-            submission_attempts: true, last_inspected_at: true, last_error: true,
+            status: true,
+            coverage_state: true,
+            indexing_state: true,
+            submission_attempts: true,
+            last_inspected_at: true,
+            last_error: true,
           },
         }),
       ]);
@@ -1385,9 +1533,13 @@ server.tool(
 
       return json({
         page: {
-          id: post.id, url, title: post.title_en,
+          id: post.id,
+          url,
+          title: post.title_en,
           seoScore: post.seo_score ?? undefined,
-          wordCount, internalLinkCount, affiliateLinkCount,
+          wordCount,
+          internalLinkCount,
+          affiliateLinkCount,
           metaTitleEn: post.meta_title_en ?? undefined,
           metaDescriptionEn: post.meta_description_en ?? undefined,
           published: post.published,
@@ -1430,8 +1582,12 @@ server.tool(
           orderBy: { started_at: "desc" },
           take: 100,
           select: {
-            job_name: true, status: true, started_at: true, duration_ms: true,
-            items_failed: true, error_message: true,
+            job_name: true,
+            status: true,
+            started_at: true,
+            duration_ms: true,
+            items_failed: true,
+            error_message: true,
           },
         }),
         prisma.autoFixLog.count({
@@ -1497,12 +1653,25 @@ server.tool(
           "Content-Type": "application/json",
           ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
         },
-        body: JSON.stringify({ siteId, pageUrl, auditType, severity, findings, interpretedActions, reportMarkdown, rawData }),
+        body: JSON.stringify({
+          siteId,
+          pageUrl,
+          auditType,
+          severity,
+          findings,
+          interpretedActions,
+          reportMarkdown,
+          rawData,
+        }),
         signal: AbortSignal.timeout(55_000),
       });
       const text = await res.text();
       let data: unknown;
-      try { data = JSON.parse(text); } catch { data = text; }
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
       if (!res.ok) return error(`Upload failed: ${res.status} ${JSON.stringify(data).slice(0, 500)}`);
       return json(data);
     } catch (err: unknown) {
@@ -1538,7 +1707,11 @@ server.tool(
       });
       const text = await res.text();
       let data: unknown;
-      try { data = JSON.parse(text); } catch { data = text; }
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
       if (!res.ok) return error(`Upload failed: ${res.status} ${JSON.stringify(data).slice(0, 500)}`);
       return json(data);
     } catch (err: unknown) {
@@ -1569,9 +1742,16 @@ server.tool(
         orderBy: { uploadedAt: "desc" },
         take,
         select: {
-          id: true, siteId: true, pageUrl: true, pageSlug: true,
-          auditType: true, severity: true, status: true,
-          uploadedAt: true, reviewedAt: true, fixedAt: true,
+          id: true,
+          siteId: true,
+          pageUrl: true,
+          pageSlug: true,
+          auditType: true,
+          severity: true,
+          status: true,
+          uploadedAt: true,
+          reviewedAt: true,
+          fixedAt: true,
           agentTaskId: true,
         },
       });
@@ -1585,11 +1765,516 @@ server.tool(
   },
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// AFFILIATE MONITORING
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "affiliate_link_health",
+  "Audit every affiliate link in published articles. Detects dead links (HTTP 4xx/5xx), untracked direct partner URLs (bypassing /api/affiliate/click), stale year references, and missing SID attribution. Per-article breakdown.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    maxArticles: z.number().optional().describe("Max articles to scan (default: 50)"),
+    skipLiveness: z.boolean().optional().describe("Skip HTTP HEAD checks for speed (default: false)"),
+  },
+  async ({ siteId, maxArticles, skipLiveness }) => {
+    try {
+      const { runLinkHealthAudit } = await import("@/lib/affiliate/link-auditor");
+      const result = await runLinkHealthAudit({
+        siteId: siteId || getDefaultSiteId(),
+        maxArticles: maxArticles || 50,
+        skipLiveness: skipLiveness ?? false,
+      });
+      return json(result);
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "affiliate_coverage",
+  "Show which published articles have affiliate links and which don't. Returns coverage % and the list of uncovered articles (candidates for affiliate-injection cron).",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+  },
+  async ({ siteId }) => {
+    try {
+      const { getContentCoverage } = await import("@/lib/affiliate/monitor");
+      const result = await getContentCoverage(siteId || getDefaultSiteId());
+      return json(result);
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IMAGE FIXES
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "image_audit",
+  "Find image issues across published articles: missing featured image, <img> tags without alt text, suspicious stock-photo hostnames. Read-only.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    limit: z.number().optional().describe("Max articles to return per issue type (default: 25)"),
+  },
+  async ({ siteId, limit }) => {
+    const site = siteId || getDefaultSiteId();
+    const cap = Math.min(limit || 25, 100);
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: { siteId: site, published: true },
+        select: { id: true, slug: true, title_en: true, featured_image: true, content_en: true },
+        take: 500,
+      });
+
+      const missingFeatured: Array<{ slug: string; title: string }> = [];
+      const missingAlt: Array<{ slug: string; title: string; imgCount: number }> = [];
+      const suspiciousHosts: Array<{ slug: string; title: string; hosts: string[] }> = [];
+      const suspiciousHostPattern = /(istockphoto|shutterstock|gettyimages|adobestock|123rf|dreamstime|stock\.adobe)/i;
+
+      for (const p of posts) {
+        if (!p.featured_image || p.featured_image.trim() === "") {
+          missingFeatured.push({ slug: p.slug, title: p.title_en?.slice(0, 80) || "(no title)" });
+        }
+        const content = p.content_en || "";
+        const imgMatches = [...content.matchAll(/<img\b[^>]*>/gi)];
+        const imgsWithoutAlt = imgMatches.filter((m) => !/\balt\s*=\s*"[^"]+"/i.test(m[0]));
+        if (imgsWithoutAlt.length > 0) {
+          missingAlt.push({
+            slug: p.slug,
+            title: p.title_en?.slice(0, 80) || "(no title)",
+            imgCount: imgsWithoutAlt.length,
+          });
+        }
+        const srcMatches = [...content.matchAll(/<img\b[^>]*\bsrc\s*=\s*"([^"]+)"/gi)];
+        const hosts = new Set<string>();
+        for (const m of srcMatches) {
+          try {
+            const u = new URL(m[1]);
+            if (suspiciousHostPattern.test(u.hostname)) hosts.add(u.hostname);
+          } catch {
+            /* relative URL — ignore */
+          }
+        }
+        if (hosts.size > 0) {
+          suspiciousHosts.push({ slug: p.slug, title: p.title_en?.slice(0, 80) || "(no title)", hosts: [...hosts] });
+        }
+      }
+
+      return json({
+        site,
+        totalScanned: posts.length,
+        summary: {
+          missingFeaturedImage: missingFeatured.length,
+          articlesWithImagesMissingAlt: missingAlt.length,
+          articlesWithSuspiciousHosts: suspiciousHosts.length,
+        },
+        missingFeaturedImage: missingFeatured.slice(0, cap),
+        missingAlt: missingAlt.slice(0, cap),
+        suspiciousHosts: suspiciousHosts.slice(0, cap),
+        nextStep:
+          missingFeatured.length > 0 || suspiciousHosts.length > 0
+            ? "Run image_fix to trigger image-pipeline cron"
+            : "All checks passed",
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "image_fix",
+  "Trigger the image-pipeline cron — fills missing featured images from Unsplash/Hotellook, replaces blocked stock photos. Write operation.",
+  {},
+  async () => {
+    const result = await callCron("/api/cron/image-pipeline");
+    return json(result);
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATES CLEANUP
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "dates_audit",
+  "Find published articles with stale year references in title or meta tags. Lists articles where the year embedded in copy is older than the current year (e.g., '...2024 Guide' published in 2026). Read-only.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    limit: z.number().optional().describe("Max articles to return (default: 50)"),
+  },
+  async ({ siteId, limit }) => {
+    const site = siteId || getDefaultSiteId();
+    const cap = Math.min(limit || 50, 200);
+    const currentYear = new Date().getFullYear();
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: { siteId: site, published: true },
+        select: {
+          id: true,
+          slug: true,
+          created_at: true,
+          title_en: true,
+          title_ar: true,
+          meta_title_en: true,
+          meta_title_ar: true,
+          meta_description_en: true,
+          meta_description_ar: true,
+        },
+        orderBy: { created_at: "desc" },
+        take: 1000,
+      });
+
+      const stale: Array<{
+        slug: string;
+        createdAt: string;
+        staleYears: number[];
+        staleFields: string[];
+        title_en: string;
+      }> = [];
+
+      const yearRegex = /\b(20\d{2})\b/g;
+      const fields: Array<keyof (typeof posts)[0]> = [
+        "title_en",
+        "title_ar",
+        "meta_title_en",
+        "meta_title_ar",
+        "meta_description_en",
+        "meta_description_ar",
+      ];
+
+      for (const p of posts) {
+        const staleYears = new Set<number>();
+        const staleFields = new Set<string>();
+        for (const f of fields) {
+          const v = (p[f] as string | null) || "";
+          for (const m of v.matchAll(yearRegex)) {
+            const y = parseInt(m[1], 10);
+            if (y >= 2018 && y < currentYear) {
+              staleYears.add(y);
+              staleFields.add(f as string);
+            }
+          }
+        }
+        if (staleYears.size > 0) {
+          stale.push({
+            slug: p.slug,
+            createdAt: p.created_at.toISOString().slice(0, 10),
+            staleYears: [...staleYears].sort(),
+            staleFields: [...staleFields],
+            title_en: (p.title_en || "").slice(0, 100),
+          });
+        }
+      }
+
+      return json({
+        site,
+        currentYear,
+        totalScanned: posts.length,
+        staleCount: stale.length,
+        stale: stale.slice(0, cap),
+        nextStep:
+          stale.length > 0
+            ? "Bulk title/meta refresh: rewrite each title replacing the stale year with the current year. Can be done via bulk-publish or manual editor edits."
+            : "All dates current",
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERNAL LINKS
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "internal_links_audit",
+  "Find orphan and under-linked published articles. Orphan = zero inbound internal links (no other article links to it). Under-linked = fewer than 3 outbound internal links in body. Read-only.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    minOutbound: z.number().optional().describe("Outbound link threshold (default: 3)"),
+  },
+  async ({ siteId, minOutbound }) => {
+    const site = siteId || getDefaultSiteId();
+    const minOut = minOutbound || 3;
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: { siteId: site, published: true },
+        select: { id: true, slug: true, title_en: true, content_en: true, created_at: true },
+        take: 1000,
+      });
+
+      // Build inbound-link map by scanning every article's content for /blog/<slug>
+      const inboundCount = new Map<string, number>();
+      for (const p of posts) inboundCount.set(p.slug, 0);
+
+      const outboundCounts = new Map<string, number>();
+      const slugLinkRe = /\/blog\/([a-z0-9-]+)/gi;
+
+      for (const p of posts) {
+        const content = p.content_en || "";
+        const referencedSlugs = new Set<string>();
+        for (const m of content.matchAll(slugLinkRe)) {
+          const target = m[1];
+          if (target !== p.slug) referencedSlugs.add(target);
+        }
+        outboundCounts.set(p.slug, referencedSlugs.size);
+        for (const s of referencedSlugs) {
+          if (inboundCount.has(s)) inboundCount.set(s, (inboundCount.get(s) || 0) + 1);
+        }
+      }
+
+      const orphans: Array<{ slug: string; title: string; createdAt: string }> = [];
+      const underLinked: Array<{ slug: string; title: string; outbound: number }> = [];
+
+      for (const p of posts) {
+        if ((inboundCount.get(p.slug) || 0) === 0) {
+          orphans.push({
+            slug: p.slug,
+            title: (p.title_en || "").slice(0, 80),
+            createdAt: p.created_at.toISOString().slice(0, 10),
+          });
+        }
+        if ((outboundCounts.get(p.slug) || 0) < minOut) {
+          underLinked.push({
+            slug: p.slug,
+            title: (p.title_en || "").slice(0, 80),
+            outbound: outboundCounts.get(p.slug) || 0,
+          });
+        }
+      }
+
+      return json({
+        site,
+        totalScanned: posts.length,
+        summary: {
+          orphans: orphans.length,
+          underLinked: underLinked.length,
+          minOutboundThreshold: minOut,
+        },
+        orphans: orphans.slice(0, 50),
+        underLinked: underLinked.slice(0, 50),
+        nextStep:
+          orphans.length + underLinked.length > 0
+            ? "Run internal_links_inject to trigger seo-agent's related-article injection batch"
+            : "All articles meet linking thresholds",
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "internal_links_inject",
+  "Trigger the seo-agent cron — injects related-article links into under-linked published articles + cleans broken/placeholder slugs. Write operation.",
+  {},
+  async () => {
+    const result = await callCron("/api/cron/seo-agent");
+    return json(result);
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC WEBSITE AUDIT
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "public_audit",
+  "Run the full 6-dimension public-website audit (photos, unedited content, news refresh, SEO updates, AIO alignment, affiliate practices) against published articles. Returns overall grade A-F, score, top actions ranked by severity, and per-dimension breakdown with score + top issues. Same engine as the /api/admin/public-audit endpoint — no HTTP round-trip.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    sample: z.number().optional().describe("Max articles to scan (default: 500, capped 50-1000)"),
+  },
+  async ({ siteId, sample }) => {
+    try {
+      const { runPublicAudit } = await import("@/app/api/admin/public-audit/route");
+      const start = Date.now();
+      const report = await runPublicAudit(siteId || getDefaultSiteId(), sample || 500);
+      return json({ ...report, durationMs: Date.now() - start });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUDIT AND FIX (cross-MCP enrichment + optional execute)
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "audit_and_fix",
+  'When Khaled says "audit and fix issues" — the full flow. Runs the audit-roundup aggregator, enriches each finding with last-30d GSC clicks + impressions + CJ revenue per affected article, re-ranks by ENRICHED ROI (real revenue impact, not just severity), and optionally executes the top N auto-fixable actions. Set execute=true to run fixes. Returns: per-finding enrichment, re-ranked top actions, execution outcomes.',
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    execute: z
+      .boolean()
+      .optional()
+      .describe("Set true to actually run the top N auto-fixes (default: false — audit only)"),
+    maxFixes: z.number().optional().describe("Cap on fixes to execute when execute=true (default: 5)"),
+    enrichDays: z.number().optional().describe("GSC + CJ lookback window in days (default: 30)"),
+  },
+  async ({ siteId, execute, maxFixes, enrichDays }) => {
+    try {
+      const site = siteId || getDefaultSiteId();
+      const days = enrichDays || 30;
+      const since = new Date(Date.now() - days * 86400000);
+      const cap = Math.min(maxFixes || 5, 10);
+      const start = Date.now();
+
+      // Step 1: pull aggregator
+      const { runAuditRoundup } = await import("@/app/api/admin/audit-roundup/route");
+      const report = await runAuditRoundup(site);
+
+      // Step 2: collect every affected slug across all actions
+      const affectedSlugs = new Set<string>();
+      for (const a of report.allActions) {
+        if (a.affectedSlug) affectedSlugs.add(a.affectedSlug);
+      }
+      const slugs = [...affectedSlugs];
+
+      // Step 3: enrich with GSC + CJ in parallel
+      const domain = getSiteDomain(site).replace(/\/$/, "");
+      const possibleUrls = slugs.flatMap((s) => [`${domain}/blog/${s}`, `${domain}/blog/${s}/`, `${domain}/${s}`]);
+
+      const [gscRows, cjRows] = await Promise.all([
+        slugs.length > 0
+          ? prisma.gscPagePerformance.findMany({
+              where: {
+                site_id: site,
+                url: { in: possibleUrls },
+                date: { gte: since },
+              },
+              select: { url: true, clicks: true, impressions: true, position: true },
+            })
+          : [],
+        slugs.length > 0
+          ? prisma.cjCommission.findMany({
+              where: {
+                OR: [{ siteId: site }, { siteId: null }],
+                eventDate: { gte: since },
+                sessionId: { not: null },
+              },
+              select: { sessionId: true, commissionAmount: true },
+              take: 5000,
+            })
+          : [],
+      ]);
+
+      // Step 4: build per-slug enrichment map
+      const enrichBySlug = new Map<
+        string,
+        { clicks: number; impressions: number; position: number; revenueUsd: number }
+      >();
+      for (const slug of slugs) {
+        enrichBySlug.set(slug, { clicks: 0, impressions: 0, position: 0, revenueUsd: 0 });
+      }
+      const positionSamples = new Map<string, number[]>();
+      for (const row of gscRows) {
+        // Resolve url back to slug
+        const matched = slugs.find((s) => row.url.includes(`/blog/${s}`) || row.url.endsWith(`/${s}`));
+        if (!matched) continue;
+        const e = enrichBySlug.get(matched)!;
+        e.clicks += row.clicks;
+        e.impressions += row.impressions;
+        const arr = positionSamples.get(matched) || [];
+        arr.push(row.position);
+        positionSamples.set(matched, arr);
+      }
+      for (const [slug, samples] of positionSamples) {
+        if (samples.length === 0) continue;
+        const avg = samples.reduce((s, v) => s + v, 0) / samples.length;
+        enrichBySlug.get(slug)!.position = Math.round(avg * 10) / 10;
+      }
+      // SID format is `{siteId}_{slug}` — match each commission to its slug
+      const sitePrefix = `${site}_`;
+      for (const c of cjRows) {
+        const sid = c.sessionId || "";
+        if (!sid.startsWith(sitePrefix)) continue;
+        const slugFromSid = sid.slice(sitePrefix.length);
+        // SID may include suffixes — find best slug match
+        const matched = slugs.find((s) => slugFromSid === s || slugFromSid.startsWith(s));
+        if (!matched) continue;
+        enrichBySlug.get(matched)!.revenueUsd += Number(c.commissionAmount) || 0;
+      }
+
+      // Step 5: re-rank actions by enriched ROI
+      // Formula: original roiScore × log(1 + clicks) × (1 + revenue/100)
+      // Articles with traffic + revenue jump to the top regardless of severity.
+      const enrichedActions = report.allActions.map((a) => {
+        const e = a.affectedSlug ? enrichBySlug.get(a.affectedSlug) : undefined;
+        const trafficMultiplier = e ? Math.log(1 + e.clicks * 10 + e.impressions / 100) : 1;
+        const revenueMultiplier = e ? 1 + e.revenueUsd / 100 : 1;
+        const enrichedScore = Math.round(a.roiScore * trafficMultiplier * revenueMultiplier);
+        return {
+          ...a,
+          enrichment: e || null,
+          enrichedRoiScore: enrichedScore,
+        };
+      });
+      enrichedActions.sort((a, b) => b.enrichedRoiScore - a.enrichedRoiScore);
+
+      // Step 6: optionally execute top N auto-fixes
+      const executed: Array<{ cron: string; ok: boolean; data?: unknown; error?: string; durationMs: number }> = [];
+      if (execute) {
+        const seen = new Set<string>();
+        const toRun = enrichedActions
+          .filter((a) => a.fixability === "auto" && a.cron && !seen.has(a.cron) && (seen.add(a.cron!), true))
+          .slice(0, cap);
+        for (const action of toRun) {
+          if (!action.cron) continue;
+          const fixStart = Date.now();
+          const result = await callCron(action.cron);
+          executed.push({
+            cron: action.cron,
+            ok: result.ok,
+            data: result.data,
+            error: result.error,
+            durationMs: Date.now() - fixStart,
+          });
+        }
+      }
+
+      return json({
+        site,
+        generatedAt: new Date().toISOString(),
+        durationMs: Date.now() - start,
+        execute: execute || false,
+        windowDays: days,
+        slugsEnriched: slugs.length,
+        topActions: enrichedActions.slice(0, 15),
+        enrichedActionsTotal: enrichedActions.length,
+        executed,
+        plainLanguageSummary: report.plainLanguageSummary,
+        baselineSources: report.sources,
+        baselineTotals: report.totals,
+        nextStep: execute
+          ? `${executed.filter((e) => e.ok).length}/${executed.length} auto-fixes executed. Re-run audit_and_fix in 7 days to measure GSC delta vs the AutoFixLog before-snapshots.`
+          : "Set execute=true to run the top auto-fixes. Manual + semi-auto findings need human review either way.",
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
 
 async function main() {
+  // Surface a clean error early if DATABASE_URL is missing rather than crashing
+  // mid-tool with a Prisma engine error.
+  if (!process.env.DATABASE_URL) {
+    console.error(
+      "[platform-control] DATABASE_URL is not set. The MCP server will start, but every tool that touches the DB will fail. Set DATABASE_URL in yalla_london/app/.env.local or in the .mcp.json env block.",
+    );
+  }
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

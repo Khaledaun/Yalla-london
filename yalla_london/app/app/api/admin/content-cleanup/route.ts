@@ -99,11 +99,16 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 }
 
 function normalizeSlug(slug: string): string {
-  return slug
-    .replace(SLUG_ARTIFACT_PATTERN, "")
-    .replace(/-20\d{2}(-\d{2}(-\d{2})?)?/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+  // Iterate until idempotent — handles stacked suffixes like `-v2-v2` and
+  // `-v9-75b0dea7` where a single regex pass would leave one suffix attached.
+  // Cap at 5 iterations to avoid pathological inputs.
+  let result = slug;
+  for (let i = 0; i < 5; i++) {
+    const before = result;
+    result = result.replace(SLUG_ARTIFACT_PATTERN, "").replace(/-20\d{2}(-\d{2}(-\d{2})?)?/g, "");
+    if (result === before) break;
+  }
+  return result.replace(/-+/g, "-").replace(/^-|-$/g, "");
 }
 
 interface ArticleRow {

@@ -918,7 +918,7 @@ async function buildValidation(siteIds: string[]): Promise<Validation> {
     select: { fixType: true },
     take: 500,
   });
-  const fixTypes = [...new Set(rows.map((r) => r.fixType))];
+  const fixTypes = [...new Set<string>(rows.map((r) => r.fixType))];
 
   const VALIDATION_MAP: Record<string, { how: string; whenToCheck: string }> = {
     image_pipeline: {

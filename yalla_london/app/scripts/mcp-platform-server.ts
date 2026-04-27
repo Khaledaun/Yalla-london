@@ -2103,6 +2103,166 @@ server.tool(
   },
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// AUDIT AND FIX (cross-MCP enrichment + optional execute)
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "audit_and_fix",
+  'When Khaled says "audit and fix issues" — the full flow. Runs the audit-roundup aggregator, enriches each finding with last-30d GSC clicks + impressions + CJ revenue per affected article, re-ranks by ENRICHED ROI (real revenue impact, not just severity), and optionally executes the top N auto-fixable actions. Set execute=true to run fixes. Returns: per-finding enrichment, re-ranked top actions, execution outcomes.',
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    execute: z
+      .boolean()
+      .optional()
+      .describe("Set true to actually run the top N auto-fixes (default: false — audit only)"),
+    maxFixes: z.number().optional().describe("Cap on fixes to execute when execute=true (default: 5)"),
+    enrichDays: z.number().optional().describe("GSC + CJ lookback window in days (default: 30)"),
+  },
+  async ({ siteId, execute, maxFixes, enrichDays }) => {
+    try {
+      const site = siteId || getDefaultSiteId();
+      const days = enrichDays || 30;
+      const since = new Date(Date.now() - days * 86400000);
+      const cap = Math.min(maxFixes || 5, 10);
+      const start = Date.now();
+
+      // Step 1: pull aggregator
+      const { runAuditRoundup } = await import("@/app/api/admin/audit-roundup/route");
+      const report = await runAuditRoundup(site);
+
+      // Step 2: collect every affected slug across all actions
+      const affectedSlugs = new Set<string>();
+      for (const a of report.allActions) {
+        if (a.affectedSlug) affectedSlugs.add(a.affectedSlug);
+      }
+      const slugs = [...affectedSlugs];
+
+      // Step 3: enrich with GSC + CJ in parallel
+      const domain = getSiteDomain(site).replace(/\/$/, "");
+      const possibleUrls = slugs.flatMap((s) => [`${domain}/blog/${s}`, `${domain}/blog/${s}/`, `${domain}/${s}`]);
+
+      const [gscRows, cjRows] = await Promise.all([
+        slugs.length > 0
+          ? prisma.gscPagePerformance.findMany({
+              where: {
+                site_id: site,
+                url: { in: possibleUrls },
+                date: { gte: since },
+              },
+              select: { url: true, clicks: true, impressions: true, position: true },
+            })
+          : [],
+        slugs.length > 0
+          ? prisma.cjCommission.findMany({
+              where: {
+                OR: [{ siteId: site }, { siteId: null }],
+                eventDate: { gte: since },
+                sessionId: { not: null },
+              },
+              select: { sessionId: true, commissionAmount: true },
+              take: 5000,
+            })
+          : [],
+      ]);
+
+      // Step 4: build per-slug enrichment map
+      const enrichBySlug = new Map<
+        string,
+        { clicks: number; impressions: number; position: number; revenueUsd: number }
+      >();
+      for (const slug of slugs) {
+        enrichBySlug.set(slug, { clicks: 0, impressions: 0, position: 0, revenueUsd: 0 });
+      }
+      const positionSamples = new Map<string, number[]>();
+      for (const row of gscRows) {
+        // Resolve url back to slug
+        const matched = slugs.find((s) => row.url.includes(`/blog/${s}`) || row.url.endsWith(`/${s}`));
+        if (!matched) continue;
+        const e = enrichBySlug.get(matched)!;
+        e.clicks += row.clicks;
+        e.impressions += row.impressions;
+        const arr = positionSamples.get(matched) || [];
+        arr.push(row.position);
+        positionSamples.set(matched, arr);
+      }
+      for (const [slug, samples] of positionSamples) {
+        if (samples.length === 0) continue;
+        const avg = samples.reduce((s, v) => s + v, 0) / samples.length;
+        enrichBySlug.get(slug)!.position = Math.round(avg * 10) / 10;
+      }
+      // SID format is `{siteId}_{slug}` — match each commission to its slug
+      const sitePrefix = `${site}_`;
+      for (const c of cjRows) {
+        const sid = c.sessionId || "";
+        if (!sid.startsWith(sitePrefix)) continue;
+        const slugFromSid = sid.slice(sitePrefix.length);
+        // SID may include suffixes — find best slug match
+        const matched = slugs.find((s) => slugFromSid === s || slugFromSid.startsWith(s));
+        if (!matched) continue;
+        enrichBySlug.get(matched)!.revenueUsd += Number(c.commissionAmount) || 0;
+      }
+
+      // Step 5: re-rank actions by enriched ROI
+      // Formula: original roiScore × log(1 + clicks) × (1 + revenue/100)
+      // Articles with traffic + revenue jump to the top regardless of severity.
+      const enrichedActions = report.allActions.map((a) => {
+        const e = a.affectedSlug ? enrichBySlug.get(a.affectedSlug) : undefined;
+        const trafficMultiplier = e ? Math.log(1 + e.clicks * 10 + e.impressions / 100) : 1;
+        const revenueMultiplier = e ? 1 + e.revenueUsd / 100 : 1;
+        const enrichedScore = Math.round(a.roiScore * trafficMultiplier * revenueMultiplier);
+        return {
+          ...a,
+          enrichment: e || null,
+          enrichedRoiScore: enrichedScore,
+        };
+      });
+      enrichedActions.sort((a, b) => b.enrichedRoiScore - a.enrichedRoiScore);
+
+      // Step 6: optionally execute top N auto-fixes
+      const executed: Array<{ cron: string; ok: boolean; data?: unknown; error?: string; durationMs: number }> = [];
+      if (execute) {
+        const seen = new Set<string>();
+        const toRun = enrichedActions
+          .filter((a) => a.fixability === "auto" && a.cron && !seen.has(a.cron) && (seen.add(a.cron!), true))
+          .slice(0, cap);
+        for (const action of toRun) {
+          if (!action.cron) continue;
+          const fixStart = Date.now();
+          const result = await callCron(action.cron);
+          executed.push({
+            cron: action.cron,
+            ok: result.ok,
+            data: result.data,
+            error: result.error,
+            durationMs: Date.now() - fixStart,
+          });
+        }
+      }
+
+      return json({
+        site,
+        generatedAt: new Date().toISOString(),
+        durationMs: Date.now() - start,
+        execute: execute || false,
+        windowDays: days,
+        slugsEnriched: slugs.length,
+        topActions: enrichedActions.slice(0, 15),
+        enrichedActionsTotal: enrichedActions.length,
+        executed,
+        plainLanguageSummary: report.plainLanguageSummary,
+        baselineSources: report.sources,
+        baselineTotals: report.totals,
+        nextStep: execute
+          ? `${executed.filter((e) => e.ok).length}/${executed.length} auto-fixes executed. Re-run audit_and_fix in 7 days to measure GSC delta vs the AutoFixLog before-snapshots.`
+          : "Set execute=true to run the top auto-fixes. Manual + semi-auto findings need human review either way.",
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------

@@ -247,10 +247,7 @@ async function handleAuditRoundup(request: NextRequest) {
     }
   } catch (err: unknown) {
     const totalDuration = Date.now() - cronStart;
-    await logCronExecution({
-      jobName: "audit-roundup",
-      jobType: "maintenance",
-      status: "failed",
+    await logCronExecution("audit-roundup", "failed", {
       durationMs: totalDuration,
       itemsProcessed: allOutcomes.length,
       resultSummary: { error: err instanceof Error ? err.message : String(err), partial: allOutcomes },
@@ -265,10 +262,7 @@ async function handleAuditRoundup(request: NextRequest) {
   const totalDuration = Date.now() - cronStart;
   const overallSuccess = failedCount === 0;
 
-  await logCronExecution({
-    jobName: "audit-roundup",
-    jobType: "maintenance",
-    status: overallSuccess ? "completed" : "failed",
+  await logCronExecution("audit-roundup", overallSuccess ? "completed" : "failed", {
     durationMs: totalDuration,
     itemsProcessed: allOutcomes.length,
     itemsSucceeded: executedCount,

@@ -19,7 +19,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { runAuditRoundup } from "@/app/api/admin/audit-roundup/route";
-import { getActiveSiteIds } from "@/config/sites";
+import { getActiveSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import { prisma } from "@/lib/db";
 
 const TOTAL_BUDGET_MS = 280_000;
@@ -46,12 +46,21 @@ async function callCronInternal(
   path: string,
   cronSecret: string,
 ): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+  // Use the canonical production domain — VERCEL_URL resolves to a
+  // deployment URL like `yalla-london-xyz.vercel.app` (rule #181), which
+  // can fail middleware checks or routing. getSiteDomain() returns
+  // `https://www.yalla-london.com` reliably.
+  const baseUrl = getSiteDomain(getDefaultSiteId());
+
+  // Send BOTH headers — different crons in the codebase check different
+  // header names. The platform-control MCP's callCron() does the same
+  // (scripts/mcp-platform-server.ts).
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${cronSecret}`,
+        "x-cron-secret": cronSecret,
         "Content-Type": "application/json",
       },
       signal: AbortSignal.timeout(PER_FIX_BUDGET_MS - 1000),

@@ -62,6 +62,7 @@ interface ArticleRow {
   content_ar: string | null;
   featured_image: string | null;
   category_id: string | null;
+  canonical_slug: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -436,6 +437,284 @@ function auditNewsRefresh(posts: ArticleRow[]): DimensionResult {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Dimension 4: SEO updates (technical SEO + the Tier 1+2 blind spots)
+// ───────────────────────────────────────────────────────────────────────────
+
+// Length thresholds aligned with lib/seo/standards.ts CONTENT_QUALITY.
+const META_TITLE_MIN = 30;
+const META_TITLE_MAX = 60;
+const META_DESC_MIN = 120;
+const META_DESC_MAX = 160;
+
+// Soft 404 indicators — page returns 200 but content reads like an error.
+const SOFT_404_PATTERNS = [
+  /\bnot\s+found\b/i,
+  /\bcoming\s+soon\b/i,
+  /\bunder\s+construction\b/i,
+  /\bno\s+results?\b/i,
+  /\bsorry,?\s+nothing\b/i,
+  /\b404\b/,
+  /\bpage\s+not\s+available\b/i,
+];
+
+// Schema @type values that must match URL pattern. If the URL doesn't fit, the
+// schema is wrong and Google will reject the rich result.
+const SCHEMA_URL_RULES: Array<{ pattern: RegExp; allowedTypes: string[] }> = [
+  { pattern: /\/blog\//, allowedTypes: ["Article", "BlogPosting", "NewsArticle"] },
+  { pattern: /\/news\//, allowedTypes: ["NewsArticle", "Article"] },
+  { pattern: /\/yachts\//, allowedTypes: ["Product", "Service"] },
+  { pattern: /\/destinations\//, allowedTypes: ["Place", "TouristDestination"] },
+  { pattern: /\/itineraries\//, allowedTypes: ["Trip", "Article"] },
+];
+
+interface SeoSitewide {
+  // Hash → array of slugs that share the same meta_description. Anything with
+  // length > 1 is a duplicate cluster.
+  duplicateMetaDescriptions: Map<string, string[]>;
+  // Slugs whose canonical_slug points to another article that ALSO has a
+  // canonical_slug — that's a 301 chain.
+  redirectChains: Array<{ slug: string; via: string; finalTarget: string }>;
+  // Slugs whose Arabic content is mostly English (server-side language
+  // mismatch — KG-032 risk).
+  arabicLanguageMismatch: string[];
+  // Sitewide signals that aren't per-article.
+  organizationSchemaHasSameAs: boolean | null;
+}
+
+function buildSitewideContext(posts: ArticleRow[]): SeoSitewide {
+  const metaHash = new Map<string, string[]>();
+  for (const p of posts) {
+    const meta = (p.meta_description_en || "").trim();
+    if (meta.length < 50) continue; // ignore empties + obvious stubs
+    const key = meta.toLowerCase().replace(/\s+/g, " ");
+    const existing = metaHash.get(key) || [];
+    existing.push(p.slug);
+    metaHash.set(key, existing);
+  }
+
+  // Build the canonical_slug graph and find chains. A → B → C means article A
+  // 301-redirects to B, but B itself 301-redirects to C. Each hop loses ~5%
+  // authority so we want every redirect to land on the final target directly.
+  const slugToCanonical = new Map<string, string>();
+  for (const p of posts) {
+    if (p.canonical_slug && p.canonical_slug !== p.slug) {
+      slugToCanonical.set(p.slug, p.canonical_slug);
+    }
+  }
+  const chains: SeoSitewide["redirectChains"] = [];
+  for (const [from, via] of slugToCanonical) {
+    const next = slugToCanonical.get(via);
+    if (next && next !== via) {
+      chains.push({ slug: from, via, finalTarget: next });
+    }
+  }
+
+  // Heuristic Arabic-language check: count Arabic Unicode characters in
+  // content_ar. If the field exists but has < 30% Arabic characters in the
+  // first 2000 chars, the article is probably English masquerading as Arabic.
+  const arabicMismatch: string[] = [];
+  for (const p of posts) {
+    const ar = (p.content_ar || "").slice(0, 2000);
+    if (ar.length < 200) continue;
+    const arabicChars = (ar.match(/[؀-ۿ]/g) || []).length;
+    if (arabicChars / ar.length < 0.3) arabicMismatch.push(p.slug);
+  }
+
+  return {
+    duplicateMetaDescriptions: metaHash,
+    redirectChains: chains,
+    arabicLanguageMismatch: arabicMismatch,
+    organizationSchemaHasSameAs: null, // populated lazily by per-article scan
+  };
+}
+
+function auditSeoUpdates(posts: ArticleRow[], sitewide: SeoSitewide): DimensionResult {
+  const issues: Issue[] = [];
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  // Resolve duplicate meta_description clusters into per-article issues.
+  for (const [, slugs] of sitewide.duplicateMetaDescriptions) {
+    if (slugs.length < 2) continue;
+    for (const slug of slugs) {
+      const post = posts.find((p) => p.slug === slug);
+      if (!post) continue;
+      pushIssue(issues, bySeverity, {
+        slug,
+        title: (post.title_en || "").slice(0, 80),
+        severity: "high",
+        detail: `Duplicate meta_description shared with ${slugs.length - 1} other article(s) — Google dedupes in SERP`,
+      });
+    }
+  }
+
+  // Redirect chains.
+  for (const c of sitewide.redirectChains) {
+    const post = posts.find((p) => p.slug === c.slug);
+    pushIssue(issues, bySeverity, {
+      slug: c.slug,
+      title: (post?.title_en || "").slice(0, 80),
+      severity: "high",
+      detail: `301 chain: ${c.slug} → ${c.via} → ${c.finalTarget}. Each hop loses ~5% authority.`,
+    });
+  }
+
+  // Arabic language mismatch (KG-032 manifesting as content not just SSR).
+  for (const slug of sitewide.arabicLanguageMismatch) {
+    const post = posts.find((p) => p.slug === slug);
+    pushIssue(issues, bySeverity, {
+      slug,
+      title: (post?.title_en || "").slice(0, 80),
+      severity: "high",
+      detail: "content_ar field exists but is mostly English — hreflang pair is invalidated",
+    });
+  }
+
+  // Per-article checks.
+  for (const p of posts) {
+    const slug = p.slug;
+    const title = (p.title_en || "").slice(0, 80);
+    const content = p.content_en || "";
+
+    // Meta title length.
+    const mt = (p.meta_title_en || "").trim();
+    if (!mt) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: "Missing meta_title_en",
+      });
+    } else if (mt.length < META_TITLE_MIN) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `meta_title_en too short (${mt.length} chars, min ${META_TITLE_MIN})`,
+      });
+    } else if (mt.length > META_TITLE_MAX) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `meta_title_en too long (${mt.length} chars, max ${META_TITLE_MAX} — gets truncated in SERP)`,
+      });
+    }
+
+    // Meta description length.
+    const md = (p.meta_description_en || "").trim();
+    if (!md) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: "Missing meta_description_en",
+      });
+    } else if (md.length < META_DESC_MIN) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `meta_description_en too short (${md.length} chars, min ${META_DESC_MIN})`,
+      });
+    } else if (md.length > META_DESC_MAX) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: `meta_description_en too long (${md.length} chars, soft cap ${META_DESC_MAX})`,
+      });
+    }
+
+    // H1 count — page template provides H1, body must use H2+.
+    const h1Matches = [...content.matchAll(/<h1\b[^>]*>/gi)];
+    if (h1Matches.length > 0) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: `Body contains ${h1Matches.length} <h1> tag(s) — page template already provides one`,
+      });
+    }
+
+    // Structured data presence.
+    const hasJsonLd = /<script[^>]*type\s*=\s*"application\/ld\+json"/i.test(content);
+    if (!hasJsonLd) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: "No JSON-LD structured data in body — schema injection may have failed",
+      });
+    } else {
+      // Schema-type mismatch: extract @type values and compare to URL rules.
+      const typeMatches = [...content.matchAll(/"@type"\s*:\s*"([^"]+)"/gi)].map((m) => m[1]);
+      for (const rule of SCHEMA_URL_RULES) {
+        if (!rule.pattern.test(`/blog/${p.slug}`)) continue;
+        const wrong = typeMatches.filter((t) => !rule.allowedTypes.includes(t));
+        if (wrong.length > 0 && typeMatches.length > 0) {
+          pushIssue(issues, bySeverity, {
+            slug,
+            title,
+            severity: "medium",
+            detail: `Schema @type "${wrong.join(", ")}" doesn't fit URL pattern (expected: ${rule.allowedTypes.join("|")})`,
+          });
+        }
+      }
+    }
+
+    // Soft 404: thin content with error-like patterns.
+    const wordCount = content.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 200) {
+      const matchedPatterns = SOFT_404_PATTERNS.filter((re) => re.test(content));
+      if (matchedPatterns.length > 0 || wordCount < 50) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "critical",
+          detail: `Soft 404: ${wordCount} words${matchedPatterns.length > 0 ? " + error-like patterns" : ""}`,
+        });
+      }
+    }
+
+    // Stale lastmod proxy: if updated_at is older than created_at + 30d AND
+    // the article has SEO score issues, sitemap probably isn't telling Google
+    // to re-crawl. (Real check needs sitemap cache lookup — that's a Batch 6
+    // enrichment.)
+    const ageDays = (Date.now() - p.created_at.getTime()) / 86400000;
+    const sinceUpdateDays = (Date.now() - p.updated_at.getTime()) / 86400000;
+    if (ageDays > 30 && sinceUpdateDays > 30 && wordCount < 500) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: `${Math.floor(sinceUpdateDays)}d since last update on a thin article — sitemap won't trigger re-crawl`,
+      });
+    }
+  }
+
+  return {
+    name: "seoUpdates",
+    score: scoreFromIssues(bySeverity),
+    issuesCount: issues.length,
+    bySeverity,
+    top: topIssues(issues),
+    nextAction:
+      bySeverity.critical > 0
+        ? "Run content-auto-fix Section 12 — unpublishes soft 404s. Then run dates_audit and dedup meta descriptions via seo-deep-review."
+        : bySeverity.high > 0
+          ? "Run seo-deep-review — rewrites thin meta descriptions, fixes redirect chains via canonical_slug normalization. For Arabic mismatches, regenerate content_ar via daily-content-generate."
+          : bySeverity.medium > 0
+            ? "Run seo-agent — handles meta length trimming and schema injection in batch"
+            : "Technical SEO is clean",
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Handler
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -464,6 +743,7 @@ export async function GET(request: NextRequest) {
         content_ar: true,
         featured_image: true,
         category_id: true,
+        canonical_slug: true,
         created_at: true,
         updated_at: true,
       },
@@ -471,12 +751,14 @@ export async function GET(request: NextRequest) {
       take: Math.min(Math.max(sample, 50), 1000),
     })) as ArticleRow[];
 
+    const sitewide = buildSitewideContext(posts);
+
     const dimensions: Record<string, DimensionResult> = {
       photos: auditPhotos(posts),
       unedited: auditUnedited(posts),
       newsRefresh: auditNewsRefresh(posts),
-      seoUpdates: emptyDimension("seoUpdates", "Pending — Batch 3"),
-      aioAlignment: emptyDimension("aioAlignment", "Pending — Batch 3"),
+      seoUpdates: auditSeoUpdates(posts, sitewide),
+      aioAlignment: emptyDimension("aioAlignment", "Pending — Batch 3b"),
       affiliatePractices: emptyDimension("affiliatePractices", "Pending — Batch 4"),
     };
 

@@ -133,9 +133,13 @@ function Section<T>(props: {
   if (r.ok) {
     body = props.render(r.data);
   } else {
+    // TypeScript's generic discriminated-union narrowing is unreliable in
+    // Next.js strict build (see commits 6a26054 + 8bc2156 — neither local
+    // var nor if/else fixed it). Cast to the failure variant explicitly.
+    const failed = r as { ok: false; error: string };
     body = (
       <p style={{ fontFamily: FONTS.body, fontSize: "13px", color: BRAND.lightText, fontStyle: "italic", margin: 0 }}>
-        Unavailable: {r.error}
+        Unavailable: {failed.error}
       </p>
     );
   }

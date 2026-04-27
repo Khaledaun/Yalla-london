@@ -684,20 +684,48 @@ export default function DailyBriefingEmail({ briefing }: Props): React.ReactElem
                                       >
                                         Sources
                                       </p>
-                                      {data.sources.slice(0, 7).map((src) => (
-                                        <p
-                                          key={src.source}
-                                          style={{ margin: "0 0 4px 0", fontSize: "12px", fontFamily: FONTS.mono }}
-                                        >
-                                          <span style={{ display: "inline-block", width: "100px", color: BRAND.text }}>
-                                            {src.source.slice(0, 18)}
-                                          </span>
-                                          <span style={{ color: BRAND.gold }}>{bar(src.sessions, maxSrc, 14)}</span>{" "}
-                                          <span style={{ color: BRAND.lightText }}>
-                                            {fmtNum(src.sessions)} ({fmtPct(src.share)})
-                                          </span>
-                                        </p>
-                                      ))}
+                                      <table
+                                        cellPadding={0}
+                                        cellSpacing={0}
+                                        border={0}
+                                        style={{
+                                          width: "100%",
+                                          fontSize: "12px",
+                                          fontFamily: FONTS.mono,
+                                          borderCollapse: "collapse",
+                                        }}
+                                      >
+                                        <tbody>
+                                          {data.sources.slice(0, 7).map((src) => (
+                                            <tr key={src.source}>
+                                              <td
+                                                style={{
+                                                  padding: "2px 6px 2px 0",
+                                                  color: BRAND.text,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                {src.source.slice(0, 18)}
+                                              </td>
+                                              <td
+                                                style={{ padding: "2px 6px", color: BRAND.gold, whiteSpace: "nowrap" }}
+                                              >
+                                                {bar(src.sessions, maxSrc, 12)}
+                                              </td>
+                                              <td
+                                                style={{
+                                                  padding: "2px 0",
+                                                  color: BRAND.lightText,
+                                                  whiteSpace: "nowrap",
+                                                  textAlign: "right",
+                                                }}
+                                              >
+                                                {fmtNum(src.sessions)} ({fmtPct(src.share)})
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
                                     </td>
                                     <td style={{ verticalAlign: "top", paddingLeft: "12px", width: "50%" }}>
                                       <p
@@ -712,18 +740,48 @@ export default function DailyBriefingEmail({ briefing }: Props): React.ReactElem
                                       >
                                         Countries
                                       </p>
-                                      {data.countries.slice(0, 7).map((c) => (
-                                        <p
-                                          key={c.country}
-                                          style={{ margin: "0 0 4px 0", fontSize: "12px", fontFamily: FONTS.mono }}
-                                        >
-                                          <span style={{ display: "inline-block", width: "80px", color: BRAND.text }}>
-                                            {c.country.slice(0, 14)}
-                                          </span>
-                                          <span style={{ color: BRAND.blue }}>{bar(c.sessions, maxCty, 12)}</span>{" "}
-                                          <span style={{ color: BRAND.lightText }}>{fmtNum(c.sessions)}</span>
-                                        </p>
-                                      ))}
+                                      <table
+                                        cellPadding={0}
+                                        cellSpacing={0}
+                                        border={0}
+                                        style={{
+                                          width: "100%",
+                                          fontSize: "12px",
+                                          fontFamily: FONTS.mono,
+                                          borderCollapse: "collapse",
+                                        }}
+                                      >
+                                        <tbody>
+                                          {data.countries.slice(0, 7).map((c) => (
+                                            <tr key={c.country}>
+                                              <td
+                                                style={{
+                                                  padding: "2px 6px 2px 0",
+                                                  color: BRAND.text,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                {c.country.slice(0, 14)}
+                                              </td>
+                                              <td
+                                                style={{ padding: "2px 6px", color: BRAND.blue, whiteSpace: "nowrap" }}
+                                              >
+                                                {bar(c.sessions, maxCty, 10)}
+                                              </td>
+                                              <td
+                                                style={{
+                                                  padding: "2px 0",
+                                                  color: BRAND.lightText,
+                                                  whiteSpace: "nowrap",
+                                                  textAlign: "right",
+                                                }}
+                                              >
+                                                {fmtNum(c.sessions)}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
                                     </td>
                                   </tr>
                                 </tbody>

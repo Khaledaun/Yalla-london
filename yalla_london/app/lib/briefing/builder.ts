@@ -846,7 +846,7 @@ async function buildTechnicalIssues(siteIds: string[]): Promise<TechnicalIssues>
   let critical = 0;
   let high = 0;
   const byCategory: Record<string, number> = {};
-  const topIssues: TechnicalIssues["topIssues"] = [];
+  const rawIssues: TechnicalIssues["topIssues"] = [];
 
   for (const siteId of siteIds) {
     try {
@@ -856,9 +856,9 @@ async function buildTechnicalIssues(siteIds: string[]): Promise<TechnicalIssues>
         if (a.severity === "high") high++;
         byCategory[a.source] = (byCategory[a.source] || 0) + 1;
       }
-      for (const a of report.topActions.slice(0, 5)) {
+      for (const a of report.topActions.slice(0, 8)) {
         if (a.severity !== "critical" && a.severity !== "high") continue;
-        topIssues.push({
+        rawIssues.push({
           severity: a.severity as Severity,
           category: a.dimension || a.source,
           detail: a.detail,
@@ -871,7 +871,35 @@ async function buildTechnicalIssues(siteIds: string[]): Promise<TechnicalIssues>
     }
   }
 
-  return { criticalCount: critical, highCount: high, byCategory, topIssues: topIssues.slice(0, 12) };
+  // Dedupe: group by (category + detail). When the same issue appears N
+  // times across sites or articles, keep one entry and note "(affects N
+  // articles)". Critical first, then high. Severity preserves the highest
+  // seen for that group.
+  type IssueRow = TechnicalIssues["topIssues"][number];
+  const grouped = new Map<string, { issue: IssueRow; count: number }>();
+  for (const iss of rawIssues) {
+    const key = `${iss.category}|${iss.detail}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.count++;
+      // Keep the highest severity (critical > high)
+      if (iss.severity === "critical" && existing.issue.severity !== "critical") {
+        existing.issue = { ...existing.issue, severity: "critical" };
+      }
+    } else {
+      grouped.set(key, { issue: iss, count: 1 });
+    }
+  }
+
+  const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+  const dedup = [...grouped.values()]
+    .map(({ issue, count }) => ({
+      ...issue,
+      detail: count > 1 ? `${issue.detail} (affects ${count} articles)` : issue.detail,
+    }))
+    .sort((a, b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+
+  return { criticalCount: critical, highCount: high, byCategory, topIssues: dedup.slice(0, 12) };
 }
 async function buildFixesApplied(siteIds: string[]): Promise<FixesApplied> {
   const since = new Date(Date.now() - DAY_MS);

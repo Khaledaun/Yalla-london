@@ -280,7 +280,7 @@ async function buildGa4Numbers(siteIds: string[]): Promise<Ga4Numbers> {
   const ratio = report.metrics.totalUsers > 0 ? report.metrics.sessions / report.metrics.totalUsers : 0;
   const explanation = [
     `${report.metrics.sessions.toLocaleString()} sessions from ${report.metrics.totalUsers.toLocaleString()} users last 7d.`,
-    `Engagement rate ${(report.metrics.engagementRate * 100).toFixed(1)}%.`,
+    `Engagement rate ${report.metrics.engagementRate.toFixed(1)}%.`,
     ratio > 1.4
       ? "Users come back — return visit ratio is healthy."
       : "Mostly first-time visitors — return rate is low.",
@@ -528,17 +528,19 @@ async function buildAffiliateClicksRevenue(siteIds: string[]): Promise<Affiliate
     prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d30 } } }),
     prisma.cjCommission.findMany({
       where: { ...filter, eventDate: { gte: d7 } },
-      select: { commissionAmount: true, eventStatus: true },
+      select: { commissionAmount: true, status: true },
     }),
     prisma.cjCommission.findMany({
       where: { ...filter, eventDate: { gte: d30 } },
-      select: { commissionAmount: true, eventStatus: true, eventDate: true },
+      select: { commissionAmount: true, status: true, eventDate: true },
     }),
   ]);
 
-  function summarize(rows: Array<{ commissionAmount: unknown; eventStatus: string | null }>) {
+  // CjCommission.status is a CommissionStatus enum: PENDING | APPROVED |
+  // DECLINED | LOCKED. APPROVED + LOCKED = real conversions.
+  function summarize(rows: Array<{ commissionAmount: unknown; status: string | null }>) {
     const revenueUsd = rows.reduce((s, r) => s + (Number(r.commissionAmount) || 0), 0);
-    const conversions = rows.filter((r) => r.eventStatus === "approved" || r.eventStatus === "locked").length;
+    const conversions = rows.filter((r) => r.status === "APPROVED" || r.status === "LOCKED").length;
     return { revenueUsd, conversions };
   }
 
@@ -622,13 +624,15 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
   const filter = { OR: [{ siteId: { in: siteIds } }, { siteId: null }] };
   const since = new Date(Date.now() - 30 * DAY_MS);
 
-  // Group commissions by advertiser (via linkId → CjLink → CjAdvertiser).
+  // Group commissions by advertiser (via the advertiser relation — there is
+  // no advertiserName field on CjCommission). status is a CommissionStatus
+  // enum: PENDING | APPROVED | DECLINED | LOCKED.
   const commissions = await prisma.cjCommission.findMany({
     where: { ...filter, eventDate: { gte: since } },
     select: {
       commissionAmount: true,
-      eventStatus: true,
-      advertiserName: true,
+      status: true,
+      advertiser: { select: { name: true } },
     },
     take: 5000,
   });
@@ -646,7 +650,7 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
   >();
 
   for (const c of commissions) {
-    const partner = c.advertiserName || "(unknown)";
+    const partner = c.advertiser?.name || "(unknown)";
     const cur = byPartnerMap.get(partner) || {
       clicks: 0,
       conversions: 0,
@@ -654,7 +658,7 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
       contentTypes: new Set<string>(),
     };
     cur.revenueUsd += Number(c.commissionAmount) || 0;
-    if (c.eventStatus === "approved" || c.eventStatus === "locked") cur.conversions++;
+    if (c.status === "APPROVED" || c.status === "LOCKED") cur.conversions++;
     byPartnerMap.set(partner, cur);
   }
 
@@ -773,7 +777,9 @@ async function buildAffiliateLinkUpdates(_siteIds: string[]): Promise<AffiliateL
     }),
     prisma.cjAdvertiser.findMany({
       where: {
-        status: { in: ["DECLINED", "CANCELLED", "REMOVED"] },
+        // AdvertiserStatus enum: JOINED | PENDING | NOT_JOINED | DECLINED.
+        // Only DECLINED + NOT_JOINED count as "expired/lost" for the briefing.
+        status: { in: ["DECLINED", "NOT_JOINED"] },
         lastSynced: { gte: since },
       },
       orderBy: { lastSynced: "desc" },

@@ -1018,7 +1018,8 @@ async function loadDeadAdvertisers(): Promise<DeadAdvertiserSet> {
   };
   try {
     const advertisers = await prisma.cjAdvertiser.findMany({
-      where: { status: { in: ["DECLINED", "CANCELLED", "REMOVED"] } },
+      // AdvertiserStatus enum: JOINED | PENDING | NOT_JOINED | DECLINED
+      where: { status: { in: ["DECLINED", "NOT_JOINED"] } },
       select: { name: true, programUrl: true },
       take: 500,
     });

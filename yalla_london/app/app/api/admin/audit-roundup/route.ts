@@ -132,7 +132,8 @@ async function buildAffiliateRevenueSummary(siteId: string) {
         where: { ...filter, createdAt: { gte: d7 } },
       }),
       prisma.cjAdvertiser.count({
-        where: { status: { in: ["DECLINED", "CANCELLED", "REMOVED"] } },
+        // AdvertiserStatus enum: JOINED | PENDING | NOT_JOINED | DECLINED
+        where: { status: { in: ["DECLINED", "NOT_JOINED"] } },
       }),
     ]);
 

@@ -682,17 +682,150 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
 
   return { byPartner };
 }
-async function buildAffiliateTrends(_siteIds: string[]): Promise<AffiliateTrends> {
-  void _siteIds;
-  throw new Error("Affiliate trends — pending Batch B3b");
+async function buildAffiliateTrends(siteIds: string[]): Promise<AffiliateTrends> {
+  const filter = { OR: [{ siteId: { in: siteIds } }, { siteId: null }] };
+  const now = Date.now();
+  const d7 = new Date(now - 7 * DAY_MS);
+  const d14 = new Date(now - 14 * DAY_MS);
+  const d30 = new Date(now - 30 * DAY_MS);
+
+  const [thisWeek, priorWeek, last30] = await Promise.all([
+    prisma.cjCommission.aggregate({
+      where: { ...filter, eventDate: { gte: d7 } },
+      _sum: { commissionAmount: true },
+      _count: { _all: true },
+    }),
+    prisma.cjCommission.aggregate({
+      where: { ...filter, eventDate: { gte: d14, lt: d7 } },
+      _sum: { commissionAmount: true },
+      _count: { _all: true },
+    }),
+    prisma.cjCommission.aggregate({
+      where: { ...filter, eventDate: { gte: d30 } },
+      _sum: { commissionAmount: true },
+    }),
+  ]);
+
+  const [clicks7d, clicks14d] = await Promise.all([
+    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d7 } } }),
+    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d14, lt: d7 } } }),
+  ]);
+
+  const thisRev = Number(thisWeek._sum.commissionAmount) || 0;
+  const priorRev = Number(priorWeek._sum.commissionAmount) || 0;
+  const wowRev = priorRev > 0 ? ((thisRev - priorRev) / priorRev) * 100 : thisRev > 0 ? 100 : 0;
+  const wowClicks = clicks14d > 0 ? ((clicks7d - clicks14d) / clicks14d) * 100 : clicks7d > 0 ? 100 : 0;
+
+  const revenue30d = Number(last30._sum.commissionAmount) || 0;
+
+  // Plain-language trends.
+  const obvious: string[] = [];
+  if (Math.abs(wowRev) > 25) {
+    obvious.push(
+      `Revenue ${wowRev > 0 ? "up" : "down"} ${Math.abs(wowRev).toFixed(0)}% week-over-week ($${thisRev.toFixed(2)} vs $${priorRev.toFixed(2)}).`,
+    );
+  }
+  if (Math.abs(wowClicks) > 30) {
+    obvious.push(
+      `Click volume ${wowClicks > 0 ? "up" : "down"} ${Math.abs(wowClicks).toFixed(0)}% (${clicks7d} vs ${clicks14d}).`,
+    );
+  }
+  if (clicks7d > 0 && thisRev === 0) {
+    obvious.push(`${clicks7d} clicks this week with zero revenue — attribution may be broken.`);
+  }
+  if (thisRev > 0 && priorRev === 0) {
+    obvious.push("First commissions of the period — affiliate program just activated.");
+  }
+  if (obvious.length === 0) {
+    obvious.push("Steady week — no notable trend swings.");
+  }
+
+  return {
+    weekOverWeekRevenuePct: Math.round(wowRev * 10) / 10,
+    weekOverWeekClicksPct: Math.round(wowClicks * 10) / 10,
+    movingAverages: {
+      revenue7d: Math.round((thisRev / 7) * 100) / 100,
+      revenue30d: Math.round((revenue30d / 30) * 100) / 100,
+    },
+    obviousTrends: obvious,
+  };
 }
 async function buildAffiliateLinkUpdates(_siteIds: string[]): Promise<AffiliateLinkUpdates> {
   void _siteIds;
-  throw new Error("Affiliate link updates — pending Batch B3b");
+  const since = new Date(Date.now() - DAY_MS);
+
+  // CjLink doesn't have siteId; CjAdvertiser is global. So these are
+  // platform-wide, not per-site, but the data still belongs in the
+  // briefing.
+  const [recentLinks, recentlyExpired] = await Promise.all([
+    prisma.cjLink.findMany({
+      where: { updatedAt: { gte: since } },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        updatedAt: true,
+        advertiser: { select: { name: true } },
+      },
+    }),
+    prisma.cjAdvertiser.findMany({
+      where: {
+        status: { in: ["DECLINED", "CANCELLED", "REMOVED"] },
+        lastSynced: { gte: since },
+      },
+      orderBy: { lastSynced: "desc" },
+      take: 20,
+      select: { name: true, status: true, lastSynced: true },
+    }),
+  ]);
+
+  return {
+    last24h: recentLinks.length,
+    recentlyAdded: recentLinks.map((l) => ({
+      partner: l.advertiser?.name || "(unknown)",
+      advertiser: l.advertiser?.name || "(unknown)",
+      addedAt: l.updatedAt.toISOString(),
+    })),
+    recentlyExpired: recentlyExpired.map((a) => ({
+      partner: a.name || "(unknown)",
+      advertiser: `${a.name} → ${a.status}`,
+      expiredAt: (a.lastSynced ?? new Date()).toISOString(),
+    })),
+  };
 }
-async function buildAbTesting(_siteIds: string[]): Promise<AbTesting> {
-  void _siteIds;
-  throw new Error("A/B testing — pending Batch B3b");
+async function buildAbTesting(siteIds: string[]): Promise<AbTesting> {
+  const since = new Date(Date.now() - 14 * DAY_MS);
+  const [active, completed, recent] = await Promise.all([
+    prisma.abTest.count({ where: { siteId: { in: siteIds }, status: "active" } }),
+    prisma.abTest.count({ where: { siteId: { in: siteIds }, status: "concluded" } }),
+    prisma.abTest.findMany({
+      where: {
+        siteId: { in: siteIds },
+        OR: [{ status: "active" }, { concludedAt: { gte: since } }],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+      select: {
+        targetUrl: true,
+        variantType: true,
+        status: true,
+        winner: true,
+        confidence: true,
+      },
+    }),
+  ]);
+
+  return {
+    active,
+    completed,
+    recentResults: recent.map((t) => ({
+      name: `${t.variantType} on ${t.targetUrl}`,
+      variant: t.variantType,
+      status: t.status,
+      winner: t.winner,
+      confidence: t.confidence,
+    })),
+  };
 }
 async function buildTechnicalIssues(_siteIds: string[]): Promise<TechnicalIssues> {
   void _siteIds;

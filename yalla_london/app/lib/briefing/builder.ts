@@ -516,17 +516,171 @@ async function buildTrafficSources(siteIds: string[]): Promise<TrafficSources> {
 
   return { hasData: true, sources, countries };
 }
-async function buildAffiliateClicksRevenue(_siteIds: string[]): Promise<AffiliateClicksRevenue> {
-  void _siteIds;
-  throw new Error("Affiliate clicks/revenue — pending Batch B3b");
+async function buildAffiliateClicksRevenue(siteIds: string[]): Promise<AffiliateClicksRevenue> {
+  // OR siteId:null pattern (rule #64) covers legacy unscoped rows.
+  const filter = { OR: [{ siteId: { in: siteIds } }, { siteId: null }] };
+  const now = Date.now();
+  const d7 = new Date(now - 7 * DAY_MS);
+  const d30 = new Date(now - 30 * DAY_MS);
+
+  const [clicks7d, clicks30d, commissions7d, commissions30d] = await Promise.all([
+    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d7 } } }),
+    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d30 } } }),
+    prisma.cjCommission.findMany({
+      where: { ...filter, eventDate: { gte: d7 } },
+      select: { commissionAmount: true, eventStatus: true },
+    }),
+    prisma.cjCommission.findMany({
+      where: { ...filter, eventDate: { gte: d30 } },
+      select: { commissionAmount: true, eventStatus: true, eventDate: true },
+    }),
+  ]);
+
+  function summarize(rows: Array<{ commissionAmount: unknown; eventStatus: string | null }>) {
+    const revenueUsd = rows.reduce((s, r) => s + (Number(r.commissionAmount) || 0), 0);
+    const conversions = rows.filter((r) => r.eventStatus === "approved" || r.eventStatus === "locked").length;
+    return { revenueUsd, conversions };
+  }
+
+  // 30-day daily revenue sparkline
+  const dailyRevenue = new Map<string, number>();
+  for (const c of commissions30d) {
+    const day = c.eventDate.toISOString().slice(0, 10);
+    dailyRevenue.set(day, (dailyRevenue.get(day) || 0) + (Number(c.commissionAmount) || 0));
+  }
+  const sparkline: number[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
+    sparkline.push(Math.round((dailyRevenue.get(d) || 0) * 100) / 100);
+  }
+
+  return {
+    last7d: { clicks: clicks7d, ...summarize(commissions7d) },
+    last30d: { clicks: clicks30d, ...summarize(commissions30d) },
+    revenueSparkline: sparkline,
+  };
 }
-async function buildAffiliateHealth(_siteIds: string[]): Promise<AffiliateHealth> {
-  void _siteIds;
-  throw new Error("Affiliate health — pending Batch B3b");
+async function buildAffiliateHealth(siteIds: string[]): Promise<AffiliateHealth> {
+  // Coverage from existing helper
+  const { getContentCoverage } = await import("@/lib/affiliate/monitor");
+  const { runLinkHealthAudit } = await import("@/lib/affiliate/link-auditor");
+
+  let coveragePct = 0;
+  let uncoveredArticles = 0;
+  try {
+    const cov = await getContentCoverage(siteIds[0]);
+    coveragePct = Math.round((cov.coveragePercentage || 0) * 100) / 100;
+    uncoveredArticles = cov.uncoveredArticles?.length || 0;
+  } catch {
+    // Coverage helper may not exist on all sites — graceful degrade
+  }
+
+  // Run a fast link audit (skipLiveness for speed)
+  let totalLinks = 0;
+  let deadLinks = 0;
+  let untrackedDirectUrls = 0;
+  let missingDisclosure = 0;
+  const topIssues: AffiliateHealth["topIssues"] = [];
+  try {
+    const audit = await runLinkHealthAudit({ siteId: siteIds[0], maxArticles: 50, skipLiveness: true });
+    totalLinks = audit.totalLinks ?? 0;
+    deadLinks = audit.findings?.deadLinks?.length || 0;
+    untrackedDirectUrls = audit.findings?.untrackedLinks?.length || 0;
+    missingDisclosure = audit.findings?.missingDisclosure?.length || 0;
+    for (const dead of (audit.findings?.deadLinks || []).slice(0, 5)) {
+      topIssues.push({
+        slug: (dead as { slug?: string }).slug || "(unknown)",
+        issue: `Dead affiliate link: ${(dead as { url?: string }).url || ""}`,
+        severity: "high",
+      });
+    }
+    for (const m of (audit.findings?.missingDisclosure || []).slice(0, 5)) {
+      topIssues.push({
+        slug: (m as { slug?: string }).slug || "(unknown)",
+        issue: "Affiliate links without FTC disclosure paragraph",
+        severity: "critical",
+      });
+    }
+  } catch {
+    // Audit may fail on small sites — skip
+  }
+
+  return {
+    totalLinks,
+    deadLinks,
+    untrackedDirectUrls,
+    missingDisclosure,
+    uncoveredArticles,
+    coveragePct,
+    topIssues,
+  };
 }
-async function buildAffiliateComparisons(_siteIds: string[]): Promise<AffiliateComparisons> {
-  void _siteIds;
-  throw new Error("Affiliate comparisons — pending Batch B3b");
+async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateComparisons> {
+  const filter = { OR: [{ siteId: { in: siteIds } }, { siteId: null }] };
+  const since = new Date(Date.now() - 30 * DAY_MS);
+
+  // Group commissions by advertiser (via linkId → CjLink → CjAdvertiser).
+  const commissions = await prisma.cjCommission.findMany({
+    where: { ...filter, eventDate: { gte: since } },
+    select: {
+      commissionAmount: true,
+      eventStatus: true,
+      advertiserName: true,
+    },
+    take: 5000,
+  });
+
+  // Click counts grouped by advertiser via CjLink → CjAdvertiser.
+  const clickRows = await prisma.cjClickEvent.findMany({
+    where: { ...filter, createdAt: { gte: since } },
+    select: { link: { select: { advertiser: { select: { name: true, category: true } } } } },
+    take: 10_000,
+  });
+
+  const byPartnerMap = new Map<
+    string,
+    { clicks: number; conversions: number; revenueUsd: number; contentTypes: Set<string> }
+  >();
+
+  for (const c of commissions) {
+    const partner = c.advertiserName || "(unknown)";
+    const cur = byPartnerMap.get(partner) || {
+      clicks: 0,
+      conversions: 0,
+      revenueUsd: 0,
+      contentTypes: new Set<string>(),
+    };
+    cur.revenueUsd += Number(c.commissionAmount) || 0;
+    if (c.eventStatus === "approved" || c.eventStatus === "locked") cur.conversions++;
+    byPartnerMap.set(partner, cur);
+  }
+
+  for (const click of clickRows) {
+    const partner = click.link?.advertiser?.name || "(direct)";
+    const category = click.link?.advertiser?.category;
+    const cur = byPartnerMap.get(partner) || {
+      clicks: 0,
+      conversions: 0,
+      revenueUsd: 0,
+      contentTypes: new Set<string>(),
+    };
+    cur.clicks++;
+    if (category) cur.contentTypes.add(category);
+    byPartnerMap.set(partner, cur);
+  }
+
+  const byPartner = [...byPartnerMap.entries()]
+    .map(([partner, v]) => ({
+      partner,
+      clicks: v.clicks,
+      conversions: v.conversions,
+      revenueUsd: Math.round(v.revenueUsd * 100) / 100,
+      contentTypes: [...v.contentTypes],
+    }))
+    .sort((a, b) => b.revenueUsd - a.revenueUsd || b.clicks - a.clicks)
+    .slice(0, 15);
+
+  return { byPartner };
 }
 async function buildAffiliateTrends(_siteIds: string[]): Promise<AffiliateTrends> {
   void _siteIds;

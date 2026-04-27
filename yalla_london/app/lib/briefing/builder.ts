@@ -827,25 +827,314 @@ async function buildAbTesting(siteIds: string[]): Promise<AbTesting> {
     })),
   };
 }
-async function buildTechnicalIssues(_siteIds: string[]): Promise<TechnicalIssues> {
-  void _siteIds;
-  throw new Error("Technical issues — pending Batch B3b");
+async function buildTechnicalIssues(siteIds: string[]): Promise<TechnicalIssues> {
+  // Borrow runAuditRoundup which already aggregates findings from public-
+  // audit + queue-monitor + cron failures + indexing. Take its top actions
+  // and convert to TechnicalIssues shape with plain-language fix plans.
+  const { runAuditRoundup } = await import("@/app/api/admin/audit-roundup/route");
+  let critical = 0;
+  let high = 0;
+  const byCategory: Record<string, number> = {};
+  const topIssues: TechnicalIssues["topIssues"] = [];
+
+  for (const siteId of siteIds) {
+    try {
+      const report = await runAuditRoundup(siteId);
+      for (const a of report.allActions) {
+        if (a.severity === "critical") critical++;
+        if (a.severity === "high") high++;
+        byCategory[a.source] = (byCategory[a.source] || 0) + 1;
+      }
+      for (const a of report.topActions.slice(0, 5)) {
+        if (a.severity !== "critical" && a.severity !== "high") continue;
+        topIssues.push({
+          severity: a.severity as Severity,
+          category: a.dimension || a.source,
+          detail: a.detail,
+          why: a.fixability === "auto" ? "Auto-fixable — cron exists." : "Needs manual review.",
+          fixPlan: a.nextAction,
+        });
+      }
+    } catch (err) {
+      console.warn(`[briefing] technical issues failed for ${siteId}:`, err);
+    }
+  }
+
+  return { criticalCount: critical, highCount: high, byCategory, topIssues: topIssues.slice(0, 12) };
 }
-async function buildFixesApplied(_siteIds: string[]): Promise<FixesApplied> {
-  void _siteIds;
-  throw new Error("Fixes applied — pending Batch B3b");
+async function buildFixesApplied(siteIds: string[]): Promise<FixesApplied> {
+  const since = new Date(Date.now() - DAY_MS);
+  const rows = await prisma.autoFixLog.findMany({
+    where: { siteId: { in: siteIds }, createdAt: { gte: since } },
+    select: { fixType: true, agent: true, success: true, targetId: true, before: true },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+
+  const totalFixes = rows.length;
+  const successCount = rows.filter((r) => r.success).length;
+  const failureCount = totalFixes - successCount;
+
+  // Group by fixType
+  const byMap = new Map<string, { count: number; successes: number }>();
+  for (const r of rows) {
+    const cur = byMap.get(r.fixType) || { count: 0, successes: 0 };
+    cur.count++;
+    if (r.success) cur.successes++;
+    byMap.set(r.fixType, cur);
+  }
+  const byFixType = [...byMap.entries()]
+    .map(([fixType, v]) => ({
+      fixType,
+      count: v.count,
+      successPct: v.count > 0 ? Math.round((v.successes / v.count) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15);
+
+  // Recent: last 15 fixes with attempted slug if we can extract it
+  const recent = rows.slice(0, 15).map((r) => {
+    const before = r.before as { affectedSlug?: string } | null;
+    return {
+      targetSlug: before?.affectedSlug || null,
+      fixType: r.fixType,
+      agent: r.agent,
+      success: r.success,
+    };
+  });
+
+  return { totalFixes, successCount, failureCount, byFixType, recent };
 }
-async function buildValidation(_siteIds: string[]): Promise<Validation> {
-  void _siteIds;
-  throw new Error("Validation — pending Batch B3b");
+async function buildValidation(siteIds: string[]): Promise<Validation> {
+  // Pulls the unique fixTypes that ran in last 24h then maps each to its
+  // validation strategy. Static knowledge — these strategies don't change.
+  void siteIds;
+  const since = new Date(Date.now() - DAY_MS);
+  const rows = await prisma.autoFixLog.findMany({
+    where: { createdAt: { gte: since } },
+    select: { fixType: true },
+    take: 500,
+  });
+  const fixTypes = [...new Set(rows.map((r) => r.fixType))];
+
+  const VALIDATION_MAP: Record<string, { how: string; whenToCheck: string }> = {
+    image_pipeline: {
+      how: "Open the article. Confirm featured image renders. Check Lighthouse LCP score (< 2.5s target).",
+      whenToCheck: "Within 1h",
+    },
+    seo_agent: {
+      how: "Visit the article. View source. Confirm 1 H1, internal links to related articles, JSON-LD structured data block.",
+      whenToCheck: "Within 1h",
+    },
+    seo_deep_review: {
+      how: "Re-run the SEO audit. Compare meta description length (120-160 chars) and word count (1000+) before/after.",
+      whenToCheck: "Within 4h",
+    },
+    content_auto_fix: {
+      how: "Re-query content-cleanup endpoint. Confirm slug clusters and broken links are gone.",
+      whenToCheck: "Next briefing (24h)",
+    },
+    affiliate_injection: {
+      how: "Open the article. Confirm affiliate links present with rel='noopener sponsored'. Check FTC disclosure paragraph.",
+      whenToCheck: "Within 1h",
+    },
+    diagnostic_sweep: {
+      how: "Check pipeline-health snapshot. Stuck draft count should drop.",
+      whenToCheck: "Within 30min",
+    },
+  };
+
+  const byFixType = fixTypes.map((fixType) => {
+    // Match fixType against keys (handles roundup:dimension patterns).
+    const key = Object.keys(VALIDATION_MAP).find(
+      (k) => fixType.toLowerCase().includes(k.replace(/_/g, "-")) || fixType.toLowerCase().includes(k),
+    );
+    const entry = key ? VALIDATION_MAP[key] : null;
+    return {
+      fixType,
+      how: entry?.how || "Re-run the same audit. Issue should no longer appear.",
+      whenToCheck: entry?.whenToCheck || "Next briefing (24h)",
+    };
+  });
+
+  return { pendingValidation: byFixType.length, byFixType };
 }
-async function buildKpisProgress(_siteIds: string[]): Promise<KpisProgress> {
-  void _siteIds;
-  throw new Error("KPIs progress — pending Batch B3b");
+async function buildKpisProgress(siteIds: string[]): Promise<KpisProgress> {
+  const { getBriefingKpis, progressVsTarget, gradeForProgress } = await import("./kpi");
+  const siteId = siteIds[0]; // KPIs are per-site; aggregate brief uses first site
+  const kpis = await getBriefingKpis(siteId);
+
+  // Pull current actuals where we can.
+  const since = new Date(Date.now() - 30 * DAY_MS);
+  const [indexed, posts, gscRows] = await Promise.all([
+    prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+    prisma.blogPost.count({ where: { siteId, published: true, created_at: { gte: since } } }),
+    prisma.gscPagePerformance.aggregate({
+      where: { site_id: siteId, date: { gte: since } },
+      _sum: { clicks: true, impressions: true },
+    }),
+  ]);
+
+  const totalClicks = gscRows._sum.clicks || 0;
+  const totalImpressions = gscRows._sum.impressions || 0;
+  const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : null;
+  const velocityPerDay = posts / 30;
+
+  const out: KpisProgress["kpis"] = [];
+
+  function pushKpi(name: string, actual: number | null, target30d: number, target90d: number, unit: string) {
+    const progress = actual !== null ? progressVsTarget(actual, target30d) : null;
+    out.push({
+      name,
+      actual,
+      target30d,
+      target90d,
+      progressVs30d: progress,
+      grade: gradeForProgress(progress),
+      unit,
+    });
+  }
+
+  pushKpi("Indexed pages", indexed, kpis.indexedPages.target30d, kpis.indexedPages.target90d, "pages");
+  pushKpi(
+    "Organic sessions (proxy: GSC clicks 30d)",
+    totalClicks,
+    kpis.organicSessions.target30d,
+    kpis.organicSessions.target90d,
+    "sessions",
+  );
+  pushKpi("Average CTR", ctr, kpis.avgCtr.target30d, kpis.avgCtr.target90d, "ratio");
+  pushKpi(
+    "Content velocity",
+    velocityPerDay,
+    kpis.contentVelocityPerDay.target30d,
+    kpis.contentVelocityPerDay.target90d,
+    "articles/day",
+  );
+
+  for (const c of kpis.customKpis) {
+    pushKpi(c.name, null, c.target30d, c.target90d, c.unit);
+  }
+
+  return { kpis: out };
 }
-async function buildPerSiteDeepDive(_siteIds: string[]): Promise<PerSiteDeepDive[]> {
-  void _siteIds;
-  throw new Error("Per-site deep dive — pending Batch B3b");
+async function buildPerSiteDeepDive(siteIds: string[]): Promise<PerSiteDeepDive[]> {
+  // Niche profiles per known siteId. These come from the site research
+  // reports in docs/site-research/ — kept inline here so the briefing
+  // doesn't depend on parsing markdown at runtime.
+  const NICHE: Record<string, { niche: string; destination: string; landscape: string }> = {
+    "yalla-london": {
+      niche: "Luxury travel for international visitors with Arab/Gulf expertise",
+      destination: "London, UK",
+      landscape:
+        "Top 5 EN keyword volume 50K-100K/month. AI Overviews now in 30-60% of UK travel queries — 61% organic CTR drop on those. Arab niche underserved (~500/month) but high-intent.",
+    },
+    arabaldives: {
+      niche: "Arabic-first Maldives luxury travel",
+      destination: "Maldives",
+      landscape:
+        "GCC source markets growing 8% YoY. Halal-friendly resort segment underserved in Arabic. Direct competition: low. Search intent: pre-booking research + comparison.",
+    },
+    "french-riviera": {
+      niche: "Côte d'Azur luxury for Gulf travelers",
+      destination: "French Riviera, France",
+      landscape:
+        "$75B+ GCC tourism spending. Yacht charter affiliates (Boatbookings 20%) high-value. Michelin/halal dining gap.",
+    },
+    istanbul: {
+      niche: "Bosphorus luxury + Ottoman heritage",
+      destination: "Istanbul, Turkey",
+      landscape:
+        "$35B Turkish tourism. Highest revenue ceiling of the network. Halal travel + bazaar culture + hammam heritage.",
+    },
+    thailand: {
+      niche: "Island/wellness/halal-friendly luxury",
+      destination: "Thailand",
+      landscape: "40M+ annual tourists. Strong GCC pipeline. Wellness retreats + halal food strategy.",
+    },
+    "zenitha-yachts-med": {
+      niche: "Yacht charter platform — Mediterranean",
+      destination: "Mediterranean (multi-region)",
+      landscape: "B2C charter inquiry funnel. Direct competition: GetMyBoat, Boatsetter, Click&Boat.",
+    },
+  };
+
+  const out: PerSiteDeepDive[] = [];
+  for (const siteId of siteIds) {
+    const profile = NICHE[siteId] || {
+      niche: "(unconfigured)",
+      destination: "(unconfigured)",
+      landscape: "Add this site to the NICHE map in lib/briefing/builder.ts.",
+    };
+
+    // Pull this site's audit findings for proposals.
+    const siteCriticals: Array<{ detail: string; nextAction: string }> = [];
+    try {
+      const audit = await runPublicAudit(siteId, 200);
+      for (const a of audit.topActions.slice(0, 5)) {
+        if (a.severity === "critical" || a.severity === "high") {
+          siteCriticals.push({ detail: a.detail, nextAction: a.nextAction });
+        }
+      }
+    } catch {
+      // Audit may have failed; deep dive still proceeds with general advice.
+    }
+
+    const improvements = siteCriticals.slice(0, 3).map((c, i) => ({
+      title: `Fix #${i + 1}: ${c.detail.slice(0, 60)}`,
+      expectedImpact: "Recover SERP visibility on affected URLs",
+      effort: "small" as const,
+      plan: [c.nextAction],
+    }));
+
+    // Algorithm updates — static for now, fed by weekly-policy-monitor cron
+    // when wired up. Reads ALGORITHM_CONTEXT from lib/seo/standards.ts.
+    const algorithmUpdates: PerSiteDeepDive["algorithmUpdates"] = [
+      {
+        source: "Google Authenticity Update",
+        date: "2026-01-04",
+        impact: "First-hand experience now #1 E-E-A-T ranking signal. Mass-produced AI content demoted.",
+        ourResponse: "16-check pre-publication gate enforces authenticity signals + 3+ first-hand experience markers.",
+      },
+      {
+        source: "AI Overviews coverage",
+        date: "2026-Q1",
+        impact: "30-60% of US searches show AI Overviews; 61% organic CTR drop on those queries.",
+        ourResponse: "Added §16 GEO/citability gate: stats, citations, question-format H2s, answer-first opener.",
+      },
+    ];
+
+    const sevenDayPlan: string[] = [];
+    if (siteCriticals.length > 0) {
+      sevenDayPlan.push(
+        `Day 1-2: address ${siteCriticals.length} critical findings (${siteCriticals[0].nextAction.slice(0, 60)})`,
+      );
+    }
+    sevenDayPlan.push("Day 3-4: rewrite 5 highest-impression / lowest-CTR articles with answer-first openers");
+    sevenDayPlan.push("Day 5: publish 2 articles targeting near-miss queries (GSC position 11-30)");
+    sevenDayPlan.push("Day 6-7: re-audit, measure GSC delta vs AutoFixLog before-snapshots");
+
+    out.push({
+      siteId,
+      niche: profile.niche,
+      destination: profile.destination,
+      businessLandscape: profile.landscape,
+      algorithmUpdates,
+      improvementsProposed:
+        improvements.length > 0
+          ? improvements
+          : [
+              {
+                title: "No critical issues — focus on growth",
+                expectedImpact: "Compound traffic via content velocity",
+                effort: "medium",
+                plan: ["Maintain 2+ articles/day publish cadence", "Refresh top 10 underperformers monthly"],
+              },
+            ],
+      sevenDayPlan,
+    });
+  }
+  return out;
 }
 
 // ───────────────────────────────────────────────────────────────────────────

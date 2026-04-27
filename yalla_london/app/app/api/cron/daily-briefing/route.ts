@@ -59,6 +59,10 @@ async function handleDailyBriefing(request: NextRequest) {
   // persisting. Used for manual MCP-driven validation after merge.
   const testMode = request.nextUrl.searchParams.get("test") === "true";
 
+  // Force mode: bypass Resend idempotency. Use for explicit manual re-runs
+  // when the scheduled email already went out and you want a fresh send.
+  const forceMode = request.nextUrl.searchParams.get("force") === "true";
+
   try {
     // 1. Build briefing
     const briefing = await buildDailyBriefing(null);
@@ -133,13 +137,20 @@ async function handleDailyBriefing(request: NextRequest) {
         if (!isResendConfigured()) {
           emailError = "Resend not configured (RESEND_API_KEY missing)";
         } else {
+          // Idempotency key includes the hour slot so the scheduled 05:00
+          // UTC run is protected from double-fire (same key on retries),
+          // but manual re-runs at different hours get fresh keys. The
+          // ?force=true param skips idempotency entirely for explicit
+          // overrides when the body has changed.
+          const hourSlot = String(new Date().getUTCHours()).padStart(2, "0");
+          const idempotencyKey = forceMode ? undefined : `briefing-${briefing.metadata.briefingDate}-${hourSlot}`;
           const result = await sendResendEmail({
             to: adminEmails,
             subject: `[Yalla London] Website Management Briefing — ${briefing.metadata.briefingDate}`,
             from: process.env.EMAIL_FROM || "Yalla London <briefing@yalla-london.com>",
             replyTo: process.env.EMAIL_REPLY_TO || "info@yalla-london.com",
             react: React.createElement(DailyBriefingEmail, { briefing }),
-            idempotencyKey: `briefing-${briefing.metadata.briefingDate}`,
+            idempotencyKey,
             tags: [
               { name: "type", value: "daily-briefing" },
               { name: "date", value: briefing.metadata.briefingDate },

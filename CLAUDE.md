@@ -3927,6 +3927,7 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform + anti-patterns registry |
 | `lib/canva/video-registry.ts` | 433 Canva video clips — 4 collections (luxury travel, beach, aesthetic, brand) |
 | `app/api/admin/pdf-covers/route.tsx` | PDF cover generator — 6 branded templates |
+| `docs/briefing/CEO-DAILY-BRIEFING.md` | **Daily briefing system spec** — schedule (04:30 + 05:00 UTC), 19-section taxonomy, KPI config, MCP tools, file inventory. READ when user references "the briefing", "morning brief", or any section keyword (GSC update, EN vs AR, affiliate health, KPIs, etc.) |
 
 ### Session: March 21, 2026 — Silent Error Audit: 6 Fixes from 200-Entry Operations Log Analysis
 

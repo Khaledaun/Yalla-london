@@ -125,10 +125,20 @@ function Section<T>(props: {
   result: SectionResult<T>;
   render: (data: T) => React.ReactNode;
 }): React.ReactElement {
-  // Extract to a local var so TypeScript narrows the discriminated union
-  // cleanly. `props.result.ok` doesn't always narrow on generic property
-  // access in stricter compiler configs.
+  // Compute the body in an if/else block — Next.js's strict TypeScript
+  // build does NOT narrow discriminated unions through a JSX ternary on
+  // a generic, even via a local var. An if statement narrows reliably.
   const r = props.result;
+  let body: React.ReactNode;
+  if (r.ok) {
+    body = props.render(r.data);
+  } else {
+    body = (
+      <p style={{ fontFamily: FONTS.body, fontSize: "13px", color: BRAND.lightText, fontStyle: "italic", margin: 0 }}>
+        Unavailable: {r.error}
+      </p>
+    );
+  }
   return (
     <div style={{ marginTop: "32px", marginBottom: "24px" }}>
       <h2
@@ -144,13 +154,7 @@ function Section<T>(props: {
       >
         §{props.num}. {props.title}
       </h2>
-      {r.ok ? (
-        props.render(r.data)
-      ) : (
-        <p style={{ fontFamily: FONTS.body, fontSize: "13px", color: BRAND.lightText, fontStyle: "italic", margin: 0 }}>
-          Unavailable: {r.error}
-        </p>
-      )}
+      {body}
     </div>
   );
 }

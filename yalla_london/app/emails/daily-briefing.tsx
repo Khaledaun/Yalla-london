@@ -1,0 +1,618 @@
+/**
+ * Daily Briefing Email — React Email template
+ *
+ * Sent at 05:00 UTC daily (08:00 IDT / 07:00 IST). Renders the full
+ * 19-section briefing payload built by lib/briefing/builder.ts.
+ *
+ * Email-safe: table layout, inline styles, Unicode block chars for charts
+ * (renders reliably across Gmail, Outlook, iOS Mail). No SVG.
+ *
+ * Spec: docs/briefing/CEO-DAILY-BRIEFING.md
+ */
+
+import * as React from "react";
+import type { DailyBriefingData, SectionResult } from "@/lib/briefing/types";
+
+// ───────────────────────────────────────────────────────────────────────────
+// Brand
+// ───────────────────────────────────────────────────────────────────────────
+
+const BRAND = {
+  red: "#C8322B",
+  gold: "#C49A2A",
+  blue: "#3B7EA1",
+  green: "#2D5A3D",
+  navy: "#1C1917",
+  cream: "#FAF8F4",
+  text: "#333333",
+  lightText: "#666666",
+  border: "#E5E5E5",
+  white: "#FFFFFF",
+  // Severity badges
+  critical: "#C8322B",
+  high: "#E08D2C",
+  medium: "#C49A2A",
+  low: "#3B7EA1",
+  good: "#2D5A3D",
+};
+
+const FONTS = {
+  heading: "'Source Serif 4', 'Georgia', 'Times New Roman', serif",
+  body: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  mono: "'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers — ASCII charts + section wrappers
+// ───────────────────────────────────────────────────────────────────────────
+
+const BLOCKS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+
+function sparkline(values: number[]): string {
+  if (values.length === 0) return "(no data)";
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  return values
+    .map((v) => {
+      const idx = Math.min(7, Math.max(0, Math.round(((v - min) / range) * 7)));
+      return BLOCKS[idx];
+    })
+    .join("");
+}
+
+function bar(value: number, max: number, width = 20): string {
+  if (max === 0) return "─".repeat(width);
+  const filled = Math.min(width, Math.max(0, Math.round((value / max) * width)));
+  return "█".repeat(filled) + "░".repeat(width - filled);
+}
+
+function fmtNum(n: number | null | undefined, digits = 0): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return n.toLocaleString("en-US", { maximumFractionDigits: digits });
+}
+
+function fmtPct(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return `${(n * 100).toFixed(1)}%`;
+}
+
+function fmtSign(n: number, suffix = ""): string {
+  if (n > 0) return `+${fmtNum(n)}${suffix}`;
+  return `${fmtNum(n)}${suffix}`;
+}
+
+function severityBadge(sev: string): React.CSSProperties {
+  const map: Record<string, string> = {
+    critical: BRAND.critical,
+    high: BRAND.high,
+    medium: BRAND.medium,
+    low: BRAND.low,
+    info: BRAND.lightText,
+  };
+  return {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: "4px",
+    backgroundColor: map[sev] || BRAND.lightText,
+    color: BRAND.white,
+    fontSize: "11px",
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+}
+
+function gradeColor(grade: string): string {
+  return grade === "A"
+    ? BRAND.good
+    : grade === "B"
+      ? BRAND.blue
+      : grade === "C"
+        ? BRAND.medium
+        : grade === "D"
+          ? BRAND.high
+          : grade === "F"
+            ? BRAND.critical
+            : BRAND.lightText;
+}
+
+// Section heading + render-state wrapper. Failed sections show a clean
+// "unavailable" stub instead of a stack trace.
+function Section<T>(props: {
+  num: number;
+  title: string;
+  result: SectionResult<T>;
+  render: (data: T) => React.ReactNode;
+}): React.ReactElement {
+  return (
+    <div style={{ marginTop: "32px", marginBottom: "24px" }}>
+      <h2
+        style={{
+          fontFamily: FONTS.heading,
+          fontSize: "18px",
+          fontWeight: 600,
+          color: BRAND.navy,
+          margin: "0 0 12px 0",
+          paddingBottom: "8px",
+          borderBottom: `2px solid ${BRAND.gold}`,
+        }}
+      >
+        §{props.num}. {props.title}
+      </h2>
+      {props.result.ok ? (
+        props.render(props.result.data)
+      ) : (
+        <p style={{ fontFamily: FONTS.body, fontSize: "13px", color: BRAND.lightText, fontStyle: "italic", margin: 0 }}>
+          Unavailable: {props.result.error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const TBL: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontFamily: FONTS.body,
+  fontSize: "13px",
+};
+const TH: React.CSSProperties = {
+  textAlign: "left",
+  padding: "8px 10px",
+  borderBottom: `2px solid ${BRAND.border}`,
+  fontWeight: 600,
+  color: BRAND.navy,
+  backgroundColor: BRAND.cream,
+};
+const TD: React.CSSProperties = {
+  padding: "8px 10px",
+  borderBottom: `1px solid ${BRAND.border}`,
+  color: BRAND.text,
+  verticalAlign: "top",
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// Main template
+// ───────────────────────────────────────────────────────────────────────────
+
+interface Props {
+  briefing: DailyBriefingData;
+}
+
+export default function DailyBriefingEmail({ briefing }: Props): React.ReactElement {
+  const date = briefing.metadata.briefingDate;
+  const sites = briefing.metadata.siteIds;
+  const s = briefing.sections;
+
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Website Management Briefing — {date}</title>
+      </head>
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          backgroundColor: BRAND.cream,
+          fontFamily: FONTS.body,
+          color: BRAND.text,
+        }}
+      >
+        <table cellPadding={0} cellSpacing={0} border={0} width="100%" style={{ backgroundColor: BRAND.cream }}>
+          <tbody>
+            <tr>
+              <td align="center" style={{ padding: "24px 16px" }}>
+                <table
+                  cellPadding={0}
+                  cellSpacing={0}
+                  border={0}
+                  width="640"
+                  style={{ maxWidth: "640px", backgroundColor: BRAND.white, borderRadius: "8px", overflow: "hidden" }}
+                >
+                  <tbody>
+                    {/* Header */}
+                    <tr>
+                      <td
+                        style={{
+                          padding: "24px 32px",
+                          backgroundColor: BRAND.navy,
+                          color: BRAND.white,
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontFamily: FONTS.body,
+                            fontSize: "12px",
+                            margin: 0,
+                            opacity: 0.7,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {date} · {sites.length} site(s)
+                        </p>
+                        <h1
+                          style={{
+                            fontFamily: FONTS.heading,
+                            fontSize: "24px",
+                            fontWeight: 600,
+                            margin: "4px 0 0 0",
+                            color: BRAND.white,
+                          }}
+                        >
+                          Website Management Briefing
+                        </h1>
+                      </td>
+                    </tr>
+
+                    {/* Body */}
+                    <tr>
+                      <td style={{ padding: "24px 32px" }}>
+                        {/* §1 Executive summary */}
+                        <Section
+                          num={1}
+                          title="Executive Summary"
+                          result={s.executiveSummary}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "16px" }}>
+                                <span
+                                  style={{
+                                    fontFamily: FONTS.heading,
+                                    fontSize: "32px",
+                                    fontWeight: 700,
+                                    color: gradeColor(data.overallGrade),
+                                    marginRight: "12px",
+                                  }}
+                                >
+                                  {data.overallGrade}
+                                </span>
+                                <span style={{ color: BRAND.lightText }}>{fmtNum(data.overallScore)}/100</span>
+                              </p>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "14px", lineHeight: 1.5 }}>{data.oneLine}</p>
+                              {data.topThreeWins.length > 0 && (
+                                <p style={{ margin: "8px 0", fontSize: "13px", color: BRAND.good }}>
+                                  ✓ {data.topThreeWins.join(" · ")}
+                                </p>
+                              )}
+                              {data.topThreeAttention.length > 0 && (
+                                <p style={{ margin: "8px 0", fontSize: "13px", color: BRAND.critical }}>
+                                  ⚠ {data.topThreeAttention.join(" · ")}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §2 Tests run */}
+                        <Section
+                          num={2}
+                          title="Tests Run (24h)"
+                          result={s.testsRun}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                <strong>{fmtNum(data.totalRuns)}</strong> total runs ·{" "}
+                                <span style={{ color: BRAND.good }}>{fmtNum(data.passed)} passed</span> ·{" "}
+                                <span style={{ color: BRAND.critical }}>{fmtNum(data.failed)} failed</span>
+                              </p>
+                              {data.byCron.length > 0 && (
+                                <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                  <thead>
+                                    <tr>
+                                      <th style={TH}>Cron</th>
+                                      <th style={TH}>Runs</th>
+                                      <th style={TH}>Failures</th>
+                                      <th style={TH}>Last duration</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {data.byCron.slice(0, 10).map((row) => (
+                                      <tr key={row.jobName}>
+                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>
+                                          {row.jobName}
+                                        </td>
+                                        <td style={TD}>{fmtNum(row.runs)}</td>
+                                        <td style={{ ...TD, color: row.failures > 0 ? BRAND.critical : BRAND.text }}>
+                                          {fmtNum(row.failures)}
+                                        </td>
+                                        <td style={{ ...TD, color: BRAND.lightText }}>
+                                          {row.lastDurationMs ? `${(row.lastDurationMs / 1000).toFixed(1)}s` : "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §3 Website status */}
+                        <Section
+                          num={3}
+                          title="Website Status"
+                          result={s.siteStatus}
+                          render={(rows) => (
+                            <table style={TBL} cellPadding={0} cellSpacing={0}>
+                              <thead>
+                                <tr>
+                                  <th style={TH}>Site</th>
+                                  <th style={TH}>Grade</th>
+                                  <th style={TH}>Score</th>
+                                  <th style={TH}>Critical</th>
+                                  <th style={TH}>High</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((r) => (
+                                  <tr key={r.siteId}>
+                                    <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>{r.siteId}</td>
+                                    <td
+                                      style={{
+                                        ...TD,
+                                        fontFamily: FONTS.heading,
+                                        fontWeight: 700,
+                                        color: gradeColor(r.publicAuditGrade),
+                                      }}
+                                    >
+                                      {r.publicAuditGrade}
+                                    </td>
+                                    <td style={TD}>{fmtNum(r.publicAuditScore)}</td>
+                                    <td style={{ ...TD, color: r.criticalIssues > 0 ? BRAND.critical : BRAND.text }}>
+                                      {fmtNum(r.criticalIssues)}
+                                    </td>
+                                    <td style={{ ...TD, color: r.highIssues > 0 ? BRAND.high : BRAND.text }}>
+                                      {fmtNum(r.highIssues)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        />
+
+                        {/* §4 GSC update */}
+                        <Section
+                          num={4}
+                          title="GSC Update"
+                          result={s.gscUpdate}
+                          render={(data) => (
+                            <div>
+                              {!data.hasData ? (
+                                <p style={{ margin: 0, color: BRAND.lightText, fontStyle: "italic" }}>
+                                  {data.notes?.join(" ") || "No GSC data."}
+                                </p>
+                              ) : (
+                                <>
+                                  <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                    <thead>
+                                      <tr>
+                                        <th style={TH}>Metric</th>
+                                        <th style={TH}>Last 7d</th>
+                                        <th style={TH}>Prior 7d</th>
+                                        <th style={TH}>Δ</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td style={TD}>Clicks</td>
+                                        <td style={TD}>{fmtNum(data.last7d.clicks)}</td>
+                                        <td style={{ ...TD, color: BRAND.lightText }}>{fmtNum(data.prior7d.clicks)}</td>
+                                        <td
+                                          style={{ ...TD, color: data.delta.clicks >= 0 ? BRAND.good : BRAND.critical }}
+                                        >
+                                          {fmtSign(data.delta.clicks)}
+                                        </td>
+                                      </tr>
+                                      <tr>
+                                        <td style={TD}>Impressions</td>
+                                        <td style={TD}>{fmtNum(data.last7d.impressions)}</td>
+                                        <td style={{ ...TD, color: BRAND.lightText }}>
+                                          {fmtNum(data.prior7d.impressions)}
+                                        </td>
+                                        <td
+                                          style={{
+                                            ...TD,
+                                            color: data.delta.impressions >= 0 ? BRAND.good : BRAND.critical,
+                                          }}
+                                        >
+                                          {fmtSign(data.delta.impressions)}
+                                        </td>
+                                      </tr>
+                                      <tr>
+                                        <td style={TD}>CTR</td>
+                                        <td style={TD}>{fmtPct(data.last7d.avgCtr)}</td>
+                                        <td style={{ ...TD, color: BRAND.lightText }}>{fmtPct(data.prior7d.avgCtr)}</td>
+                                        <td
+                                          style={{ ...TD, color: data.delta.ctrPp >= 0 ? BRAND.good : BRAND.critical }}
+                                        >
+                                          {data.delta.ctrPp >= 0 ? "+" : ""}
+                                          {data.delta.ctrPp.toFixed(2)}pp
+                                        </td>
+                                      </tr>
+                                      <tr>
+                                        <td style={TD}>Avg position</td>
+                                        <td style={TD}>{data.last7d.avgPosition.toFixed(1)}</td>
+                                        <td style={{ ...TD, color: BRAND.lightText }}>
+                                          {data.prior7d.avgPosition.toFixed(1)}
+                                        </td>
+                                        <td
+                                          style={{
+                                            ...TD,
+                                            color: data.delta.positionPlaces >= 0 ? BRAND.good : BRAND.critical,
+                                          }}
+                                        >
+                                          {data.delta.positionPlaces >= 0 ? "↑" : "↓"}
+                                          {Math.abs(data.delta.positionPlaces).toFixed(1)}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                  <p style={{ marginTop: "12px", fontSize: "12px", color: BRAND.lightText }}>
+                                    14d clicks:{" "}
+                                    <span style={{ fontFamily: FONTS.mono, fontSize: "16px", color: BRAND.navy }}>
+                                      {sparkline(data.trafficSparkline)}
+                                    </span>
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §5 GA4 numbers */}
+                        <Section
+                          num={5}
+                          title="GA4 Numbers"
+                          result={s.ga4Numbers}
+                          render={(data) => (
+                            <div>
+                              {!data.hasData ? (
+                                <p style={{ margin: 0, color: BRAND.lightText, fontStyle: "italic" }}>
+                                  {data.briefExplanation}
+                                </p>
+                              ) : (
+                                <>
+                                  <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                    <strong>{fmtNum(data.last7d.sessions)}</strong> sessions ·{" "}
+                                    <strong>{fmtNum(data.last7d.users)}</strong> users ·{" "}
+                                    <strong>{fmtNum(data.last7d.pageViews)}</strong> page views
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "0 0 12px 0",
+                                      fontSize: "13px",
+                                      color: BRAND.text,
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {data.briefExplanation}
+                                  </p>
+                                  {data.topPages.length > 0 && (
+                                    <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                      <thead>
+                                        <tr>
+                                          <th style={TH}>Page</th>
+                                          <th style={TH}>Views</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {data.topPages.slice(0, 5).map((p) => (
+                                          <tr key={p.path}>
+                                            <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>
+                                              {p.path}
+                                            </td>
+                                            <td style={TD}>{fmtNum(p.views)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §6 System logs */}
+                        <Section
+                          num={6}
+                          title="System Logs Deep Audit"
+                          result={s.systemLogs}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                {fmtNum(data.totalCronRuns)} runs ·{" "}
+                                <span style={{ color: data.failedRuns > 0 ? BRAND.critical : BRAND.good }}>
+                                  {fmtNum(data.failedRuns)} failures
+                                </span>
+                              </p>
+                              {data.meaningfulFindings.length > 0 && (
+                                <ul
+                                  style={{
+                                    margin: "0 0 12px 0",
+                                    paddingLeft: "20px",
+                                    fontSize: "13px",
+                                    lineHeight: 1.6,
+                                  }}
+                                >
+                                  {data.meaningfulFindings.map((f, i) => (
+                                    <li key={i}>{f}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {data.topFailures.length > 0 && (
+                                <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                  <thead>
+                                    <tr>
+                                      <th style={TH}>Cron</th>
+                                      <th style={TH}>Failures</th>
+                                      <th style={TH}>Last error</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {data.topFailures.slice(0, 5).map((f) => (
+                                      <tr key={f.jobName}>
+                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>{f.jobName}</td>
+                                        <td style={TD}>
+                                          <span style={severityBadge(f.severity)}>
+                                            {f.failures}× {f.severity}
+                                          </span>
+                                        </td>
+                                        <td
+                                          style={{
+                                            ...TD,
+                                            fontFamily: FONTS.mono,
+                                            fontSize: "11px",
+                                            color: BRAND.lightText,
+                                          }}
+                                        >
+                                          {f.lastError.slice(0, 80)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* Sections 7-19 land in B4b + B4c */}
+                        <p style={{ fontSize: "12px", color: BRAND.lightText, fontStyle: "italic", marginTop: "32px" }}>
+                          Sections 7-19 pending Batches B4b + B4c.
+                        </p>
+                      </td>
+                    </tr>
+
+                    {/* Footer */}
+                    <tr>
+                      <td
+                        style={{
+                          padding: "16px 32px",
+                          backgroundColor: BRAND.cream,
+                          fontSize: "11px",
+                          color: BRAND.lightText,
+                          textAlign: "center" as const,
+                        }}
+                      >
+                        Generated {briefing.metadata.generatedAt} · Build duration{" "}
+                        {(briefing.metadata.durationMs / 1000).toFixed(1)}s · Reply to discuss any section.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+    </html>
+  );
+}
+
+// Re-export helpers for B4b + B4c continuation files.
+export { BRAND, FONTS, TBL, TH, TD, sparkline, bar, fmtNum, fmtPct, fmtSign, severityBadge, gradeColor, Section };

@@ -417,13 +417,104 @@ function buildExecutiveSummary(
 // Main entry point — sections 7-19 stub for B3a, real impl in B3b
 // ───────────────────────────────────────────────────────────────────────────
 
-async function buildEnArComparison(_siteIds: string[]): Promise<EnArComparison> {
-  void _siteIds;
-  throw new Error("EN/AR comparison — pending Batch B3b");
+async function buildEnArComparison(siteIds: string[]): Promise<EnArComparison> {
+  // Publication counts: an article counts as "EN" when content_en is
+  // substantive (>200 chars) and "AR" when content_ar is substantive.
+  // Bilingual articles count toward both.
+  const posts = await prisma.blogPost.findMany({
+    where: { siteId: { in: siteIds }, published: true },
+    select: { content_en: true, content_ar: true },
+    take: 5000,
+  });
+  const enCount = posts.filter((p) => (p.content_en || "").length > 200).length;
+  const arCount = posts.filter((p) => (p.content_ar || "").length > 200).length;
+
+  // GSC traffic split: Arabic URLs contain `/ar/` segment.
+  const since = new Date(Date.now() - 7 * DAY_MS);
+  const gsc = await prisma.gscPagePerformance.findMany({
+    where: { site_id: { in: siteIds }, date: { gte: since } },
+    select: { url: true, clicks: true, impressions: true },
+    take: 50_000,
+  });
+  let enClicks = 0;
+  let arClicks = 0;
+  let enImpressions = 0;
+  let arImpressions = 0;
+  for (const r of gsc) {
+    const isAr = r.url.includes("/ar/");
+    if (isAr) {
+      arClicks += r.clicks;
+      arImpressions += r.impressions;
+    } else {
+      enClicks += r.clicks;
+      enImpressions += r.impressions;
+    }
+  }
+
+  const notes: string[] = [];
+  if (arCount === 0 && enCount > 0) {
+    notes.push("No Arabic publications — only English content live.");
+  } else if (arCount > 0 && arClicks === 0 && enClicks > 0) {
+    notes.push(
+      "Arabic articles published but receiving zero clicks — check Arabic SSR (KG-032) or hreflang reciprocity.",
+    );
+  } else if (enClicks > 0 && arClicks > 0) {
+    const ratio = arClicks / enClicks;
+    if (ratio > 0.3) notes.push(`Strong Arabic engagement: AR is ${(ratio * 100).toFixed(0)}% of EN traffic.`);
+    else notes.push(`Arabic underperforming: AR is only ${(ratio * 100).toFixed(0)}% of EN traffic.`);
+  }
+
+  return {
+    publications: {
+      en: enCount,
+      ar: arCount,
+      ratio: enCount > 0 ? arCount / enCount : 0,
+    },
+    traffic: { enClicks, arClicks, enImpressions, arImpressions },
+    enArTrafficRatio: enClicks > 0 ? arClicks / enClicks : 0,
+    notes,
+  };
 }
-async function buildTrafficSources(_siteIds: string[]): Promise<TrafficSources> {
-  void _siteIds;
-  throw new Error("Traffic sources — pending Batch B3b");
+
+async function buildTrafficSources(siteIds: string[]): Promise<TrafficSources> {
+  void siteIds;
+  if (!isGA4Configured()) {
+    return { hasData: false, sources: [], countries: [] };
+  }
+  const { fetchGA4TrafficBreakdown } = await import("@/lib/seo/ga4-data-api");
+  const breakdown = await fetchGA4TrafficBreakdown("7daysAgo", "today");
+  if (!breakdown) {
+    return { hasData: false, sources: [], countries: [] };
+  }
+
+  // Aggregate sourceMedium → just source (collapse google/organic + google/cpc).
+  const bySource = new Map<string, number>();
+  let totalSourceSessions = 0;
+  for (const r of breakdown.bySourceMedium) {
+    const key = r.source || "(direct)";
+    bySource.set(key, (bySource.get(key) || 0) + r.sessions);
+    totalSourceSessions += r.sessions;
+  }
+  const sources = [...bySource.entries()]
+    .map(([source, sessions]) => ({
+      source,
+      sessions,
+      share: totalSourceSessions > 0 ? sessions / totalSourceSessions : 0,
+    }))
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, 10);
+
+  const totalCountrySessions = breakdown.byCountry.reduce((s, c) => s + c.sessions, 0);
+  const countries = breakdown.byCountry
+    .map((c) => ({
+      country: c.country,
+      sessions: c.sessions,
+      share: totalCountrySessions > 0 ? c.sessions / totalCountrySessions : 0,
+    }))
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, 10);
+
+  return { hasData: true, sources, countries };
 }
 async function buildAffiliateClicksRevenue(_siteIds: string[]): Promise<AffiliateClicksRevenue> {
   void _siteIds;

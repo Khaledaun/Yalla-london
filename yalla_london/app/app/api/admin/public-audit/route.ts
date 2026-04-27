@@ -905,6 +905,272 @@ function auditAioAlignment(posts: ArticleRow[]): DimensionResult {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Dimension 6: Affiliate practices (FTC compliance + on-page hygiene)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Bundles three Tier-2 blind spots:
+//   - rel + disclosure + anchor variety        (per-article hygiene)
+//   - Dead CJ programs                         (cross-ref CjAdvertiser status)
+//   - Anchor-text concentration                (sitewide over-optimization)
+//
+// Outbound link health (#12) is HTTP-bound and lives in Batch 8 where we have
+// async execution budget. The static signals we collect here are accurate
+// enough to guide most fixes.
+
+const AFFILIATE_PARTNER_HOSTS = [
+  "anrdoezrs.net",
+  "tkqlhce.com",
+  "jdoqocy.com",
+  "kqzyfj.com",
+  "click.linksynergy.com",
+  "stay22.com",
+  "letmeallez.com",
+  "tp.media",
+  "tp-em.com",
+  "travelpayouts.com",
+  "booking.com",
+  "vrbo.com",
+  "expedia.com",
+  "agoda.com",
+  "hotellook.com",
+  "getyourguide.com",
+  "viator.com",
+  "klook.com",
+  "tiqets.com",
+];
+
+const DISCLOSURE_HINT_PATTERNS = [
+  /\baffiliate\s+(?:link|disclosure)\b/i,
+  /\bcommission\b/i,
+  /\bearn\s+(?:a|small)\s+commission\b/i,
+  /\bpartner\s+with\b/i,
+  /\bdisclosure\b/i,
+];
+
+const GENERIC_ANCHOR_TEXT = [
+  /^click here$/i,
+  /^this link$/i,
+  /^check it out$/i,
+  /^learn more$/i,
+  /^read more$/i,
+  /^here$/i,
+  /^link$/i,
+  /^website$/i,
+];
+
+interface AffiliateLinkRef {
+  href: string;
+  hostname: string;
+  rel: string;
+  anchorText: string;
+  isAffiliate: boolean;
+  isAffiliateClickRedirect: boolean;
+}
+
+function extractLinks(content: string): AffiliateLinkRef[] {
+  const out: AffiliateLinkRef[] = [];
+  const anchorRe = /<a\s+([^>]*?)>([\s\S]*?)<\/a>/gi;
+  for (const m of content.matchAll(anchorRe)) {
+    const attrs = m[1] || "";
+    const inner = stripHtml(m[2] || "").trim();
+    const hrefMatch = /\bhref\s*=\s*"([^"]+)"/i.exec(attrs);
+    const relMatch = /\brel\s*=\s*"([^"]+)"/i.exec(attrs);
+    if (!hrefMatch) continue;
+    const href = hrefMatch[1];
+    let hostname = "";
+    let isAffiliateClickRedirect = false;
+    try {
+      // Allow relative URLs to be detected as affiliate-click redirects too.
+      if (href.startsWith("/api/affiliate/click")) {
+        isAffiliateClickRedirect = true;
+        hostname = "internal";
+      } else {
+        const u = new URL(href);
+        hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+      }
+    } catch {
+      continue;
+    }
+    const isAffiliate = isAffiliateClickRedirect || AFFILIATE_PARTNER_HOSTS.some((h) => hostname.includes(h));
+    out.push({
+      href,
+      hostname,
+      rel: relMatch ? relMatch[1] : "",
+      anchorText: inner,
+      isAffiliate,
+      isAffiliateClickRedirect,
+    });
+  }
+  return out;
+}
+
+interface DeadAdvertiserSet {
+  // Lowercased advertiser names whose CJ status is DECLINED, CANCELLED, etc.
+  names: Set<string>;
+  // Lowercased advertiser hostnames (programUrl host) for the same.
+  hostnames: Set<string>;
+}
+
+async function loadDeadAdvertisers(): Promise<DeadAdvertiserSet> {
+  const dead: DeadAdvertiserSet = {
+    names: new Set<string>(),
+    hostnames: new Set<string>(),
+  };
+  try {
+    const advertisers = await prisma.cjAdvertiser.findMany({
+      where: { status: { in: ["DECLINED", "CANCELLED", "REMOVED"] } },
+      select: { name: true, programUrl: true },
+      take: 500,
+    });
+    for (const a of advertisers) {
+      if (a.name) dead.names.add(a.name.toLowerCase().trim());
+      if (a.programUrl) {
+        try {
+          const u = new URL(a.programUrl);
+          dead.hostnames.add(u.hostname.toLowerCase().replace(/^www\./, ""));
+        } catch {
+          /* not a URL — name match still works */
+        }
+      }
+    }
+  } catch {
+    // CJ tables may not exist on every site or migration may be pending. Don't
+    // crash the audit — return an empty set and let the caller carry on.
+  }
+  return dead;
+}
+
+function auditAffiliatePractices(posts: ArticleRow[], dead: DeadAdvertiserSet): DimensionResult {
+  const issues: Issue[] = [];
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  // Sitewide anchor-concentration map: "anchor text → href" → article slugs.
+  // Anything > 10 articles using the same anchor for the same href is an
+  // over-optimization signal Google's spam team flags.
+  const anchorMap = new Map<string, string[]>();
+
+  for (const p of posts) {
+    const slug = p.slug;
+    const title = (p.title_en || "").slice(0, 80);
+    const content = p.content_en || "";
+    const links = extractLinks(content);
+    const affiliateLinks = links.filter((l) => l.isAffiliate);
+    const partners = new Set<string>();
+
+    for (const link of affiliateLinks) {
+      partners.add(link.hostname);
+
+      // Per-article: rel attribute compliance.
+      const rel = link.rel.toLowerCase();
+      if (!link.isAffiliateClickRedirect && !(rel.includes("sponsored") && rel.includes("noopener"))) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "high",
+          detail: `Affiliate link to ${link.hostname} missing rel="noopener sponsored" (FTC + SEO)`,
+        });
+      }
+
+      // Per-article: generic anchor text ("click here").
+      if (link.anchorText && GENERIC_ANCHOR_TEXT.some((re) => re.test(link.anchorText))) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "medium",
+          detail: `Generic anchor "${link.anchorText}" on affiliate link — descriptive anchor text helps both SEO and conversion`,
+        });
+      }
+
+      // Sitewide: feed the anchor concentration map.
+      const anchorKey = `${link.anchorText.toLowerCase().trim()}|${link.href}`;
+      if (link.anchorText.length > 0 && link.anchorText.length < 80) {
+        const existing = anchorMap.get(anchorKey) || [];
+        existing.push(slug);
+        anchorMap.set(anchorKey, existing);
+      }
+
+      // Per-article: dead CJ program cross-ref.
+      const dataAdvertiserMatch = /\bdata-advertiser\s*=\s*"([^"]+)"/i.exec(
+        content.slice(content.indexOf(link.href) - 200, content.indexOf(link.href) + 400),
+      );
+      const advertiserName = dataAdvertiserMatch?.[1]?.toLowerCase().trim();
+      if (advertiserName && dead.names.has(advertiserName)) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "critical",
+          detail: `Affiliate link to "${advertiserName}" — CJ program is DECLINED/CANCELLED, link earns $0`,
+        });
+      } else if (dead.hostnames.has(link.hostname)) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "critical",
+          detail: `Affiliate link to ${link.hostname} — partner program is dead, link earns $0`,
+        });
+      }
+    }
+
+    // Per-article: disclosure paragraph required when affiliates present.
+    if (affiliateLinks.length > 0) {
+      const hasDisclosure = DISCLOSURE_HINT_PATTERNS.some((re) => re.test(content));
+      if (!hasDisclosure) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "critical",
+          detail: `${affiliateLinks.length} affiliate link(s) but no disclosure paragraph (FTC violation)`,
+        });
+      }
+    }
+
+    // Per-article: single-partner concentration (>80% from same partner).
+    if (affiliateLinks.length >= 5 && partners.size === 1) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: `${affiliateLinks.length} affiliate links all to ${[...partners][0]} — diversify partners for resilience`,
+      });
+    }
+  }
+
+  // Sitewide anchor concentration check (#7).
+  for (const [anchorKey, slugs] of anchorMap) {
+    if (slugs.length < 10) continue;
+    const [anchorText, href] = anchorKey.split("|");
+    const sample = slugs.slice(0, 5).join(", ");
+    pushIssue(issues, bySeverity, {
+      slug: slugs[0],
+      title: anchorText,
+      severity: "high",
+      detail: `Anchor "${anchorText}" used ${slugs.length}x pointing to ${href} — over-optimization risk. Affected: ${sample}${slugs.length > 5 ? "..." : ""}`,
+    });
+  }
+
+  return {
+    name: "affiliatePractices",
+    score: scoreFromIssues(bySeverity),
+    issuesCount: issues.length,
+    bySeverity,
+    top: topIssues(issues, 15),
+    nextAction:
+      bySeverity.critical > 0
+        ? "Run affiliate_link_health MCP tool — confirms dead programs. Run affiliate-injection cron to swap dead links to live partners. Add disclosure paragraph via content-auto-fix or template update."
+        : bySeverity.high > 0
+          ? "Run seo-agent or affiliate-injection — fixes rel attributes in batch. Diversify anchor text via manual edits."
+          : bySeverity.medium > 0
+            ? "Manual: rewrite generic anchor text to descriptive keyphrases on the affected articles."
+            : "Affiliate practices look clean",
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Handler
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -941,7 +1207,10 @@ export async function GET(request: NextRequest) {
       take: Math.min(Math.max(sample, 50), 1000),
     })) as ArticleRow[];
 
-    const sitewide = buildSitewideContext(posts);
+    const [sitewide, deadAdvertisers] = await Promise.all([
+      Promise.resolve(buildSitewideContext(posts)),
+      loadDeadAdvertisers(),
+    ]);
 
     const dimensions: Record<string, DimensionResult> = {
       photos: auditPhotos(posts),
@@ -949,7 +1218,7 @@ export async function GET(request: NextRequest) {
       newsRefresh: auditNewsRefresh(posts),
       seoUpdates: auditSeoUpdates(posts, sitewide),
       aioAlignment: auditAioAlignment(posts),
-      affiliatePractices: emptyDimension("affiliatePractices", "Pending — Batch 4"),
+      affiliatePractices: auditAffiliatePractices(posts, deadAdvertisers),
     };
 
     return NextResponse.json({

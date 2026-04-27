@@ -189,6 +189,253 @@ function auditPhotos(posts: ArticleRow[]): DimensionResult {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Dimension 2: Unedited content (AI artifacts that leaked into published copy)
+// ───────────────────────────────────────────────────────────────────────────
+
+// Patterns the AI sometimes prefixes/leaks into TITLE or META fields. These
+// must never reach a real reader.
+const TITLE_LEAK_PREFIX = /^(title|meta\s*title|meta\s*description|seo\s*title|h1|heading)\s*:\s*/i;
+const PARENTHETICAL_LENGTH_NOTE = /\(\s*(?:under\s+\d+|\d+\s*(?:chars?|characters?))\b[^)]*\)/i;
+
+// Placeholder / stub markers that should have been cleaned before publish.
+const PLACEHOLDER_MARKERS =
+  /\[(?:TODO|PLACEHOLDER|REDIRECTED|DUPLICATE-FLAGGED|PENDING|FIXME|TBD)\]|TOPIC_SLUG|<<<.*?>>>|XXXTODOXXX/i;
+
+// Markdown that escaped the renderer and printed as literal text.
+const MARKDOWN_LEAK = /```|~~~/;
+
+// Generic AI phrases — Google demotes these per the Jan 2026 Authenticity
+// Update. Each instance is low-severity by itself; the count matters.
+const AI_GENERIC_PHRASES = [
+  "in conclusion",
+  "it's worth noting",
+  "without further ado",
+  "look no further",
+  "nestled in the heart of",
+  "in this comprehensive guide",
+  "whether you're a",
+  "stands as a testament",
+  "embark on a journey",
+];
+
+function auditUnedited(posts: ArticleRow[]): DimensionResult {
+  const issues: Issue[] = [];
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  for (const p of posts) {
+    const slug = p.slug;
+    const title = (p.title_en || "").slice(0, 80);
+
+    // Check every visible-to-reader text field for leaks.
+    const textFields: Array<{ name: string; value: string }> = [
+      { name: "title_en", value: p.title_en || "" },
+      { name: "title_ar", value: p.title_ar || "" },
+      { name: "meta_title_en", value: p.meta_title_en || "" },
+      { name: "meta_title_ar", value: p.meta_title_ar || "" },
+      { name: "meta_description_en", value: p.meta_description_en || "" },
+      { name: "meta_description_ar", value: p.meta_description_ar || "" },
+    ];
+
+    for (const f of textFields) {
+      if (!f.value) continue;
+      if (TITLE_LEAK_PREFIX.test(f.value)) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "critical",
+          detail: `${f.name} starts with AI prefix ("${f.value.slice(0, 40)}...")`,
+        });
+      }
+      if (PARENTHETICAL_LENGTH_NOTE.test(f.value)) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "high",
+          detail: `${f.name} contains AI char-count note`,
+        });
+      }
+    }
+
+    const content = p.content_en || "";
+
+    if (PLACEHOLDER_MARKERS.test(content)) {
+      const match = content.match(PLACEHOLDER_MARKERS);
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "critical",
+        detail: `Placeholder marker in body: ${match?.[0]}`,
+      });
+    }
+
+    if (MARKDOWN_LEAK.test(content)) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: "Markdown code fences leaked into rendered HTML",
+      });
+    }
+
+    const lower = content.toLowerCase();
+    let genericCount = 0;
+    for (const phrase of AI_GENERIC_PHRASES) {
+      if (lower.includes(phrase)) genericCount++;
+    }
+    if (genericCount >= 3) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `${genericCount} generic AI phrases (Jan 2026 Authenticity Update demotes)`,
+      });
+    } else if (genericCount > 0) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: `${genericCount} generic AI phrase(s) — borderline acceptable`,
+      });
+    }
+  }
+
+  return {
+    name: "unedited",
+    score: scoreFromIssues(bySeverity),
+    issuesCount: issues.length,
+    bySeverity,
+    top: topIssues(issues),
+    nextAction:
+      bySeverity.critical > 0
+        ? "Run content-auto-fix cron — strips known placeholder markers (Section 14 in route). Critical title-prefix leaks need a manual edit on each article."
+        : bySeverity.high > 0
+          ? "Run seo-deep-review cron — rewrites meta with stronger anchors and trims AI residue"
+          : "Content looks edited",
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Dimension 3: News refresh (date-stale content losing relevance)
+// ───────────────────────────────────────────────────────────────────────────
+
+// Recognise a category as "news" by id or by slug-style hint. Different sites
+// use different category schemes so we look at both.
+function isNewsCategoryId(catId: string | null): boolean {
+  if (!catId) return false;
+  return /news|breaking|current|today|update/i.test(catId);
+}
+
+const STALE_TEMPORAL_ANCHORS = [
+  /\btoday\b/i,
+  /\byesterday\b/i,
+  /\bthis\s+week\b/i,
+  /\blast\s+week\b/i,
+  /\bthis\s+month\b/i,
+];
+
+function auditNewsRefresh(posts: ArticleRow[]): DimensionResult {
+  const issues: Issue[] = [];
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const sevenDaysMs = 7 * 86400000;
+  const ninetyDaysMs = 90 * 86400000;
+
+  for (const p of posts) {
+    const slug = p.slug;
+    const title = (p.title_en || "").slice(0, 80);
+    const ageMs = now.getTime() - p.created_at.getTime();
+    const isNews = isNewsCategoryId(p.category_id) || /\bnews\b/i.test(slug);
+
+    // News articles older than 7 days are probably stale. Flag for review or
+    // archival — they shouldn't dominate the news rail any more.
+    if (isNews && ageMs > sevenDaysMs && ageMs < ninetyDaysMs) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: `News article ${Math.floor(ageMs / 86400000)}d old — past relevance window`,
+      });
+    } else if (isNews && ageMs >= ninetyDaysMs) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "critical",
+        detail: `News article ${Math.floor(ageMs / 86400000)}d old — should be archived or rewritten as evergreen`,
+      });
+    }
+
+    // Stale year reference in any visible field.
+    const allText = [
+      p.title_en,
+      p.title_ar,
+      p.meta_title_en,
+      p.meta_description_en,
+      p.content_en?.slice(0, 4000), // first 4KB is enough for an indicator
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const yearMatches = [...allText.matchAll(/\b(20\d{2})\b/g)]
+      .map((m) => parseInt(m[1], 10))
+      .filter((y) => y >= 2018 && y < currentYear);
+
+    if (yearMatches.length > 0) {
+      const oldest = Math.min(...yearMatches);
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: oldest <= currentYear - 2 ? "high" : "medium",
+        detail: `Stale year ref: ${[...new Set(yearMatches)].sort().join(", ")} (current: ${currentYear})`,
+      });
+    }
+
+    // Floating temporal anchors only matter on news where "today" actually
+    // refers to a moment in time. On evergreen posts they're less critical.
+    if (isNews) {
+      const content = p.content_en || "";
+      let anchorHits = 0;
+      for (const re of STALE_TEMPORAL_ANCHORS) {
+        if (re.test(content)) anchorHits++;
+      }
+      if (anchorHits >= 2 && ageMs > sevenDaysMs) {
+        pushIssue(issues, bySeverity, {
+          slug,
+          title,
+          severity: "medium",
+          detail: `${anchorHits} floating temporal anchors ("today", "this week") in stale news — meaning has drifted`,
+        });
+      }
+    }
+  }
+
+  return {
+    name: "newsRefresh",
+    score: scoreFromIssues(bySeverity),
+    issuesCount: issues.length,
+    bySeverity,
+    top: topIssues(issues),
+    nextAction:
+      bySeverity.critical > 0
+        ? "Archive stale news articles — set published=false or noindex. Run content-auto-fix Section 12 (thin/stale unpublish)."
+        : bySeverity.high > 0
+          ? "Run dates_audit MCP tool to confirm scope, then bulk-rewrite year references to current year"
+          : "News content is fresh",
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Handler
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -226,8 +473,8 @@ export async function GET(request: NextRequest) {
 
     const dimensions: Record<string, DimensionResult> = {
       photos: auditPhotos(posts),
-      unedited: emptyDimension("unedited", "Pending — Batch 2"),
-      newsRefresh: emptyDimension("newsRefresh", "Pending — Batch 2"),
+      unedited: auditUnedited(posts),
+      newsRefresh: auditNewsRefresh(posts),
       seoUpdates: emptyDimension("seoUpdates", "Pending — Batch 3"),
       aioAlignment: emptyDimension("aioAlignment", "Pending — Batch 3"),
       affiliatePractices: emptyDimension("affiliatePractices", "Pending — Batch 4"),

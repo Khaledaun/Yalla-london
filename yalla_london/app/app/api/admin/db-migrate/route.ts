@@ -110,9 +110,7 @@ const EXPECTED_TABLES: TableDef[] = [
       { name: "siteId", type: "TEXT", nullable: true },
       { name: "deletedAt", type: "TIMESTAMPTZ", nullable: true },
     ],
-    indexes: [
-      'CREATE INDEX IF NOT EXISTS "information_sections_siteId_idx" ON "information_sections"("siteId")',
-    ],
+    indexes: ['CREATE INDEX IF NOT EXISTS "information_sections_siteId_idx" ON "information_sections"("siteId")'],
   },
   // ── InformationArticle ──────────────────────────
   {
@@ -135,31 +133,21 @@ const EXPECTED_TABLES: TableDef[] = [
   {
     table: '"cj_offers"',
     model: "CjOffer",
-    columns: [
-      { name: "siteId", type: "TEXT", nullable: true },
-    ],
-    indexes: [
-      'CREATE INDEX IF NOT EXISTS "cj_offers_siteId_idx" ON "cj_offers"("siteId")',
-    ],
+    columns: [{ name: "siteId", type: "TEXT", nullable: true }],
+    indexes: ['CREATE INDEX IF NOT EXISTS "cj_offers_siteId_idx" ON "cj_offers"("siteId")'],
   },
   // ── CJ Commissions — add siteId ──────────────────────────
   {
     table: '"cj_commissions"',
     model: "CjCommission",
-    columns: [
-      { name: "siteId", type: "TEXT", nullable: true },
-    ],
-    indexes: [
-      'CREATE INDEX IF NOT EXISTS "cj_commissions_siteId_idx" ON "cj_commissions"("siteId")',
-    ],
+    columns: [{ name: "siteId", type: "TEXT", nullable: true }],
+    indexes: ['CREATE INDEX IF NOT EXISTS "cj_commissions_siteId_idx" ON "cj_commissions"("siteId")'],
   },
   // ── CJ Click Events — add siteId ──────────────────────────
   {
     table: '"cj_click_events"',
     model: "CjClickEvent",
-    columns: [
-      { name: "siteId", type: "TEXT", nullable: true },
-    ],
+    columns: [{ name: "siteId", type: "TEXT", nullable: true }],
     indexes: [
       'CREATE INDEX IF NOT EXISTS "cj_click_events_siteId_idx" ON "cj_click_events"("siteId")',
       'CREATE INDEX IF NOT EXISTS "cj_click_events_siteId_createdAt_idx" ON "cj_click_events"("siteId", "createdAt")',
@@ -169,9 +157,7 @@ const EXPECTED_TABLES: TableDef[] = [
   {
     table: '"article_drafts"',
     model: "ArticleDraft",
-    columns: [
-      { name: "trace_id", type: "TEXT", nullable: true },
-    ],
+    columns: [{ name: "trace_id", type: "TEXT", nullable: true }],
     indexes: [],
   },
   // ── BlogPost — hardening sprint fields ──────────────────────────
@@ -185,9 +171,7 @@ const EXPECTED_TABLES: TableDef[] = [
       { name: "photo_order_query", type: "TEXT", nullable: true },
       { name: "photo_order_status", type: "TEXT", nullable: true },
     ],
-    indexes: [
-      'CREATE INDEX IF NOT EXISTS "BlogPost_photo_order_status_idx" ON "BlogPost"("photo_order_status")',
-    ],
+    indexes: ['CREATE INDEX IF NOT EXISTS "BlogPost_photo_order_status_idx" ON "BlogPost"("photo_order_status")'],
   },
   // ── MediaAsset — missing columns from schema ───────────────────────
   {
@@ -224,12 +208,8 @@ const EXPECTED_TABLES: TableDef[] = [
   {
     table: '"feature_flags"',
     model: "FeatureFlag",
-    columns: [
-      { name: "siteId", type: "TEXT", nullable: true },
-    ],
-    indexes: [
-      'CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")',
-    ],
+    columns: [{ name: "siteId", type: "TEXT", nullable: true }],
+    indexes: ['CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")'],
   },
   // ── SiteSettings — add siteId/category when table pre-existed without them ──
   // UNIQUE_CONSTRAINTS references site_settings("siteId","category") — must exist before Step 3
@@ -248,9 +228,7 @@ const EXPECTED_TABLES: TableDef[] = [
   {
     table: '"pdf_guides"',
     model: "PdfGuide",
-    columns: [
-      { name: "slug", type: "TEXT", nullable: true },
-    ],
+    columns: [{ name: "slug", type: "TEXT", nullable: true }],
     indexes: [],
   },
   // ── PromptTemplate — add version when table pre-existed without it ────────────
@@ -258,9 +236,7 @@ const EXPECTED_TABLES: TableDef[] = [
   {
     table: '"PromptTemplate"',
     model: "PromptTemplate",
-    columns: [
-      { name: "version", type: "TEXT", nullable: true, defaultValue: "'1.0'" },
-    ],
+    columns: [{ name: "version", type: "TEXT", nullable: true, defaultValue: "'1.0'" }],
     indexes: [],
   },
 ];
@@ -274,7 +250,10 @@ const ENUM_STATEMENTS: { name: string; values: string[] }[] = [
   { name: "InquiryStatus", values: ["NEW", "CONTACTED", "QUALIFIED", "SENT_TO_BROKER", "BOOKED", "LOST"] },
   { name: "AvailabilityStatus", values: ["AVAILABLE", "BOOKED", "HOLD", "MAINTENANCE"] },
   { name: "ReviewStatus", values: ["PENDING", "APPROVED", "REJECTED"] },
-  { name: "DestinationRegion", values: ["MEDITERRANEAN", "ARABIAN_GULF", "RED_SEA", "INDIAN_OCEAN", "CARIBBEAN", "SOUTHEAST_ASIA"] },
+  {
+    name: "DestinationRegion",
+    values: ["MEDITERRANEAN", "ARABIAN_GULF", "RED_SEA", "INDIAN_OCEAN", "CARIBBEAN", "SOUTHEAST_ASIA"],
+  },
   { name: "SyncStatus", values: ["RUNNING", "COMPLETED", "FAILED"] },
   { name: "ItineraryDifficulty", values: ["EASY", "MODERATE", "ADVANCED"] },
   { name: "ConversionStatus", values: ["PENDING", "BOOKED", "COMPLETED", "CANCELLED", "PAID"] },
@@ -288,21 +267,51 @@ const ENUM_STATEMENTS: { name: string; values: string[] }[] = [
   { name: "CommissionStatus", values: ["PENDING", "APPROVED", "DECLINED", "LOCKED"] },
   { name: "PlacementType", values: ["INLINE", "SIDEBAR", "BANNER", "CTA", "CARD", "COMPARISON_TABLE"] },
   { name: "RotationStrategy", values: ["RANDOM", "HIGHEST_EPC", "NEWEST", "MANUAL"] },
-  { name: "PlacementCondition", values: ["CATEGORY_MATCH", "TAG_MATCH", "LANGUAGE_MATCH", "URL_MATCH", "KEYWORD_MATCH"] },
+  {
+    name: "PlacementCondition",
+    values: ["CATEGORY_MATCH", "TAG_MATCH", "LANGUAGE_MATCH", "URL_MATCH", "KEYWORD_MATCH"],
+  },
   { name: "ClickDevice", values: ["DESKTOP", "MOBILE", "TABLET"] },
   { name: "SyncType", values: ["ADVERTISERS", "LINKS", "PRODUCTS", "COMMISSIONS", "DEALS"] },
   { name: "CjSyncStatus", values: ["SUCCESS", "PARTIAL", "FAILED"] },
   // Team & Expertise enums
-  { name: "SkillCategory", values: ["ENGINEERING", "AI_ML", "DESIGN", "DATA", "CONTENT", "MARKETING", "PSYCHOLOGY", "BUSINESS", "TRAVEL"] },
+  {
+    name: "SkillCategory",
+    values: ["ENGINEERING", "AI_ML", "DESIGN", "DATA", "CONTENT", "MARKETING", "PSYCHOLOGY", "BUSINESS", "TRAVEL"],
+  },
   { name: "Proficiency", values: ["LEARNING", "PROFICIENT", "EXPERT", "THOUGHT_LEADER"] },
-  { name: "CreditRole", values: ["AUTHOR", "CO_AUTHOR", "EDITOR", "CONTRIBUTOR", "PHOTOGRAPHER", "RESEARCHER", "ADVISOR"] },
+  {
+    name: "CreditRole",
+    values: ["AUTHOR", "CO_AUTHOR", "EDITOR", "CONTRIBUTOR", "PHOTOGRAPHER", "RESEARCHER", "ADVISOR"],
+  },
   // Affiliate & Revenue enums
   { name: "PartnerType", values: ["HOTEL", "EXPERIENCE", "INSURANCE", "FLIGHT", "TRANSFER", "EQUIPMENT"] },
   // Lead/CRM enums
-  { name: "LeadType", values: ["NEWSLETTER", "GUIDE_DOWNLOAD", "TRIP_INQUIRY", "QUOTE_REQUEST", "CONSULTATION", "CONTACT"] },
-  { name: "LeadStatus", values: ["NEW", "QUALIFIED", "CONTACTED", "ENGAGED", "CONVERTED", "SOLD", "UNQUALIFIED", "UNSUBSCRIBED"] },
+  {
+    name: "LeadType",
+    values: ["NEWSLETTER", "GUIDE_DOWNLOAD", "TRIP_INQUIRY", "QUOTE_REQUEST", "CONSULTATION", "CONTACT"],
+  },
+  {
+    name: "LeadStatus",
+    values: ["NEW", "QUALIFIED", "CONTACTED", "ENGAGED", "CONVERTED", "SOLD", "UNQUALIFIED", "UNSUBSCRIBED"],
+  },
   // Digital Products enums
-  { name: "ProductType", values: ["PDF_GUIDE", "SPREADSHEET", "TEMPLATE", "BUNDLE", "MEMBERSHIP", "WALL_ART", "PRESET", "PLANNER", "STICKER", "WORKSHEET", "EVENT_GUIDE"] },
+  {
+    name: "ProductType",
+    values: [
+      "PDF_GUIDE",
+      "SPREADSHEET",
+      "TEMPLATE",
+      "BUNDLE",
+      "MEMBERSHIP",
+      "WALL_ART",
+      "PRESET",
+      "PLANNER",
+      "STICKER",
+      "WORKSHEET",
+      "EVENT_GUIDE",
+    ],
+  },
   { name: "PurchaseStatus", values: ["PENDING", "COMPLETED", "FAILED", "REFUNDED"] },
 ];
 
@@ -959,6 +968,23 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "error" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "auto_fix_logs_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Daily Briefings ───────────────────────────────
+  {
+    table: "daily_briefings",
+    model: "DailyBriefing",
+    sql: `CREATE TABLE IF NOT EXISTS "daily_briefings" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT,
+  "briefingDate" DATE NOT NULL,
+  "data" JSONB NOT NULL,
+  "renderedHtml" TEXT,
+  "emailSent" BOOLEAN NOT NULL DEFAULT false,
+  "emailMessageId" TEXT,
+  "emailError" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "daily_briefings_pkey" PRIMARY KEY ("id")
 )`,
   },
   // ── Dev Tasks ─────────────────────────────────────
@@ -3902,9 +3928,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "charter_itineraries_siteId_idx" ON "charter_itineraries"("siteId")',
     'CREATE INDEX IF NOT EXISTS "charter_itineraries_destinationId_idx" ON "charter_itineraries"("destinationId")',
   ],
-  broker_partners: [
-    'CREATE INDEX IF NOT EXISTS "broker_partners_siteId_idx" ON "broker_partners"("siteId")',
-  ],
+  broker_partners: ['CREATE INDEX IF NOT EXISTS "broker_partners_siteId_idx" ON "broker_partners"("siteId")'],
   yacht_sync_logs: [
     'CREATE INDEX IF NOT EXISTS "yacht_sync_logs_siteId_idx" ON "yacht_sync_logs"("siteId")',
     'CREATE INDEX IF NOT EXISTS "yacht_sync_logs_source_idx" ON "yacht_sync_logs"("source")',
@@ -3945,9 +3969,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "cj_sync_logs_syncType_idx" ON "cj_sync_logs"("syncType")',
     'CREATE INDEX IF NOT EXISTS "cj_sync_logs_createdAt_idx" ON "cj_sync_logs"("createdAt")',
   ],
-  cj_placements: [
-    'CREATE INDEX IF NOT EXISTS "cj_placements_isActive_idx" ON "cj_placements"("isActive")',
-  ],
+  cj_placements: ['CREATE INDEX IF NOT EXISTS "cj_placements_isActive_idx" ON "cj_placements"("isActive")'],
   cj_placement_rules: [
     'CREATE INDEX IF NOT EXISTS "cj_placement_rules_placementId_idx" ON "cj_placement_rules"("placementId")',
   ],
@@ -4025,6 +4047,13 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "auto_fix_logs_siteId_createdAt_idx" ON "auto_fix_logs"("siteId", "createdAt")',
     'CREATE INDEX IF NOT EXISTS "auto_fix_logs_fixType_idx" ON "auto_fix_logs"("fixType")',
     'CREATE INDEX IF NOT EXISTS "auto_fix_logs_targetId_idx" ON "auto_fix_logs"("targetId")',
+  ],
+
+  // ── Daily Briefings Indexes ────────────────────────────
+  daily_briefings: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "daily_briefings_siteId_briefingDate_key" ON "daily_briefings"("siteId", "briefingDate")',
+    'CREATE INDEX IF NOT EXISTS "daily_briefings_briefingDate_idx" ON "daily_briefings"("briefingDate")',
+    'CREATE INDEX IF NOT EXISTS "daily_briefings_siteId_briefingDate_idx" ON "daily_briefings"("siteId", "briefingDate")',
   ],
 
   // ── Dev Tasks Indexes ──────────────────────────────────
@@ -4133,9 +4162,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "model_routes_route_name_idx" ON "model_routes"("route_name")',
     'CREATE INDEX IF NOT EXISTS "model_routes_is_active_idx" ON "model_routes"("is_active")',
   ],
-  feature_flags: [
-    'CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")',
-  ],
+  feature_flags: ['CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")'],
 
   // ── Affiliate & Revenue Indexes ────────────────────────────
   affiliate_clicks: [
@@ -4174,12 +4201,8 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "users_isActive_idx" ON "users"("isActive")',
     'CREATE INDEX IF NOT EXISTS "users_createdAt_idx" ON "users"("createdAt")',
   ],
-  accounts: [
-    'CREATE INDEX IF NOT EXISTS "accounts_userId_idx" ON "accounts"("userId")',
-  ],
-  sessions: [
-    'CREATE INDEX IF NOT EXISTS "sessions_userId_idx" ON "sessions"("userId")',
-  ],
+  accounts: ['CREATE INDEX IF NOT EXISTS "accounts_userId_idx" ON "accounts"("userId")'],
+  sessions: ['CREATE INDEX IF NOT EXISTS "sessions_userId_idx" ON "sessions"("userId")'],
 
   // ── Core Content Indexes ────────────────────────────────────────────────
   BlogPost: [
@@ -4221,9 +4244,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "seo_meta_seoScore_idx" ON "seo_meta"("seoScore")',
     'CREATE INDEX IF NOT EXISTS "seo_meta_schemaType_idx" ON "seo_meta"("schemaType")',
   ],
-  seo_redirects: [
-    'CREATE INDEX IF NOT EXISTS "seo_redirects_enabled_idx" ON "seo_redirects"("enabled")',
-  ],
+  seo_redirects: ['CREATE INDEX IF NOT EXISTS "seo_redirects_enabled_idx" ON "seo_redirects"("enabled")'],
   seo_internal_links: [
     'CREATE INDEX IF NOT EXISTS "seo_internal_links_sourcePageId_idx" ON "seo_internal_links"("sourcePageId")',
     'CREATE INDEX IF NOT EXISTS "seo_internal_links_targetPageId_idx" ON "seo_internal_links"("targetPageId")',
@@ -4237,9 +4258,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "seo_health_metrics_pageId_idx" ON "seo_health_metrics"("pageId")',
     'CREATE INDEX IF NOT EXISTS "seo_health_metrics_metricName_idx" ON "seo_health_metrics"("metricName")',
   ],
-  seo_page_metrics: [
-    'CREATE INDEX IF NOT EXISTS "seo_page_metrics_pageId_idx" ON "seo_page_metrics"("pageId")',
-  ],
+  seo_page_metrics: ['CREATE INDEX IF NOT EXISTS "seo_page_metrics_pageId_idx" ON "seo_page_metrics"("pageId")'],
   seo_sitemap_entries: [
     'CREATE INDEX IF NOT EXISTS "seo_sitemap_entries_sitemapType_idx" ON "seo_sitemap_entries"("sitemapType")',
   ],
@@ -4253,15 +4272,9 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
   ],
 
   // ── Phase 4 Indexes ─────────────────────────────────────────────────────
-  ImageAsset: [
-    'CREATE INDEX IF NOT EXISTS "ImageAsset_place_id_idx" ON "ImageAsset"("place_id")',
-  ],
-  VideoAsset: [
-    'CREATE INDEX IF NOT EXISTS "VideoAsset_place_id_idx" ON "VideoAsset"("place_id")',
-  ],
-  Place: [
-    'CREATE INDEX IF NOT EXISTS "Place_category_idx" ON "Place"("category")',
-  ],
+  ImageAsset: ['CREATE INDEX IF NOT EXISTS "ImageAsset_place_id_idx" ON "ImageAsset"("place_id")'],
+  VideoAsset: ['CREATE INDEX IF NOT EXISTS "VideoAsset_place_id_idx" ON "VideoAsset"("place_id")'],
+  Place: ['CREATE INDEX IF NOT EXISTS "Place_category_idx" ON "Place"("category")'],
   AnalyticsSnapshot: [
     'CREATE INDEX IF NOT EXISTS "AnalyticsSnapshot_site_id_idx" ON "AnalyticsSnapshot"("site_id")',
     'CREATE INDEX IF NOT EXISTS "AnalyticsSnapshot_created_at_idx" ON "AnalyticsSnapshot"("created_at")',
@@ -4279,9 +4292,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
   ],
 
   // ── Multi-Site Indexes ──────────────────────────────────────────────────
-  Site: [
-    'CREATE INDEX IF NOT EXISTS "Site_is_active_idx" ON "Site"("is_active")',
-  ],
+  Site: ['CREATE INDEX IF NOT EXISTS "Site_is_active_idx" ON "Site"("is_active")'],
   SiteMember: [
     'CREATE INDEX IF NOT EXISTS "SiteMember_site_id_idx" ON "SiteMember"("site_id")',
     'CREATE INDEX IF NOT EXISTS "SiteMember_user_id_idx" ON "SiteMember"("user_id")',
@@ -4574,43 +4585,127 @@ const UNIQUE_CONSTRAINTS: string[] = [
 // to skip silently if the constraint already exists.
 const FOREIGN_KEYS: { name: string; sql: string }[] = [
   // Yacht Charter FKs
-  { name: "yachts_destinationId_fkey", sql: 'ALTER TABLE "yachts" ADD CONSTRAINT "yachts_destinationId_fkey" FOREIGN KEY ("destinationId") REFERENCES "yacht_destinations"("id") ON DELETE SET NULL ON UPDATE CASCADE' },
-  { name: "charter_inquiries_yachtId_fkey", sql: 'ALTER TABLE "charter_inquiries" ADD CONSTRAINT "charter_inquiries_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE' },
-  { name: "yacht_availability_yachtId_fkey", sql: 'ALTER TABLE "yacht_availability" ADD CONSTRAINT "yacht_availability_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "yacht_reviews_yachtId_fkey", sql: 'ALTER TABLE "yacht_reviews" ADD CONSTRAINT "yacht_reviews_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "charter_itineraries_destinationId_fkey", sql: 'ALTER TABLE "charter_itineraries" ADD CONSTRAINT "charter_itineraries_destinationId_fkey" FOREIGN KEY ("destinationId") REFERENCES "yacht_destinations"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
+  {
+    name: "yachts_destinationId_fkey",
+    sql: 'ALTER TABLE "yachts" ADD CONSTRAINT "yachts_destinationId_fkey" FOREIGN KEY ("destinationId") REFERENCES "yacht_destinations"("id") ON DELETE SET NULL ON UPDATE CASCADE',
+  },
+  {
+    name: "charter_inquiries_yachtId_fkey",
+    sql: 'ALTER TABLE "charter_inquiries" ADD CONSTRAINT "charter_inquiries_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE',
+  },
+  {
+    name: "yacht_availability_yachtId_fkey",
+    sql: 'ALTER TABLE "yacht_availability" ADD CONSTRAINT "yacht_availability_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "yacht_reviews_yachtId_fkey",
+    sql: 'ALTER TABLE "yacht_reviews" ADD CONSTRAINT "yacht_reviews_yachtId_fkey" FOREIGN KEY ("yachtId") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "charter_itineraries_destinationId_fkey",
+    sql: 'ALTER TABLE "charter_itineraries" ADD CONSTRAINT "charter_itineraries_destinationId_fkey" FOREIGN KEY ("destinationId") REFERENCES "yacht_destinations"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
   // Design System FKs
-  { name: "pdf_downloads_pdfGuideId_fkey", sql: 'ALTER TABLE "pdf_downloads" ADD CONSTRAINT "pdf_downloads_pdfGuideId_fkey" FOREIGN KEY ("pdfGuideId") REFERENCES "pdf_guides"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
-  { name: "content_performance_pipelineId_fkey", sql: 'ALTER TABLE "content_performance" ADD CONSTRAINT "content_performance_pipelineId_fkey" FOREIGN KEY ("pipelineId") REFERENCES "content_pipelines"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
+  {
+    name: "pdf_downloads_pdfGuideId_fkey",
+    sql: 'ALTER TABLE "pdf_downloads" ADD CONSTRAINT "pdf_downloads_pdfGuideId_fkey" FOREIGN KEY ("pdfGuideId") REFERENCES "pdf_guides"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
+  {
+    name: "content_performance_pipelineId_fkey",
+    sql: 'ALTER TABLE "content_performance" ADD CONSTRAINT "content_performance_pipelineId_fkey" FOREIGN KEY ("pipelineId") REFERENCES "content_pipelines"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
   // Audit Engine FKs
-  { name: "audit_issues_auditRunId_fkey", sql: 'ALTER TABLE "audit_issues" ADD CONSTRAINT "audit_issues_auditRunId_fkey" FOREIGN KEY ("auditRunId") REFERENCES "audit_runs"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "audit_issues_auditRunId_fkey",
+    sql: 'ALTER TABLE "audit_issues" ADD CONSTRAINT "audit_issues_auditRunId_fkey" FOREIGN KEY ("auditRunId") REFERENCES "audit_runs"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
   // Model Route FK
-  { name: "model_routes_primary_provider_id_fkey", sql: 'ALTER TABLE "model_routes" ADD CONSTRAINT "model_routes_primary_provider_id_fkey" FOREIGN KEY ("primary_provider_id") REFERENCES "model_providers"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
+  {
+    name: "model_routes_primary_provider_id_fkey",
+    sql: 'ALTER TABLE "model_routes" ADD CONSTRAINT "model_routes_primary_provider_id_fkey" FOREIGN KEY ("primary_provider_id") REFERENCES "model_providers"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
   // Auth FKs
-  { name: "accounts_userId_fkey", sql: 'ALTER TABLE "accounts" ADD CONSTRAINT "accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "sessions_userId_fkey", sql: 'ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "accounts_userId_fkey",
+    sql: 'ALTER TABLE "accounts" ADD CONSTRAINT "accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "sessions_userId_fkey",
+    sql: 'ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
   // Core Content FKs
-  { name: "BlogPost_category_id_fkey", sql: 'ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
-  { name: "BlogPost_author_id_fkey", sql: 'ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
+  {
+    name: "BlogPost_category_id_fkey",
+    sql: 'ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
+  {
+    name: "BlogPost_author_id_fkey",
+    sql: 'ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
   // SEO FKs
-  { name: "seo_internal_links_sourcePageId_fkey", sql: 'ALTER TABLE "seo_internal_links" ADD CONSTRAINT "seo_internal_links_sourcePageId_fkey" FOREIGN KEY ("sourcePageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "seo_internal_links_targetPageId_fkey", sql: 'ALTER TABLE "seo_internal_links" ADD CONSTRAINT "seo_internal_links_targetPageId_fkey" FOREIGN KEY ("targetPageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "seo_content_analysis_contentId_fkey", sql: 'ALTER TABLE "seo_content_analysis" ADD CONSTRAINT "seo_content_analysis_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "seo_health_metrics_pageId_fkey", sql: 'ALTER TABLE "seo_health_metrics" ADD CONSTRAINT "seo_health_metrics_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE SET NULL ON UPDATE CASCADE' },
-  { name: "seo_page_metrics_pageId_fkey", sql: 'ALTER TABLE "seo_page_metrics" ADD CONSTRAINT "seo_page_metrics_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "seo_hreflang_entries_pageId_fkey", sql: 'ALTER TABLE "seo_hreflang_entries" ADD CONSTRAINT "seo_hreflang_entries_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "seo_structured_data_pageId_fkey", sql: 'ALTER TABLE "seo_structured_data" ADD CONSTRAINT "seo_structured_data_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "seo_internal_links_sourcePageId_fkey",
+    sql: 'ALTER TABLE "seo_internal_links" ADD CONSTRAINT "seo_internal_links_sourcePageId_fkey" FOREIGN KEY ("sourcePageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_internal_links_targetPageId_fkey",
+    sql: 'ALTER TABLE "seo_internal_links" ADD CONSTRAINT "seo_internal_links_targetPageId_fkey" FOREIGN KEY ("targetPageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_content_analysis_contentId_fkey",
+    sql: 'ALTER TABLE "seo_content_analysis" ADD CONSTRAINT "seo_content_analysis_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_health_metrics_pageId_fkey",
+    sql: 'ALTER TABLE "seo_health_metrics" ADD CONSTRAINT "seo_health_metrics_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE SET NULL ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_page_metrics_pageId_fkey",
+    sql: 'ALTER TABLE "seo_page_metrics" ADD CONSTRAINT "seo_page_metrics_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_hreflang_entries_pageId_fkey",
+    sql: 'ALTER TABLE "seo_hreflang_entries" ADD CONSTRAINT "seo_hreflang_entries_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "seo_structured_data_pageId_fkey",
+    sql: 'ALTER TABLE "seo_structured_data" ADD CONSTRAINT "seo_structured_data_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
   // Commerce FKs
-  { name: "lead_activities_lead_id_fkey", sql: 'ALTER TABLE "lead_activities" ADD CONSTRAINT "lead_activities_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "purchases_product_id_fkey", sql: 'ALTER TABLE "purchases" ADD CONSTRAINT "purchases_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "digital_products"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
-  { name: "campaign_items_campaignId_fkey", sql: 'ALTER TABLE "campaign_items" ADD CONSTRAINT "campaign_items_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "campaigns"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "tenant_integrations_tenantId_fkey", sql: 'ALTER TABLE "tenant_integrations" ADD CONSTRAINT "tenant_integrations_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "lead_activities_lead_id_fkey",
+    sql: 'ALTER TABLE "lead_activities" ADD CONSTRAINT "lead_activities_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "leads"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "purchases_product_id_fkey",
+    sql: 'ALTER TABLE "purchases" ADD CONSTRAINT "purchases_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "digital_products"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+  },
+  {
+    name: "campaign_items_campaignId_fkey",
+    sql: 'ALTER TABLE "campaign_items" ADD CONSTRAINT "campaign_items_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "campaigns"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "tenant_integrations_tenantId_fkey",
+    sql: 'ALTER TABLE "tenant_integrations" ADD CONSTRAINT "tenant_integrations_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
   // Premium FKs
-  { name: "AffiliateWidget_partner_id_fkey", sql: 'ALTER TABLE "AffiliateWidget" ADD CONSTRAINT "AffiliateWidget_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "AffiliatePartner"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "AffiliateAssignment_partner_id_fkey", sql: 'ALTER TABLE "AffiliateAssignment" ADD CONSTRAINT "AffiliateAssignment_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "AffiliatePartner"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "AffiliateWidget_partner_id_fkey",
+    sql: 'ALTER TABLE "AffiliateWidget" ADD CONSTRAINT "AffiliateWidget_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "AffiliatePartner"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "AffiliateAssignment_partner_id_fkey",
+    sql: 'ALTER TABLE "AffiliateAssignment" ADD CONSTRAINT "AffiliateAssignment_partner_id_fkey" FOREIGN KEY ("partner_id") REFERENCES "AffiliatePartner"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
   // Team member FKs
-  { name: "team_member_expertise_team_member_id_fkey", sql: 'ALTER TABLE "team_member_expertise" ADD CONSTRAINT "team_member_expertise_team_member_id_fkey" FOREIGN KEY ("team_member_id") REFERENCES "team_members"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
-  { name: "content_credits_team_member_id_fkey", sql: 'ALTER TABLE "content_credits" ADD CONSTRAINT "content_credits_team_member_id_fkey" FOREIGN KEY ("team_member_id") REFERENCES "team_members"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  {
+    name: "team_member_expertise_team_member_id_fkey",
+    sql: 'ALTER TABLE "team_member_expertise" ADD CONSTRAINT "team_member_expertise_team_member_id_fkey" FOREIGN KEY ("team_member_id") REFERENCES "team_members"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
+  {
+    name: "content_credits_team_member_id_fkey",
+    sql: 'ALTER TABLE "content_credits" ADD CONSTRAINT "content_credits_team_member_id_fkey" FOREIGN KEY ("team_member_id") REFERENCES "team_members"("id") ON DELETE CASCADE ON UPDATE CASCADE',
+  },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -4623,10 +4718,7 @@ async function getExistingTables(prisma: any): Promise<Set<string>> {
   return new Set(rows.map((r) => r.table_name));
 }
 
-async function getExistingColumns(
-  prisma: any,
-  tableName: string,
-): Promise<Set<string>> {
+async function getExistingColumns(prisma: any, tableName: string): Promise<Set<string>> {
   const clean = tableName.replace(/"/g, "");
   const rows: { column_name: string }[] = await prisma.$queryRaw`
     SELECT column_name FROM information_schema.columns
@@ -4723,9 +4815,7 @@ async function scanDatabase(prisma: any): Promise<ScanResult> {
     missingEnums,
     missingIndexes: missingIndexCount,
     existingTables: Array.from(existingTables).sort(),
-    totalChecked:
-      CREATE_TABLE_STATEMENTS.length +
-      EXPECTED_TABLES.reduce((n, t) => n + t.columns.length, 0),
+    totalChecked: CREATE_TABLE_STATEMENTS.length + EXPECTED_TABLES.reduce((n, t) => n + t.columns.length, 0),
   };
 }
 
@@ -4763,7 +4853,10 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
     // Execute in chunks of 20 statements per single SQL call
     const CHUNK_SIZE = 20;
     for (let i = 0; i < statements.length; i += CHUNK_SIZE) {
-      if (budgetLeft() < 3_000) { batchErrors.push(`Budget exhausted during ${label}`); break; }
+      if (budgetLeft() < 3_000) {
+        batchErrors.push(`Budget exhausted during ${label}`);
+        break;
+      }
       const chunk = statements.slice(i, i + CHUNK_SIZE);
       const combinedSql = chunk.join(";\n") + ";";
       try {
@@ -4795,7 +4888,7 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
   for (const en of ENUM_STATEMENTS) {
     if (existingEnums.has(en.name)) continue;
     enumStatements.push(
-      `DO $$ BEGIN CREATE TYPE "${en.name}" AS ENUM (${en.values.map((v) => `'${v}'`).join(", ")}); EXCEPTION WHEN duplicate_object THEN NULL; END $$`
+      `DO $$ BEGIN CREATE TYPE "${en.name}" AS ENUM (${en.values.map((v) => `'${v}'`).join(", ")}); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
     );
     enumNames.push(en.name);
   }
@@ -4805,7 +4898,10 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
 
   // 1. Create missing tables (one at a time — CREATE TABLE can be large)
   for (const def of CREATE_TABLE_STATEMENTS) {
-    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during table creation"); break; }
+    if (budgetLeft() < 3_000) {
+      result.errors.push("Budget exhausted during table creation");
+      break;
+    }
     if (!existingTables.has(def.table)) {
       try {
         await prisma.$executeRawUnsafe(def.sql);
@@ -4815,7 +4911,9 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
         const tableIndexes = NEW_TABLE_INDEXES[def.table] || [];
         if (tableIndexes.length > 0) {
           const idxResult = await executeBatch(tableIndexes, `indexes for ${def.table}`);
-          result.indexesCreated.push(...tableIndexes.slice(0, idxResult.executed).map(idx => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"));
+          result.indexesCreated.push(
+            ...tableIndexes.slice(0, idxResult.executed).map((idx) => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"),
+          );
           result.errors.push(...idxResult.errors);
         }
       } catch (e: any) {
@@ -4830,7 +4928,10 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
   const indexStatements: string[] = [];
 
   for (const def of EXPECTED_TABLES) {
-    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during column scan"); break; }
+    if (budgetLeft() < 3_000) {
+      result.errors.push("Budget exhausted during column scan");
+      break;
+    }
     const tableName = def.table.replace(/"/g, "");
     if (!existingTables.has(tableName)) continue;
 
@@ -4840,7 +4941,9 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
       if (existingCols.has(col.name)) continue;
       const nullable = col.nullable !== false ? "" : " NOT NULL";
       const dflt = col.defaultValue ? ` DEFAULT ${col.defaultValue}` : "";
-      alterStatements.push(`ALTER TABLE ${def.table} ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}${nullable}${dflt}`);
+      alterStatements.push(
+        `ALTER TABLE ${def.table} ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}${nullable}${dflt}`,
+      );
       alterLabels.push(`${tableName}.${col.name} (${col.type})`);
     }
 
@@ -4856,17 +4959,23 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
 
   // Execute index batch
   const idxResult = await executeBatch(indexStatements, "index creation");
-  result.indexesCreated.push(...indexStatements.slice(0, idxResult.executed).map(idx => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"));
+  result.indexesCreated.push(
+    ...indexStatements.slice(0, idxResult.executed).map((idx) => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"),
+  );
   result.errors.push(...idxResult.errors);
 
   // 3. Create unique constraints — batch
   const ucResult = await executeBatch(UNIQUE_CONSTRAINTS, "unique constraints");
-  result.indexesCreated.push(...UNIQUE_CONSTRAINTS.slice(0, ucResult.executed).map(sql => sql.match(/\"([^"]+_key)\"/)?.[1] || "unique"));
+  result.indexesCreated.push(
+    ...UNIQUE_CONSTRAINTS.slice(0, ucResult.executed).map((sql) => sql.match(/\"([^"]+_key)\"/)?.[1] || "unique"),
+  );
   result.errors.push(...ucResult.errors);
 
   // 4. Create foreign keys — batch
-  const fkStatements = FOREIGN_KEYS.map(fk => `DO $$ BEGIN ${fk.sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
-  const fkNames = FOREIGN_KEYS.map(fk => fk.name);
+  const fkStatements = FOREIGN_KEYS.map(
+    (fk) => `DO $$ BEGIN ${fk.sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  );
+  const fkNames = FOREIGN_KEYS.map((fk) => fk.name);
   const fkResult = await executeBatch(fkStatements, "foreign keys");
   result.foreignKeysCreated = fkNames.slice(0, fkResult.executed);
   result.errors.push(...fkResult.errors);
@@ -4892,8 +5001,7 @@ export async function GET(request: NextRequest) {
         missingEnums: scan.missingEnums.length,
         missingTables: scan.missingTables.length,
         missingColumns: scan.missingColumns.length,
-        needsMigration:
-          scan.missingEnums.length > 0 || scan.missingTables.length > 0 || scan.missingColumns.length > 0,
+        needsMigration: scan.missingEnums.length > 0 || scan.missingTables.length > 0 || scan.missingColumns.length > 0,
       },
       timestamp: new Date().toISOString(),
     });
@@ -4944,21 +5052,26 @@ async function runPrismaMigrations(_request: NextRequest) {
     // Find migration directories
     const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
     if (!fs.existsSync(migrationsDir)) {
-      return NextResponse.json({
-        success: false,
-        error: "Prisma migrations directory not found on this server. Migration files are not bundled by Vercel. Use 'Scan Schema' + 'Fix All' instead, or run 'npx prisma migrate deploy' from a local terminal connected to the production database.",
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Prisma migrations directory not found on this server. Migration files are not bundled by Vercel. Use 'Scan Schema' + 'Fix All' instead, or run 'npx prisma migrate deploy' from a local terminal connected to the production database.",
+        },
+        { status: 400 },
+      );
     }
 
-    const dirs = fs.readdirSync(migrationsDir, { withFileTypes: true })
+    const dirs = fs
+      .readdirSync(migrationsDir, { withFileTypes: true })
       .filter((d: any) => d.isDirectory() && !d.name.startsWith("_"))
       .map((d: any) => d.name)
       .sort(); // Alphabetical = chronological for timestamped dirs
 
     // Get already-applied migrations
-    const applied = await prisma.$queryRawUnsafe(
-      `SELECT "migration_name" FROM "_prisma_migrations" WHERE "rolled_back_at" IS NULL`
-    ) as { migration_name: string }[];
+    const applied = (await prisma.$queryRawUnsafe(
+      `SELECT "migration_name" FROM "_prisma_migrations" WHERE "rolled_back_at" IS NULL`,
+    )) as { migration_name: string }[];
     const appliedSet = new Set(applied.map((r) => r.migration_name));
 
     for (const dir of dirs) {
@@ -4989,7 +5102,7 @@ async function runPrismaMigrations(_request: NextRequest) {
            VALUES ($1, $2, $3, now(), 0)`,
           migrationId,
           require("crypto").createHash("sha256").update(sql).digest("hex"),
-          dir
+          dir,
         );
 
         // Execute the migration SQL
@@ -5019,7 +5132,7 @@ async function runPrismaMigrations(_request: NextRequest) {
         await prisma.$executeRawUnsafe(
           `UPDATE "_prisma_migrations" SET "finished_at" = now(), "applied_steps_count" = $1 WHERE "id" = $2`,
           stepsApplied,
-          migrationId
+          migrationId,
         );
 
         results.applied.push(dir);
@@ -5043,11 +5156,14 @@ async function runPrismaMigrations(_request: NextRequest) {
     });
   } catch (e: any) {
     console.error("[db-migrate] Prisma migration deploy failed:", e);
-    return NextResponse.json({
-      success: false,
-      error: "Prisma migration deploy failed",
-      details: e?.message?.slice(0, 300),
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Prisma migration deploy failed",
+        details: e?.message?.slice(0, 300),
+      },
+      { status: 500 },
+    );
   }
 }
 
@@ -5079,7 +5195,7 @@ export async function POST(request: NextRequest) {
         break;
       } catch (connErr) {
         if (attempt === 2) throw connErr;
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
 

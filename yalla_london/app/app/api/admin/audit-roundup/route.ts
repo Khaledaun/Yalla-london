@@ -205,7 +205,7 @@ export async function runAuditRoundup(siteId: string) {
   }
 
   // Queue monitor — only surface critical/high.
-  for (const rule of queue.rules) {
+  for (const rule of queue.healthRules) {
     if (rule.severity !== "critical" && rule.severity !== "high") continue;
     const sev: Severity = rule.severity;
     actions.push(
@@ -213,7 +213,7 @@ export async function runAuditRoundup(siteId: string) {
         "queue-monitor",
         rule.id,
         sev,
-        rule.message,
+        rule.description,
         undefined,
         rule.affectedDrafts.length || 1,
         rule.autoFixAvailable ? `Run diagnostic-sweep — auto-fixes "${rule.id}"` : `manual: investigate ${rule.id}`,
@@ -321,7 +321,7 @@ export async function runAuditRoundup(siteId: string) {
       },
       queueMonitor: {
         health: queue.overallHealth,
-        criticalRules: queue.rules.filter((r) => r.severity === "critical").length,
+        criticalRules: queue.healthRules.filter((r) => r.severity === "critical").length,
       },
       affiliateRevenue: revenue,
       indexing,

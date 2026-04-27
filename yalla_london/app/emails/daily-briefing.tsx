@@ -581,9 +581,434 @@ export default function DailyBriefingEmail({ briefing }: Props): React.ReactElem
                           )}
                         />
 
-                        {/* Sections 7-19 land in B4b + B4c */}
+                        {/* §7 EN vs AR comparison */}
+                        <Section
+                          num={7}
+                          title="EN vs AR Comparison"
+                          result={s.enArComparison}
+                          render={(data) => (
+                            <div>
+                              <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                <thead>
+                                  <tr>
+                                    <th style={TH}>Metric</th>
+                                    <th style={TH}>English</th>
+                                    <th style={TH}>Arabic</th>
+                                    <th style={TH}>AR/EN ratio</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td style={TD}>Publications</td>
+                                    <td style={TD}>{fmtNum(data.publications.en)}</td>
+                                    <td style={TD}>{fmtNum(data.publications.ar)}</td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>{fmtPct(data.publications.ratio)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Clicks (7d)</td>
+                                    <td style={TD}>{fmtNum(data.traffic.enClicks)}</td>
+                                    <td style={TD}>{fmtNum(data.traffic.arClicks)}</td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>{fmtPct(data.enArTrafficRatio)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Impressions (7d)</td>
+                                    <td style={TD}>{fmtNum(data.traffic.enImpressions)}</td>
+                                    <td style={TD}>{fmtNum(data.traffic.arImpressions)}</td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>—</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              {data.notes.length > 0 && (
+                                <ul
+                                  style={{
+                                    margin: "12px 0 0 0",
+                                    paddingLeft: "20px",
+                                    fontSize: "13px",
+                                    lineHeight: 1.5,
+                                    color: BRAND.text,
+                                  }}
+                                >
+                                  {data.notes.map((n, i) => (
+                                    <li key={i}>{n}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §8 Traffic sources + countries */}
+                        <Section
+                          num={8}
+                          title="Traffic Sources + Countries"
+                          result={s.trafficSources}
+                          render={(data) => {
+                            if (!data.hasData)
+                              return (
+                                <p style={{ margin: 0, color: BRAND.lightText, fontStyle: "italic" }}>
+                                  GA4 not configured.
+                                </p>
+                              );
+                            const maxSrc = Math.max(...data.sources.map((s2) => s2.sessions), 1);
+                            const maxCty = Math.max(...data.countries.map((c) => c.sessions), 1);
+                            return (
+                              <table
+                                style={{ width: "100%", borderCollapse: "collapse" }}
+                                cellPadding={0}
+                                cellSpacing={0}
+                              >
+                                <tbody>
+                                  <tr>
+                                    <td style={{ verticalAlign: "top", paddingRight: "12px", width: "50%" }}>
+                                      <p
+                                        style={{
+                                          margin: "0 0 8px 0",
+                                          fontSize: "12px",
+                                          fontWeight: 600,
+                                          color: BRAND.navy,
+                                          textTransform: "uppercase",
+                                          letterSpacing: "0.05em",
+                                        }}
+                                      >
+                                        Sources
+                                      </p>
+                                      {data.sources.slice(0, 7).map((src) => (
+                                        <p
+                                          key={src.source}
+                                          style={{ margin: "0 0 4px 0", fontSize: "12px", fontFamily: FONTS.mono }}
+                                        >
+                                          <span style={{ display: "inline-block", width: "100px", color: BRAND.text }}>
+                                            {src.source.slice(0, 18)}
+                                          </span>
+                                          <span style={{ color: BRAND.gold }}>{bar(src.sessions, maxSrc, 14)}</span>{" "}
+                                          <span style={{ color: BRAND.lightText }}>
+                                            {fmtNum(src.sessions)} ({fmtPct(src.share)})
+                                          </span>
+                                        </p>
+                                      ))}
+                                    </td>
+                                    <td style={{ verticalAlign: "top", paddingLeft: "12px", width: "50%" }}>
+                                      <p
+                                        style={{
+                                          margin: "0 0 8px 0",
+                                          fontSize: "12px",
+                                          fontWeight: 600,
+                                          color: BRAND.navy,
+                                          textTransform: "uppercase",
+                                          letterSpacing: "0.05em",
+                                        }}
+                                      >
+                                        Countries
+                                      </p>
+                                      {data.countries.slice(0, 7).map((c) => (
+                                        <p
+                                          key={c.country}
+                                          style={{ margin: "0 0 4px 0", fontSize: "12px", fontFamily: FONTS.mono }}
+                                        >
+                                          <span style={{ display: "inline-block", width: "80px", color: BRAND.text }}>
+                                            {c.country.slice(0, 14)}
+                                          </span>
+                                          <span style={{ color: BRAND.blue }}>{bar(c.sessions, maxCty, 12)}</span>{" "}
+                                          <span style={{ color: BRAND.lightText }}>{fmtNum(c.sessions)}</span>
+                                        </p>
+                                      ))}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            );
+                          }}
+                        />
+
+                        {/* §9 Affiliate clicks + revenue */}
+                        <Section
+                          num={9}
+                          title="Affiliate Clicks + Revenue"
+                          result={s.affiliateClicksRevenue}
+                          render={(data) => (
+                            <div>
+                              <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                <thead>
+                                  <tr>
+                                    <th style={TH}>Window</th>
+                                    <th style={TH}>Clicks</th>
+                                    <th style={TH}>Conversions</th>
+                                    <th style={TH}>Revenue (USD)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td style={TD}>Last 7d</td>
+                                    <td style={TD}>{fmtNum(data.last7d.clicks)}</td>
+                                    <td style={TD}>{fmtNum(data.last7d.conversions)}</td>
+                                    <td style={{ ...TD, fontWeight: 600 }}>${fmtNum(data.last7d.revenueUsd, 2)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Last 30d</td>
+                                    <td style={TD}>{fmtNum(data.last30d.clicks)}</td>
+                                    <td style={TD}>{fmtNum(data.last30d.conversions)}</td>
+                                    <td style={{ ...TD, fontWeight: 600 }}>${fmtNum(data.last30d.revenueUsd, 2)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <p style={{ marginTop: "12px", fontSize: "12px", color: BRAND.lightText }}>
+                                30d daily revenue:{" "}
+                                <span style={{ fontFamily: FONTS.mono, fontSize: "16px", color: BRAND.gold }}>
+                                  {sparkline(data.revenueSparkline)}
+                                </span>
+                              </p>
+                            </div>
+                          )}
+                        />
+
+                        {/* §10 Affiliate health */}
+                        <Section
+                          num={10}
+                          title="Affiliate Health"
+                          result={s.affiliateHealth}
+                          render={(data) => (
+                            <div>
+                              <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                <tbody>
+                                  <tr>
+                                    <td style={TD}>Total links</td>
+                                    <td style={TD}>{fmtNum(data.totalLinks)}</td>
+                                    <td style={TD}>Coverage</td>
+                                    <td style={{ ...TD, fontWeight: 600 }}>{data.coveragePct.toFixed(1)}%</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Dead links</td>
+                                    <td style={{ ...TD, color: data.deadLinks > 0 ? BRAND.critical : BRAND.text }}>
+                                      {fmtNum(data.deadLinks)}
+                                    </td>
+                                    <td style={TD}>Untracked direct URLs</td>
+                                    <td
+                                      style={{ ...TD, color: data.untrackedDirectUrls > 0 ? BRAND.high : BRAND.text }}
+                                    >
+                                      {fmtNum(data.untrackedDirectUrls)}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Missing FTC disclosure</td>
+                                    <td
+                                      style={{ ...TD, color: data.missingDisclosure > 0 ? BRAND.critical : BRAND.text }}
+                                    >
+                                      {fmtNum(data.missingDisclosure)}
+                                    </td>
+                                    <td style={TD}>Uncovered articles</td>
+                                    <td style={{ ...TD, color: data.uncoveredArticles > 0 ? BRAND.high : BRAND.text }}>
+                                      {fmtNum(data.uncoveredArticles)}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              {data.topIssues.length > 0 && (
+                                <table style={{ ...TBL, marginTop: "12px" }} cellPadding={0} cellSpacing={0}>
+                                  <thead>
+                                    <tr>
+                                      <th style={TH}>Slug</th>
+                                      <th style={TH}>Issue</th>
+                                      <th style={TH}>Severity</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {data.topIssues.slice(0, 5).map((iss, i) => (
+                                      <tr key={i}>
+                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "11px" }}>{iss.slug}</td>
+                                        <td style={TD}>{iss.issue}</td>
+                                        <td style={TD}>
+                                          <span style={severityBadge(iss.severity)}>{iss.severity}</span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §11 Affiliate comparisons */}
+                        <Section
+                          num={11}
+                          title="Affiliate Comparisons (per partner, 30d)"
+                          result={s.affiliateComparisons}
+                          render={(data) => {
+                            const maxRev = Math.max(...data.byPartner.map((p) => p.revenueUsd), 1);
+                            return (
+                              <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                <thead>
+                                  <tr>
+                                    <th style={TH}>Partner</th>
+                                    <th style={TH}>Clicks</th>
+                                    <th style={TH}>Conv.</th>
+                                    <th style={TH}>Revenue</th>
+                                    <th style={TH}>Content types</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {data.byPartner.slice(0, 10).map((p) => (
+                                    <tr key={p.partner}>
+                                      <td style={{ ...TD, fontWeight: 600 }}>{p.partner}</td>
+                                      <td style={TD}>{fmtNum(p.clicks)}</td>
+                                      <td style={TD}>{fmtNum(p.conversions)}</td>
+                                      <td style={TD}>
+                                        <span style={{ fontFamily: FONTS.mono, fontSize: "11px", color: BRAND.gold }}>
+                                          {bar(p.revenueUsd, maxRev, 8)}
+                                        </span>{" "}
+                                        ${fmtNum(p.revenueUsd, 2)}
+                                      </td>
+                                      <td style={{ ...TD, fontSize: "11px", color: BRAND.lightText }}>
+                                        {p.contentTypes.join(", ") || "—"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            );
+                          }}
+                        />
+
+                        {/* §12 Affiliate trends */}
+                        <Section
+                          num={12}
+                          title="Affiliate Trends"
+                          result={s.affiliateTrends}
+                          render={(data) => (
+                            <div>
+                              <table style={TBL} cellPadding={0} cellSpacing={0}>
+                                <thead>
+                                  <tr>
+                                    <th style={TH}>Metric</th>
+                                    <th style={TH}>Week-over-week</th>
+                                    <th style={TH}>7d daily avg</th>
+                                    <th style={TH}>30d daily avg</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td style={TD}>Revenue</td>
+                                    <td
+                                      style={{
+                                        ...TD,
+                                        color: data.weekOverWeekRevenuePct >= 0 ? BRAND.good : BRAND.critical,
+                                      }}
+                                    >
+                                      {fmtSign(data.weekOverWeekRevenuePct, "%")}
+                                    </td>
+                                    <td style={TD}>${data.movingAverages.revenue7d.toFixed(2)}</td>
+                                    <td style={TD}>${data.movingAverages.revenue30d.toFixed(2)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={TD}>Clicks</td>
+                                    <td
+                                      style={{
+                                        ...TD,
+                                        color: data.weekOverWeekClicksPct >= 0 ? BRAND.good : BRAND.critical,
+                                      }}
+                                    >
+                                      {fmtSign(data.weekOverWeekClicksPct, "%")}
+                                    </td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>—</td>
+                                    <td style={{ ...TD, color: BRAND.lightText }}>—</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              {data.obviousTrends.length > 0 && (
+                                <ul
+                                  style={{
+                                    margin: "12px 0 0 0",
+                                    paddingLeft: "20px",
+                                    fontSize: "13px",
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {data.obviousTrends.map((t, i) => (
+                                    <li key={i}>{t}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* §13 Latest affiliate link updates */}
+                        <Section
+                          num={13}
+                          title="Latest Affiliate Link Updates (24h)"
+                          result={s.affiliateLinkUpdates}
+                          render={(data) => (
+                            <div>
+                              <p style={{ margin: "0 0 12px 0", fontSize: "13px" }}>
+                                <strong>{fmtNum(data.last24h)}</strong> link updates in last 24h
+                              </p>
+                              {data.recentlyAdded.length > 0 && (
+                                <>
+                                  <p
+                                    style={{
+                                      margin: "8px 0 4px 0",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      color: BRAND.good,
+                                    }}
+                                  >
+                                    Recently updated
+                                  </p>
+                                  <ul
+                                    style={{
+                                      margin: 0,
+                                      paddingLeft: "20px",
+                                      fontSize: "12px",
+                                      lineHeight: 1.5,
+                                      color: BRAND.text,
+                                    }}
+                                  >
+                                    {data.recentlyAdded.slice(0, 5).map((r, i) => (
+                                      <li key={i}>
+                                        <strong>{r.partner}</strong> —{" "}
+                                        {new Date(r.addedAt).toLocaleTimeString("en-GB", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+                              {data.recentlyExpired.length > 0 && (
+                                <>
+                                  <p
+                                    style={{
+                                      margin: "12px 0 4px 0",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      color: BRAND.critical,
+                                    }}
+                                  >
+                                    Recently expired / declined
+                                  </p>
+                                  <ul
+                                    style={{
+                                      margin: 0,
+                                      paddingLeft: "20px",
+                                      fontSize: "12px",
+                                      lineHeight: 1.5,
+                                      color: BRAND.text,
+                                    }}
+                                  >
+                                    {data.recentlyExpired.slice(0, 5).map((r, i) => (
+                                      <li key={i}>{r.advertiser}</li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        {/* Sections 14-19 land in B4c */}
                         <p style={{ fontSize: "12px", color: BRAND.lightText, fontStyle: "italic", marginTop: "32px" }}>
-                          Sections 7-19 pending Batches B4b + B4c.
+                          Sections 14-19 pending Batch B4c.
                         </p>
                       </td>
                     </tr>

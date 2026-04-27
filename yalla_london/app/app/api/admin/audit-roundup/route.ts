@@ -230,7 +230,7 @@ export async function runAuditRoundup(siteId: string) {
         "affiliate-revenue",
         "dead-advertisers",
         "high",
-        `${revenue.deadAdvertiserCount} CJ advertisers in DECLINED/CANCELLED/REMOVED status — links earn $0`,
+        `${revenue.deadAdvertiserCount} CJ advertisers in DECLINED/NOT_JOINED status — links earn $0`,
         undefined,
         revenue.deadAdvertiserCount,
         "Run affiliate-injection cron — swaps dead links for live partners",

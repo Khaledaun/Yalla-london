@@ -2080,6 +2080,29 @@ server.tool(
   },
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC WEBSITE AUDIT
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "public_audit",
+  "Run the full 6-dimension public-website audit (photos, unedited content, news refresh, SEO updates, AIO alignment, affiliate practices) against published articles. Returns overall grade A-F, score, top actions ranked by severity, and per-dimension breakdown with score + top issues. Same engine as the /api/admin/public-audit endpoint — no HTTP round-trip.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    sample: z.number().optional().describe("Max articles to scan (default: 500, capped 50-1000)"),
+  },
+  async ({ siteId, sample }) => {
+    try {
+      const { runPublicAudit } = await import("@/app/api/admin/public-audit/route");
+      const start = Date.now();
+      const report = await runPublicAudit(siteId || getDefaultSiteId(), sample || 500);
+      return json({ ...report, durationMs: Date.now() - start });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------

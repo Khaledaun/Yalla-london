@@ -1183,54 +1183,11 @@ export async function GET(request: NextRequest) {
   const sample = parseInt(request.nextUrl.searchParams.get("sample") || "500", 10);
 
   try {
-    const posts = (await prisma.blogPost.findMany({
-      where: { siteId, published: true },
-      select: {
-        id: true,
-        slug: true,
-        siteId: true,
-        title_en: true,
-        title_ar: true,
-        meta_title_en: true,
-        meta_title_ar: true,
-        meta_description_en: true,
-        meta_description_ar: true,
-        content_en: true,
-        content_ar: true,
-        featured_image: true,
-        category_id: true,
-        canonical_slug: true,
-        created_at: true,
-        updated_at: true,
-      },
-      orderBy: { created_at: "desc" },
-      take: Math.min(Math.max(sample, 50), 1000),
-    })) as ArticleRow[];
-
-    const [sitewide, deadAdvertisers] = await Promise.all([
-      Promise.resolve(buildSitewideContext(posts)),
-      loadDeadAdvertisers(),
-    ]);
-
-    const dimensions: Record<string, DimensionResult> = {
-      photos: auditPhotos(posts),
-      unedited: auditUnedited(posts),
-      newsRefresh: auditNewsRefresh(posts),
-      seoUpdates: auditSeoUpdates(posts, sitewide),
-      aioAlignment: auditAioAlignment(posts),
-      affiliatePractices: auditAffiliatePractices(posts, deadAdvertisers),
-    };
-
+    const result = await runPublicAudit(siteId, sample);
     return NextResponse.json({
       success: true,
-      site: siteId,
-      generatedAt: new Date().toISOString(),
+      ...result,
       durationMs: Date.now() - start,
-      totalArticlesScanned: posts.length,
-      dimensions,
-      _format: "yalla-public-audit-v1",
-      _note:
-        "Batch 1 of 5 — only the photos dimension is implemented. The other 5 dimensions return empty placeholders so the response shape stays stable.",
     });
   } catch (err: unknown) {
     return NextResponse.json(
@@ -1241,4 +1198,118 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Public exports — used by the route above AND the platform-control MCP
+// (`public_audit` tool) so both surfaces produce identical reports without
+// HTTP round-tripping.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface PublicAuditReport {
+  site: string;
+  generatedAt: string;
+  totalArticlesScanned: number;
+  overallScore: number;
+  overallGrade: "A" | "B" | "C" | "D" | "F";
+  topActions: Array<{
+    dimension: string;
+    severity: Severity;
+    detail: string;
+    affectedSlug: string;
+    nextAction: string;
+  }>;
+  plainLanguageSummary: string;
+  dimensions: Record<string, DimensionResult>;
+  _format: "yalla-public-audit-v1";
+}
+
+export async function runPublicAudit(siteId: string, sample = 500): Promise<PublicAuditReport> {
+  const posts = (await prisma.blogPost.findMany({
+    where: { siteId, published: true },
+    select: {
+      id: true,
+      slug: true,
+      siteId: true,
+      title_en: true,
+      title_ar: true,
+      meta_title_en: true,
+      meta_title_ar: true,
+      meta_description_en: true,
+      meta_description_ar: true,
+      content_en: true,
+      content_ar: true,
+      featured_image: true,
+      category_id: true,
+      canonical_slug: true,
+      created_at: true,
+      updated_at: true,
+    },
+    orderBy: { created_at: "desc" },
+    take: Math.min(Math.max(sample, 50), 1000),
+  })) as ArticleRow[];
+
+  const [sitewide, deadAdvertisers] = await Promise.all([
+    Promise.resolve(buildSitewideContext(posts)),
+    loadDeadAdvertisers(),
+  ]);
+
+  const dimensions: Record<string, DimensionResult> = {
+    photos: auditPhotos(posts),
+    unedited: auditUnedited(posts),
+    newsRefresh: auditNewsRefresh(posts),
+    seoUpdates: auditSeoUpdates(posts, sitewide),
+    aioAlignment: auditAioAlignment(posts),
+    affiliatePractices: auditAffiliatePractices(posts, deadAdvertisers),
+  };
+
+  // Overall score: simple average of the 6 dimension scores. Equal weighting
+  // because each dimension represents a distinct failure mode — one bad
+  // dimension shouldn't be drowned out by 5 good ones.
+  const dimList = Object.values(dimensions);
+  const overallScore = Math.round(dimList.reduce((sum, d) => sum + d.score, 0) / dimList.length);
+  const overallGrade: PublicAuditReport["overallGrade"] =
+    overallScore >= 90 ? "A" : overallScore >= 80 ? "B" : overallScore >= 70 ? "C" : overallScore >= 60 ? "D" : "F";
+
+  // Top actions: take the highest-severity issue from each dimension that has
+  // criticals or highs, ranked by severity. Caps at 12 so the surfacing
+  // surface stays scannable on a phone.
+  const sevOrder: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const topActions: PublicAuditReport["topActions"] = [];
+  for (const [name, dim] of Object.entries(dimensions)) {
+    for (const issue of dim.top) {
+      if (issue.severity !== "critical" && issue.severity !== "high") continue;
+      topActions.push({
+        dimension: name,
+        severity: issue.severity,
+        detail: issue.detail,
+        affectedSlug: issue.slug,
+        nextAction: dim.nextAction,
+      });
+    }
+  }
+  topActions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+  const cappedActions = topActions.slice(0, 12);
+
+  // Plain-language summary for the iPhone view.
+  const totalCritical = dimList.reduce((s, d) => s + d.bySeverity.critical, 0);
+  const totalHigh = dimList.reduce((s, d) => s + d.bySeverity.high, 0);
+  const worst = dimList.reduce((a, b) => (a.score < b.score ? a : b));
+  const best = dimList.reduce((a, b) => (a.score > b.score ? a : b));
+  const plainLanguageSummary =
+    totalCritical === 0 && totalHigh === 0
+      ? `Site looks healthy across all 6 dimensions. Overall grade ${overallGrade} (${overallScore}/100). Best: ${best.name}. No critical or high issues found.`
+      : `Overall grade ${overallGrade} (${overallScore}/100). ${totalCritical} critical and ${totalHigh} high-severity issues across ${posts.length} published articles. Worst dimension: ${worst.name} (${worst.score}/100). Top action: ${cappedActions[0]?.nextAction || "No fixes available"}.`;
+
+  return {
+    site: siteId,
+    generatedAt: new Date().toISOString(),
+    totalArticlesScanned: posts.length,
+    overallScore,
+    overallGrade,
+    topActions: cappedActions,
+    plainLanguageSummary,
+    dimensions,
+    _format: "yalla-public-audit-v1",
+  };
 }

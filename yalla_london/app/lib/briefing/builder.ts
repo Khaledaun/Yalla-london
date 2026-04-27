@@ -569,7 +569,7 @@ async function buildAffiliateHealth(siteIds: string[]): Promise<AffiliateHealth>
   let uncoveredArticles = 0;
   try {
     const cov = await getContentCoverage(siteIds[0]);
-    coveragePct = Math.round((cov.coveragePercentage || 0) * 100) / 100;
+    coveragePct = Math.round((cov.coveragePercent || 0) * 100) / 100;
     uncoveredArticles = cov.uncoveredArticles?.length || 0;
   } catch {
     // Coverage helper may not exist on all sites — graceful degrade
@@ -583,22 +583,25 @@ async function buildAffiliateHealth(siteIds: string[]): Promise<AffiliateHealth>
   const topIssues: AffiliateHealth["topIssues"] = [];
   try {
     const audit = await runLinkHealthAudit({ siteId: siteIds[0], maxArticles: 50, skipLiveness: true });
+    // Real AuditResult shape (lib/affiliate/link-auditor.ts:41):
+    //   { scannedArticles, totalLinks, healthScore, checks[], issues[], summary }
+    //   summary = { live, dead, tracked, untracked, relevant, irrelevant,
+    //               fresh, stale, wellPlaced, poorlyPlaced }
     totalLinks = audit.totalLinks ?? 0;
-    deadLinks = audit.findings?.deadLinks?.length || 0;
-    untrackedDirectUrls = audit.findings?.untrackedLinks?.length || 0;
-    missingDisclosure = audit.findings?.missingDisclosure?.length || 0;
-    for (const dead of (audit.findings?.deadLinks || []).slice(0, 5)) {
+    deadLinks = audit.summary?.dead ?? 0;
+    untrackedDirectUrls = audit.summary?.untracked ?? 0;
+    // FTC disclosure isn't a separate count — extract from issues by matching
+    // "disclosure" in the issue text.
+    const disclosureIssues = (audit.issues || []).filter((i) => /disclosure|ftc/i.test(i.issue));
+    missingDisclosure = disclosureIssues.length;
+
+    // Surface critical + high issues from the audit as topIssues.
+    for (const iss of (audit.issues || []).slice(0, 10)) {
+      if (iss.severity !== "critical" && iss.severity !== "high") continue;
       topIssues.push({
-        slug: (dead as { slug?: string }).slug || "(unknown)",
-        issue: `Dead affiliate link: ${(dead as { url?: string }).url || ""}`,
-        severity: "high",
-      });
-    }
-    for (const m of (audit.findings?.missingDisclosure || []).slice(0, 5)) {
-      topIssues.push({
-        slug: (m as { slug?: string }).slug || "(unknown)",
-        issue: "Affiliate links without FTC disclosure paragraph",
-        severity: "critical",
+        slug: iss.articleSlug || "(unknown)",
+        issue: `${iss.issue} (${iss.linkUrl?.slice(0, 60) || ""})`,
+        severity: iss.severity,
       });
     }
   } catch {

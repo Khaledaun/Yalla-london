@@ -715,6 +715,196 @@ function auditSeoUpdates(posts: ArticleRow[], sitewide: SeoSitewide): DimensionR
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Dimension 5: AIO alignment (citability for AI Overviews + ChatGPT/Perplexity)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// AI Overviews now show in 30-60% of US searches. Organic CTR drops 61% on
+// queries that show one. Articles that fit AIO citation patterns recover that
+// loss by getting cited inside the AI answer.
+//
+// Citation-friendly patterns (from Princeton GEO research + standards.ts):
+//   - Direct answer in the first 80 words
+//   - Question-format H2 headings (matches conversational queries)
+//   - Statistics with specific numbers (+37% citation lift)
+//   - Source attributions (+30% citation lift)
+//   - Self-contained paragraphs of 40-200 words
+
+// Strip markup and collapse whitespace so we can measure real reader-facing
+// length, not character count of HTML.
+function stripHtml(s: string): string {
+  return s
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// First N words of plain-text content (used to grade the answer-first opener).
+function firstWords(plain: string, n: number): string {
+  const words = plain.split(/\s+/).filter(Boolean).slice(0, n);
+  return words.join(" ");
+}
+
+// Heuristic for "looks like a direct answer": the opening contains a complete
+// declarative sentence with a noun + verb pattern, AND it isn't a generic AI
+// preamble. Imperfect but practical — the alternative (LLM grading) is too
+// expensive at scale.
+function looksLikeDirectAnswer(opener: string): boolean {
+  if (opener.length < 40) return false;
+  // Reject openers that start with a generic preamble pattern.
+  const preambles = [
+    /^welcome\b/i,
+    /^are you\b/i,
+    /^have you ever\b/i,
+    /^if you('|')?re\b/i,
+    /^whether you('|')?re\b/i,
+    /^when it comes to\b/i,
+    /^in this (article|post|guide|comprehensive)\b/i,
+    /^let('|')?s (dive|explore|talk)\b/i,
+    /^picture this\b/i,
+    /^imagine\b/i,
+  ];
+  for (const re of preambles) if (re.test(opener.trim())) return false;
+  // Look for a basic subject-verb structure in the first sentence.
+  const firstSentence = opener.split(/[.!?]/)[0] || "";
+  return /\b(is|are|was|were|has|have|costs?|takes?|offers?|provides?|sits?|lies?|opens?|closes?|requires?)\b/i.test(
+    firstSentence,
+  );
+}
+
+const QUESTION_H2_PATTERNS = [
+  /^how\s+/i,
+  /^what\s+/i,
+  /^why\s+/i,
+  /^when\s+/i,
+  /^where\s+/i,
+  /^who\s+/i,
+  /^which\s+/i,
+  /^is\s+/i,
+  /^are\s+/i,
+  /^can\s+/i,
+  /^should\s+/i,
+  /^do\s+/i,
+  /^does\s+/i,
+];
+
+function auditAioAlignment(posts: ArticleRow[]): DimensionResult {
+  const issues: Issue[] = [];
+  const bySeverity: Record<Severity, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  for (const p of posts) {
+    const slug = p.slug;
+    const title = (p.title_en || "").slice(0, 80);
+    const content = p.content_en || "";
+    const plain = stripHtml(content);
+
+    if (plain.length < 200) continue; // soft-404 territory — handled by SEO dim
+
+    // Check 1: answer-first opener.
+    const opener = firstWords(plain, 80);
+    if (!looksLikeDirectAnswer(opener)) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "high",
+        detail: `First 80 words don't read as a direct answer (starts: "${opener.slice(0, 60)}...")`,
+      });
+    }
+
+    // Check 2: question-format H2 count.
+    const h2Texts = [...content.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => stripHtml(m[1]));
+    const questionH2s = h2Texts.filter((t) => QUESTION_H2_PATTERNS.some((re) => re.test(t.trim())));
+    if (h2Texts.length >= 3 && questionH2s.length < 2) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `Only ${questionH2s.length}/${h2Texts.length} H2s are question-format — AI Overviews favor Q&A structure`,
+      });
+    }
+
+    // Check 3: statistics density. Real numbers beat vague adjectives in
+    // citation context. Per Princeton GEO study: stats lift visibility +37%.
+    const statMatches = [
+      ...plain.matchAll(/\b\d+(?:[.,]\d+)?\s*(?:%|percent|million|billion|users?|visitors?|reviews?|stars?)\b/gi),
+      ...plain.matchAll(/[£$€]\s*\d/g),
+      ...plain.matchAll(/\b\d{4}\s*(?:guests?|seats?|rooms?|members?)\b/gi),
+    ];
+    if (statMatches.length < 2 && plain.length > 800) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "medium",
+        detail: `Only ${statMatches.length} concrete stat(s) in ${Math.floor(plain.length / 5)} word article — add 2+ for AIO citability`,
+      });
+    }
+
+    // Check 4: source attributions. Phrases that signal "we're citing" make
+    // the article more likely to be cited in turn (+30% per Princeton).
+    const attributionPatterns = [
+      /\baccording to\b/i,
+      /\bdata from\b/i,
+      /\bresearch by\b/i,
+      /\bas reported by\b/i,
+      /\bsource:\s*[A-Z]/i,
+      /\bcited by\b/i,
+      /\b(transport for london|tfl|bbc|reuters|associated press|gov\.uk|government|office for national statistics|ons)\b/i,
+    ];
+    let attributions = 0;
+    for (const re of attributionPatterns) if (re.test(plain)) attributions++;
+    if (attributions === 0 && plain.length > 1000) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: "No source attributions — citing authoritative sources lifts AIO visibility +30%",
+      });
+    }
+
+    // Check 5: self-contained paragraph structure. Walls of text don't get
+    // cited. Sweet spot: 40-200 words per paragraph.
+    const paragraphs = content
+      .split(/<\/?p[^>]*>/gi)
+      .map((p) => stripHtml(p))
+      .filter((p) => p.length > 30);
+    const wellSized = paragraphs.filter((p) => {
+      const w = p.split(/\s+/).filter(Boolean).length;
+      return w >= 40 && w <= 200;
+    });
+    if (paragraphs.length >= 5 && wellSized.length / paragraphs.length < 0.3) {
+      pushIssue(issues, bySeverity, {
+        slug,
+        title,
+        severity: "low",
+        detail: `Only ${wellSized.length}/${paragraphs.length} paragraphs in citation-friendly 40-200 word range`,
+      });
+    }
+  }
+
+  return {
+    name: "aioAlignment",
+    score: scoreFromIssues(bySeverity),
+    issuesCount: issues.length,
+    bySeverity,
+    top: topIssues(issues),
+    nextAction:
+      bySeverity.high > 0
+        ? "Run seo-deep-review — rewrites article openers to lead with the direct answer (Princeton GEO pattern)"
+        : bySeverity.medium > 0
+          ? "Refresh content via daily-content-generate with explicit question-H2 + stats prompts"
+          : "AIO alignment is healthy",
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Handler
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -758,7 +948,7 @@ export async function GET(request: NextRequest) {
       unedited: auditUnedited(posts),
       newsRefresh: auditNewsRefresh(posts),
       seoUpdates: auditSeoUpdates(posts, sitewide),
-      aioAlignment: emptyDimension("aioAlignment", "Pending — Batch 3b"),
+      aioAlignment: auditAioAlignment(posts),
       affiliatePractices: emptyDimension("affiliatePractices", "Pending — Batch 4"),
     };
 

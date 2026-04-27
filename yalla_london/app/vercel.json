@@ -88,6 +88,9 @@
     "app/api/cron/audit-roundup/**/*.ts": {
       "maxDuration": 300
     },
+    "app/api/cron/daily-briefing/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/google-indexing/**/*.ts": {
       "maxDuration": 300
     },
@@ -290,7 +293,11 @@
     },
     {
       "path": "/api/cron/audit-roundup",
-      "schedule": "0 7,19 * * *"
+      "schedule": "30 4,16 * * *"
+    },
+    {
+      "path": "/api/cron/daily-briefing",
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/pipeline-health",

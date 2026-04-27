@@ -53,6 +53,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   sweeper: "CRON_SWEEPER",
   "diagnostic-sweep": "CRON_DIAGNOSTIC_SWEEP",
   "audit-roundup": "CRON_AUDIT_ROUNDUP",
+  "daily-briefing": "CRON_DAILY_BRIEFING",
   "pipeline-health": "CRON_PIPELINE_HEALTH",
   "scheduled-publish": "CRON_SCHEDULED_PUBLISH",
   "reserve-publisher": "CRON_RESERVE_PUBLISHER",

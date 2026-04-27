@@ -778,8 +778,10 @@ async function buildAffiliateLinkUpdates(_siteIds: string[]): Promise<AffiliateL
     prisma.cjAdvertiser.findMany({
       where: {
         // AdvertiserStatus enum: JOINED | PENDING | NOT_JOINED | DECLINED.
-        // Only DECLINED + NOT_JOINED count as "expired/lost" for the briefing.
-        status: { in: ["DECLINED", "NOT_JOINED"] },
+        // Only DECLINED counts as "expired/lost" — NOT_JOINED just means we
+        // haven't applied yet (would mislabel discovered advertisers as
+        // declined). Use a separate finding for that if needed later.
+        status: { in: ["DECLINED"] },
         lastSynced: { gte: since },
       },
       orderBy: { lastSynced: "desc" },

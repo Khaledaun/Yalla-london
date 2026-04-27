@@ -2263,6 +2263,141 @@ server.tool(
   },
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DAILY BRIEFING ACCESS
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "briefing_get",
+  'Read a stored daily CEO briefing. Returns the full structured data behind any of the 19 sections (GSC, GA4, EN/AR, affiliates, KPIs, per-site deep dive, etc.) so you can re-explain or pull raw numbers when Khaled asks about "yesterday\'s briefing" or any specific section. Default returns most recent.',
+  {
+    date: z
+      .string()
+      .optional()
+      .describe("YYYY-MM-DD; defaults to latest. Accepts 'yesterday' or 'today' as shortcuts."),
+    siteId: z.string().optional().describe("Site ID; null = aggregate brief covering all sites (default)"),
+    section: z
+      .string()
+      .optional()
+      .describe(
+        "Optional section key (executiveSummary, gscUpdate, kpisProgress, etc.) to return only that section's data",
+      ),
+  },
+  async ({ date, siteId, section }) => {
+    try {
+      let targetDate: Date | null = null;
+      if (date === "today") {
+        targetDate = new Date(new Date().toISOString().slice(0, 10));
+      } else if (date === "yesterday") {
+        const d = new Date(Date.now() - 86_400_000);
+        targetDate = new Date(d.toISOString().slice(0, 10));
+      } else if (date) {
+        targetDate = new Date(date);
+      }
+
+      const where: Record<string, unknown> = {
+        siteId: siteId ?? null,
+      };
+      if (targetDate) {
+        where.briefingDate = targetDate;
+      }
+
+      const briefing = targetDate
+        ? await prisma.dailyBriefing.findFirst({
+            where,
+            select: {
+              id: true,
+              siteId: true,
+              briefingDate: true,
+              data: true,
+              emailSent: true,
+              emailMessageId: true,
+              emailError: true,
+              createdAt: true,
+            },
+          })
+        : await prisma.dailyBriefing.findFirst({
+            where,
+            orderBy: { briefingDate: "desc" },
+            select: {
+              id: true,
+              siteId: true,
+              briefingDate: true,
+              data: true,
+              emailSent: true,
+              emailMessageId: true,
+              emailError: true,
+              createdAt: true,
+            },
+          });
+
+      if (!briefing) {
+        return json({
+          found: false,
+          message: targetDate
+            ? `No briefing for siteId=${siteId ?? "(aggregate)"} on ${targetDate.toISOString().slice(0, 10)}.`
+            : `No briefings stored yet for siteId=${siteId ?? "(aggregate)"}.`,
+        });
+      }
+
+      const data = briefing.data as Record<string, unknown>;
+
+      if (section) {
+        const sections = (data?.sections || {}) as Record<string, unknown>;
+        const found = sections[section];
+        if (!found) {
+          return json({
+            found: true,
+            briefingId: briefing.id,
+            error: `Section "${section}" not found. Available: ${Object.keys(sections).join(", ")}`,
+          });
+        }
+        return json({
+          found: true,
+          briefingId: briefing.id,
+          briefingDate: briefing.briefingDate.toISOString().slice(0, 10),
+          section,
+          data: found,
+        });
+      }
+
+      return json({
+        found: true,
+        briefingId: briefing.id,
+        siteId: briefing.siteId,
+        briefingDate: briefing.briefingDate.toISOString().slice(0, 10),
+        emailSent: briefing.emailSent,
+        emailMessageId: briefing.emailMessageId,
+        emailError: briefing.emailError,
+        createdAt: briefing.createdAt.toISOString(),
+        // Truncate data preview — full sections via section= param.
+        sectionSummary: Object.fromEntries(
+          Object.entries((data?.sections || {}) as Record<string, { ok?: boolean; error?: string }>).map(([k, v]) => [
+            k,
+            { ok: v?.ok ?? false, error: v?.error },
+          ]),
+        ),
+        metadata: data?.metadata,
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "briefing_run_now",
+  "Trigger the daily-briefing cron synchronously. Set test=true to render + return the briefing JSON without sending the email or persisting (useful for verifying sections after merge). Set test=false to actually send via Resend + persist to DailyBriefing.",
+  {
+    test: z.boolean().optional().describe("If true, skip email send + DB persist (default: true for safety)"),
+  },
+  async ({ test }) => {
+    const testMode = test !== false; // default to test mode
+    const result = await callCron(`/api/cron/daily-briefing${testMode ? "?test=true" : ""}`);
+    return json({ testMode, ...result });
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------

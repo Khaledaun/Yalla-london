@@ -463,14 +463,25 @@ const CRON_DEFS: CronDef[] = [
   },
   {
     path: "/api/cron/audit-roundup",
-    schedule: "0 7,19 * * *",
+    schedule: "30 4,16 * * *",
     label: "Audit Roundup",
     icon: "🎯",
     type: "cron",
     category: "maintenance",
     description:
-      "Twice-daily ROI-ranked auto-fix sweep. Pulls findings from all audit sources, executes top auto-fixable actions within 280s budget.",
-    feedsInto: "AutoFixLog",
+      "Twice-daily ROI-ranked auto-fix sweep at 07:30 + 19:30 IDT. Pulls findings from all audit sources, executes top auto-fixable actions within 280s budget. Feeds the daily briefing.",
+    feedsInto: "AutoFixLog + DailyBriefing",
+  },
+  {
+    path: "/api/cron/daily-briefing",
+    schedule: "0 5 * * *",
+    label: "Daily CEO Briefing",
+    icon: "📧",
+    type: "cron",
+    category: "email",
+    description:
+      "Sends Khaled the website management briefing email at 08:00 IDT. 19 sections covering tests, GSC, GA4, EN/AR, affiliates, A/B, KPIs, per-site deep dive. Built 30min after audit-roundup so fixes are reflected.",
+    feedsInto: "DailyBriefing → Resend → CEO inbox",
   },
   {
     path: "/api/cron/ceo-intelligence",

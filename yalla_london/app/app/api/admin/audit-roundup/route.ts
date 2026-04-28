@@ -39,7 +39,8 @@ const SEVERITY_WEIGHT: Record<Severity, number> = {
 
 // Maps known nextAction strings to fixability + cost so we can score them.
 // Anything not in this table defaults to manual + medium cost.
-const FIX_PROFILE: Record<string, { fixability: "auto" | "semi-auto" | "manual"; cost: number; cron?: string }> = {
+type FixProfile = { fixability: "auto" | "semi-auto" | "manual"; cost: number; cron?: string };
+const FIX_PROFILE: Record<string, FixProfile> = {
   "image-pipeline": { fixability: "auto", cost: 1, cron: "/api/cron/image-pipeline" },
   "seo-agent": { fixability: "auto", cost: 1, cron: "/api/cron/seo-agent" },
   "seo-deep-review": { fixability: "auto", cost: 1, cron: "/api/cron/seo-deep-review" },
@@ -52,18 +53,61 @@ const FIX_PROFILE: Record<string, { fixability: "auto" | "semi-auto" | "manual";
   manual: { fixability: "manual", cost: 20 },
 };
 
-function profileForAction(nextAction: string): {
-  fixability: "auto" | "semi-auto" | "manual";
-  cost: number;
-  cron?: string;
-} {
-  const lower = nextAction.toLowerCase();
-  for (const key of Object.keys(FIX_PROFILE)) {
-    if (lower.includes(key)) return FIX_PROFILE[key];
+// Explicit dimension → cron routing. Takes precedence over text-matching
+// so we don't accidentally fire content-auto-fix for an affiliate-disclosure
+// finding just because the nextAction prose mentions both crons.
+//
+// Dimensions with no working auto-fix are mapped to "manual" — currently:
+//   - affiliatePractices: no cron adds FTC disclosure paragraphs
+//   - newsRefresh:        archiving stale news is a human decision
+//   - thin-content:       expansion needs human review
+//
+// When a dimension is missing from this map, profileForAction falls back to
+// text-matching against FIX_PROFILE keys (longest match wins).
+const DIMENSION_TO_FIX: Record<string, FixProfile> = {
+  // Public audit dimensions
+  photos: FIX_PROFILE["image-pipeline"],
+  unedited: FIX_PROFILE["content-auto-fix"],
+  newsRefresh: FIX_PROFILE.manual,
+  seoUpdates: FIX_PROFILE["seo-agent"],
+  aioAlignment: FIX_PROFILE["seo-deep-review"],
+  affiliatePractices: FIX_PROFILE.manual, // no cron adds disclosure paragraphs
+  // Indexing dimensions
+  "never-submitted": FIX_PROFILE["content-auto-fix-lite"],
+  "submission-errors": FIX_PROFILE["seo-agent"],
+  // Affiliate revenue dimensions
+  "dead-advertisers": FIX_PROFILE["affiliate-injection"],
+  "zero-revenue": FIX_PROFILE.manual, // attribution debugging is manual
+  // Queue monitor dimensions
+  "stuck-24h": FIX_PROFILE["diagnostic-sweep"],
+  "drafting-backlog": FIX_PROFILE["diagnostic-sweep"],
+  "assembly-stuck": FIX_PROFILE["diagnostic-sweep"],
+  "near-max-attempts": FIX_PROFILE["diagnostic-sweep"],
+  "pipeline-stalled": FIX_PROFILE["diagnostic-sweep"],
+  "diagnostic-stuck": FIX_PROFILE["diagnostic-sweep"],
+};
+
+function profileForAction(nextAction: string, dimension?: string): FixProfile {
+  // 1. Explicit dimension routing wins — the most reliable signal.
+  if (dimension && DIMENSION_TO_FIX[dimension]) {
+    return DIMENSION_TO_FIX[dimension];
   }
+
+  // 2. Manual prefix in the action string.
+  const lower = nextAction.toLowerCase();
   if (lower.startsWith("manual:") || lower.startsWith("manual ")) {
     return FIX_PROFILE.manual;
   }
+
+  // 3. Text-match fallback. Sort keys longest-first so "content-auto-fix-lite"
+  //    beats "content-auto-fix" when both substrings would match.
+  const sortedKeys = Object.keys(FIX_PROFILE)
+    .filter((k) => k !== "manual")
+    .sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    if (lower.includes(key)) return FIX_PROFILE[key];
+  }
+
   return { fixability: "semi-auto", cost: 5 };
 }
 
@@ -95,7 +139,7 @@ function buildAction(
   pagesAffected: number,
   nextAction: string,
 ): RankedAction {
-  const profile = profileForAction(nextAction);
+  const profile = profileForAction(nextAction, dimension);
   return {
     source,
     dimension,

@@ -19,9 +19,6 @@
     "app/api/admin/ceo-inbox/**/*.ts": {
       "maxDuration": 300
     },
-    "app/api/cron/ceo-intelligence/**/*.ts": {
-      "maxDuration": 300
-    },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
     },
@@ -32,127 +29,10 @@
       "maxDuration": 10
     },
     "app/api/cron/**/*.ts": {
-      "maxDuration": 60
-    },
-    "app/api/cron/quality-recovery-runner/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/ai-voice-rewrite-runner/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-builder/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-builder-create/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/daily-content-generate/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/campaign-executor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-auto-fix/**/*.ts": {
       "maxDuration": 300
     },
     "app/api/cron/content-cleanup-daily/**/*.ts": {
       "maxDuration": 120
-    },
-    "app/api/cron/reserve-publisher/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/weekly-topics/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/seo-agent/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/seo-deep-review/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/seo-orchestrator/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/seo-audit-runner/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/daily-seo-audit/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/gsc-sync/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/verify-indexing/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/diagnostic-sweep/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/audit-roundup/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/daily-briefing/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/google-indexing/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/trends-monitor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/schedule-executor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-selector/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/london-news/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/process-indexing-queue/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/scheduled-publish/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/affiliate-injection/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/sweeper/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/image-pipeline/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-auto-fix-lite/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/pipeline-health/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/discovery-monitor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/perplexity-executor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/content-freshness/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/seo-agent-intelligence/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/subscriber-emails/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/agent-maintenance/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/retention-executor/**/*.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/followup-executor/**/*.ts": {
-      "maxDuration": 300
     },
     "app/api/affiliate/cron/**/*.ts": {
       "maxDuration": 300

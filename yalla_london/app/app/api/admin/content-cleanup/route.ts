@@ -342,8 +342,15 @@ async function handleGet(request: NextRequest) {
 // ── POST: Apply fixes ──────────────────────────────────────────────────────
 
 async function handlePost(request: NextRequest) {
-  const authError = await requireAdmin(request);
-  if (authError) return authError;
+  // Auth: accept admin session OR CRON_SECRET (so the daily cleanup cron
+  // can call this endpoint without admin context).
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  const hasCronAuth = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  if (!hasCronAuth) {
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
+  }
 
   const { prisma } = await import("@/lib/db");
   const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } =

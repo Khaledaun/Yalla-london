@@ -462,6 +462,17 @@ const CRON_DEFS: CronDef[] = [
     feedsInto: "AutoFixLog",
   },
   {
+    path: "/api/cron/content-cleanup-daily",
+    schedule: "15 3 * * *",
+    label: "Content Cleanup Daily",
+    icon: "🧹",
+    type: "cron",
+    category: "maintenance",
+    description:
+      "Daily duplicate-slug consolidation at 06:15 IDT. Calls content-cleanup with action=fix_all per active site: sanitize title/meta artifacts + unpublish duplicate articles with 301 to canonical slug. Runs BEFORE audit-roundup so the briefing reflects the post-cleanup state.",
+    feedsInto: "BlogPost (canonical_slug + unpublished losers)",
+  },
+  {
     path: "/api/cron/audit-roundup",
     schedule: "30 4,16 * * *",
     label: "Audit Roundup",

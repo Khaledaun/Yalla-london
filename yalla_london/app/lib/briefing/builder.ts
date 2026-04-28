@@ -905,7 +905,14 @@ async function buildFixesApplied(siteIds: string[]): Promise<FixesApplied> {
   const since = new Date(Date.now() - DAY_MS);
   const rows = await prisma.autoFixLog.findMany({
     where: { siteId: { in: siteIds }, createdAt: { gte: since } },
-    select: { fixType: true, agent: true, success: true, targetId: true, before: true },
+    select: {
+      fixType: true,
+      agent: true,
+      success: true,
+      targetId: true,
+      before: true,
+      error: true,
+    },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
@@ -914,20 +921,39 @@ async function buildFixesApplied(siteIds: string[]): Promise<FixesApplied> {
   const successCount = rows.filter((r) => r.success).length;
   const failureCount = totalFixes - successCount;
 
-  // Group by fixType
-  const byMap = new Map<string, { count: number; successes: number }>();
+  // Group by fixType — also tally failure messages per type so we can show
+  // the most common failure reason. Without this the briefing reports
+  // "0% success" with no clue WHY, which is what we hit on the first run.
+  const byMap = new Map<string, { count: number; successes: number; errors: Map<string, number> }>();
   for (const r of rows) {
-    const cur = byMap.get(r.fixType) || { count: 0, successes: 0 };
+    const cur = byMap.get(r.fixType) || { count: 0, successes: 0, errors: new Map<string, number>() };
     cur.count++;
-    if (r.success) cur.successes++;
+    if (r.success) {
+      cur.successes++;
+    } else if (r.error) {
+      // Trim verbose stack traces / JSON to a short fingerprint so we can
+      // group "same error, repeated" — avoids the map filling with unique
+      // strings.
+      const fingerprint = String(r.error).slice(0, 200).trim();
+      cur.errors.set(fingerprint, (cur.errors.get(fingerprint) || 0) + 1);
+    }
     byMap.set(r.fixType, cur);
   }
   const byFixType = [...byMap.entries()]
-    .map(([fixType, v]) => ({
-      fixType,
-      count: v.count,
-      successPct: v.count > 0 ? Math.round((v.successes / v.count) * 100) : 0,
-    }))
+    .map(([fixType, v]) => {
+      // Pick the most common failure message for this fixType
+      let commonFailureReason: string | null = null;
+      if (v.errors.size > 0) {
+        const sorted = [...v.errors.entries()].sort((a, b) => b[1] - a[1]);
+        commonFailureReason = sorted[0][0];
+      }
+      return {
+        fixType,
+        count: v.count,
+        successPct: v.count > 0 ? Math.round((v.successes / v.count) * 100) : 0,
+        commonFailureReason,
+      };
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
 
@@ -946,7 +972,13 @@ async function buildFixesApplied(siteIds: string[]): Promise<FixesApplied> {
 }
 async function buildValidation(siteIds: string[]): Promise<Validation> {
   // Pulls the unique fixTypes that ran in last 24h then maps each to its
-  // validation strategy. Static knowledge — these strategies don't change.
+  // validation strategy. Real AutoFixLog fixType values come in two
+  // shapes:
+  //   roundup:<dimension>    e.g. roundup:photos, roundup:never-submitted
+  //   diagnostic:<category>:<action>  e.g. diagnostic:provider_down:no_downstream_damage
+  // Match against those exact prefixes — the previous map keyed on
+  // image_pipeline / seo_agent / etc. (the cron names) which never
+  // matched, so every fix type fell through to the generic stub.
   void siteIds;
   const since = new Date(Date.now() - DAY_MS);
   const rows = await prisma.autoFixLog.findMany({
@@ -957,37 +989,72 @@ async function buildValidation(siteIds: string[]): Promise<Validation> {
   const fixTypes = [...new Set<string>(rows.map((r) => r.fixType))];
 
   const VALIDATION_MAP: Record<string, { how: string; whenToCheck: string }> = {
-    image_pipeline: {
-      how: "Open the article. Confirm featured image renders. Check Lighthouse LCP score (< 2.5s target).",
+    // ── roundup:* (audit-roundup auto-fix attempts) ──────────────────
+    "roundup:photos": {
+      how: "Open the affected article. Confirm featured_image renders and body has at least one inline image with alt text.",
       whenToCheck: "Within 1h",
     },
-    seo_agent: {
-      how: "Visit the article. View source. Confirm 1 H1, internal links to related articles, JSON-LD structured data block.",
-      whenToCheck: "Within 1h",
-    },
-    seo_deep_review: {
-      how: "Re-run the SEO audit. Compare meta description length (120-160 chars) and word count (1000+) before/after.",
+    "roundup:never-submitted": {
+      how: "Run /api/cron/process-indexing-queue or check IndexNow status in cockpit. URL count should drop in next briefing.",
       whenToCheck: "Within 4h",
     },
-    content_auto_fix: {
-      how: "Re-query content-cleanup endpoint. Confirm slug clusters and broken links are gone.",
+    "roundup:submission-errors": {
+      how: "Re-fetch the article URL. View source. Confirm canonical, meta tags, and JSON-LD all valid. seo-agent should have re-attempted submission.",
       whenToCheck: "Next briefing (24h)",
     },
-    affiliate_injection: {
-      how: "Open the article. Confirm affiliate links present with rel='noopener sponsored'. Check FTC disclosure paragraph.",
+    "roundup:stuck-24h": {
+      how: "Open /admin/cockpit pipeline tab. Confirm stuck-draft count dropped. diagnostic-sweep auto-rejects drafts after 5 attempts.",
+      whenToCheck: "Within 30min",
+    },
+    "roundup:dead-advertisers": {
+      how: "Open /admin/affiliate-hq Partners tab. Confirm DECLINED/NOT_JOINED count dropped after affiliate-injection swapped to live partners.",
       whenToCheck: "Within 1h",
     },
-    diagnostic_sweep: {
-      how: "Check pipeline-health snapshot. Stuck draft count should drop.",
+    "roundup:affiliatePractices": {
+      how: "Open the affected article. Confirm rel='noopener sponsored' on all affiliate <a> tags AND a disclosure paragraph mentioning affiliate/commission near the first link.",
+      whenToCheck: "Within 1h",
+    },
+    "roundup:duplicate-content": {
+      how: "Run content-cleanup audit. Confirm duplicate clusters resolved via canonical_slug 301 redirects.",
+      whenToCheck: "Next briefing (24h)",
+    },
+    "roundup:thin-content": {
+      how: "Re-query the article via /api/admin/per-page-audit. Word count should now be >= 1000.",
+      whenToCheck: "Next briefing (24h)",
+    },
+    // ── diagnostic:* (diagnostic-agent recovery actions) ─────────────
+    "diagnostic:provider_down": {
+      how: "Check /admin/cockpit AI Costs tab. Provider should be back online OR circuit breaker has rotated to a healthy fallback.",
       whenToCheck: "Within 30min",
+    },
+    "diagnostic:schema_mismatch": {
+      how: "Run /api/admin/db-migrate scan. Confirm zero pending columns/indexes. The crashed cron should run cleanly on its next schedule.",
+      whenToCheck: "Next briefing (24h)",
+    },
+    "diagnostic:database_unavailable": {
+      how: "Check Supabase status. Pool should be < 80% utilization. Affected cron retries automatically on next schedule.",
+      whenToCheck: "Within 30min",
+    },
+    "diagnostic:budget_exceeded": {
+      how: "Check the cron's logs. The job should have completed within budget on its next run with the corrected scope.",
+      whenToCheck: "Next briefing (24h)",
+    },
+    "diagnostic:requeued": {
+      how: "Stale URLs were requeued for indexing. Confirm they now appear in next process-indexing-queue run.",
+      whenToCheck: "Within 4h",
+    },
+    "diagnostic:unknown": {
+      how: "Recovery action ran without clear damage assessment. Compare cron success rates day-over-day.",
+      whenToCheck: "Next briefing (24h)",
     },
   };
 
   const byFixType = fixTypes.map((fixType) => {
-    // Match fixType against keys (handles roundup:dimension patterns).
-    const key = Object.keys(VALIDATION_MAP).find(
-      (k) => fixType.toLowerCase().includes(k.replace(/_/g, "-")) || fixType.toLowerCase().includes(k),
-    );
+    // Match by longest prefix first so "diagnostic:provider_down" wins
+    // over a hypothetical bare "diagnostic" key. Sort keys by length desc.
+    const lower = fixType.toLowerCase();
+    const sortedKeys = Object.keys(VALIDATION_MAP).sort((a, b) => b.length - a.length);
+    const key = sortedKeys.find((k) => lower.startsWith(k.toLowerCase()));
     const entry = key ? VALIDATION_MAP[key] : null;
     return {
       fixType,

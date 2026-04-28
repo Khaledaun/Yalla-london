@@ -155,7 +155,13 @@ export interface FixesApplied {
   totalFixes: number;
   successCount: number;
   failureCount: number;
-  byFixType: Array<{ fixType: string; count: number; successPct: number }>;
+  byFixType: Array<{
+    fixType: string;
+    count: number;
+    successPct: number;
+    /** Most common error message from failures, or null when 100% success. */
+    commonFailureReason?: string | null;
+  }>;
   recent: Array<{ targetSlug: string | null; fixType: string; agent: string; success: boolean }>;
 }
 

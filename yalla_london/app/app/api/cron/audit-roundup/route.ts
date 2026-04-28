@@ -164,6 +164,27 @@ async function processSite(siteId: string, cronSecret: string, remainingBudgetMs
     const fixDuration = Date.now() - fixStart;
     const success = result.ok;
 
+    // Build a useful error message. callCronInternal returns:
+    //   - result.error on fetch-level failure (timeout, network)
+    //   - result.data with HTTP body on non-2xx response
+    // Without this extraction, AutoFixLog stored `null` for HTTP-error
+    // failures and §16 in the briefing couldn't tell us WHY a fix failed.
+    let errorMsg: string | undefined = result.error;
+    if (!success && !errorMsg) {
+      const data = result.data;
+      if (typeof data === "string") {
+        errorMsg = data.slice(0, 300);
+      } else if (data && typeof data === "object") {
+        const d = data as Record<string, unknown>;
+        const explicit = (d.error as string) || (d.message as string);
+        errorMsg = explicit
+          ? String(explicit).slice(0, 300)
+          : `HTTP ${d.status || "non-2xx"}: ${JSON.stringify(d).slice(0, 250)}`;
+      } else {
+        errorMsg = "Downstream cron returned non-2xx with empty body";
+      }
+    }
+
     outcomes.push({
       site: siteId,
       source: action.source,
@@ -174,7 +195,7 @@ async function processSite(siteId: string, cronSecret: string, remainingBudgetMs
       roiScore: action.roiScore,
       status: success ? "executed" : "failed",
       durationMs: fixDuration,
-      error: success ? undefined : result.error,
+      error: success ? undefined : errorMsg,
       resultSummary: result.data,
     });
 
@@ -199,7 +220,7 @@ async function processSite(siteId: string, cronSecret: string, remainingBudgetMs
         durationMs: fixDuration,
       },
       success,
-      success ? undefined : result.error,
+      success ? undefined : errorMsg,
     );
   }
 

@@ -1230,23 +1230,48 @@ export default function DailyBriefingEmail({ briefing }: Props): React.ReactElem
                                   </thead>
                                   <tbody>
                                     {data.byFixType.slice(0, 10).map((f) => (
-                                      <tr key={f.fixType}>
-                                        <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>{f.fixType}</td>
-                                        <td style={TD}>{fmtNum(f.count)}</td>
-                                        <td
-                                          style={{
-                                            ...TD,
-                                            color:
-                                              f.successPct >= 90
-                                                ? BRAND.good
-                                                : f.successPct >= 60
-                                                  ? BRAND.gold
-                                                  : BRAND.critical,
-                                          }}
-                                        >
-                                          {f.successPct}%
-                                        </td>
-                                      </tr>
+                                      <React.Fragment key={f.fixType}>
+                                        <tr>
+                                          <td style={{ ...TD, fontFamily: FONTS.mono, fontSize: "12px" }}>
+                                            {f.fixType}
+                                          </td>
+                                          <td style={TD}>{fmtNum(f.count)}</td>
+                                          <td
+                                            style={{
+                                              ...TD,
+                                              color:
+                                                f.successPct >= 90
+                                                  ? BRAND.good
+                                                  : f.successPct >= 60
+                                                    ? BRAND.gold
+                                                    : BRAND.critical,
+                                            }}
+                                          >
+                                            {f.successPct}%
+                                          </td>
+                                        </tr>
+                                        {f.commonFailureReason && (
+                                          <tr>
+                                            <td
+                                              colSpan={3}
+                                              style={{
+                                                padding: "0 10px 8px 10px",
+                                                borderBottom: `1px solid ${BRAND.border}`,
+                                                fontSize: "11px",
+                                                color: BRAND.lightText,
+                                                fontStyle: "italic",
+                                              }}
+                                            >
+                                              <span style={{ color: BRAND.critical, fontWeight: 600 }}>
+                                                Why failed:
+                                              </span>{" "}
+                                              <span style={{ fontFamily: FONTS.mono }}>
+                                                {f.commonFailureReason.slice(0, 180)}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
                                     ))}
                                   </tbody>
                                 </table>

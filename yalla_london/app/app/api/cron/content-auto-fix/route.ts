@@ -581,49 +581,68 @@ async function handleAutoFix(request: NextRequest) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         if (orphansFixed >= 10) break; // Raised from 5 to clear 13-orphan backlog
 
-        // Find best host article: same site, has content, doesn't already link to orphan
+        // Find top-3 host articles by title word overlap. Boosting from 1
+        // host to 3 because Google weighs PageRank flow from multiple sources
+        // — a single inbound link is barely a signal; 3+ inbound links from
+        // topically-relevant articles is what moves indexing/ranking.
         const orphanWords = (orphan.title_en || "")
           .toLowerCase()
           .split(/\s+/)
           .filter((w) => w.length > 3);
         if (orphanWords.length < 2) continue;
 
-        let bestHost: (typeof allPosts)[0] | null = null;
-        let bestScore = 0;
+        const scoredCandidates: Array<{ post: (typeof allPosts)[0]; score: number }> = [];
         for (const candidate of allPosts) {
           if (candidate.id === orphan.id) continue;
           if (candidate.siteId !== orphan.siteId) continue;
           if ((candidate.content_en || "").includes(`/blog/${orphan.slug}`)) continue;
-          // Score by title word overlap
+          // Skip candidates that already have a related section — accumulating
+          // multiple "Related:" blocks from different injectors looks bad.
+          if (
+            (candidate.content_en || "").includes("related-articles") ||
+            (candidate.content_en || "").includes("related-link")
+          )
+            continue;
           const candidateTitle = (candidate.title_en || "").toLowerCase();
           const score = orphanWords.filter((w) => candidateTitle.includes(w)).length;
-          if (score > bestScore) {
-            bestScore = score;
-            bestHost = candidate;
-          }
+          if (score >= 1) scoredCandidates.push({ post: candidate, score });
         }
 
-        if (!bestHost || bestScore < 1) continue;
+        if (scoredCandidates.length === 0) continue;
 
-        // Skip if the host already has any related section (from seo-agent or previous runs)
-        // Prevents accumulation of multiple "Related:" blocks from different injectors.
-        if (
-          (bestHost.content_en || "").includes("related-articles") ||
-          (bestHost.content_en || "").includes("related-link")
-        )
-          continue;
+        // Top-3 by score, descending. Tie-broken by created_at (already sorted
+        // by createdAt desc in the parent findMany so the order is stable).
+        scoredCandidates.sort((a, b) => b.score - a.score);
+        const topHosts = scoredCandidates.slice(0, 3);
 
-        // Append a "Related reading" link at the end of the host article
-        const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
-        await optimisticBlogPostUpdate(
-          bestHost.id,
-          (current) => ({
-            content_en: (current.content_en || "") + linkHtml,
-          }),
-          { tag: "[content-auto-fix]" },
-        );
-        orphansFixed++;
-        console.log(`[content-auto-fix] Fixed orphan: "${orphan.slug}" — linked from "${bestHost.slug}"`);
+        let injectedForThisOrphan = 0;
+        for (const { post: host } of topHosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+          // Append a "Related reading" link at the end of the host article.
+          const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
+          await optimisticBlogPostUpdate(
+            host.id,
+            (current) => ({
+              content_en: (current.content_en || "") + linkHtml,
+            }),
+            { tag: "[content-auto-fix]" },
+          );
+          // Mark the host's in-memory copy so subsequent orphan iterations
+          // skip it via the related-link guard above (avoids hitting the same
+          // host twice in one run).
+          host.content_en = (host.content_en || "") + linkHtml;
+          injectedForThisOrphan++;
+        }
+
+        if (injectedForThisOrphan > 0) {
+          orphansFixed++;
+          console.log(
+            `[content-auto-fix] Fixed orphan: "${orphan.slug}" — gained ${injectedForThisOrphan} inbound link(s) from ${topHosts
+              .slice(0, injectedForThisOrphan)
+              .map((h) => h.post.slug)
+              .join(", ")}`,
+          );
+        }
       }
       results.orphansFixed = orphansFixed;
     } catch (err) {

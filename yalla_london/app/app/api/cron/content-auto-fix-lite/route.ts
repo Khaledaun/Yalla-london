@@ -75,6 +75,7 @@ async function handleAutoFixLite(request: NextRequest) {
     metaTrimmedDrafts: 0,
     titleArtifactsCleaned: 0,
     duplicatesUnpublished: 0,
+    imageAltsFixed: 0,
     errors: [] as string[],
   };
 
@@ -853,6 +854,138 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── Section 17: Image alt-text auto-fill ─────────────────────────────
+  // Finds <img> tags with empty/missing alt attributes in published BlogPost
+  // content and fills alt text from a deterministic source order:
+  //   1. <figcaption> next-sibling text (already exists in pipeline-injected images)
+  //   2. surrounding <h2>/<h3> heading text (closest preceding heading)
+  //   3. article title as last-resort
+  //
+  // Pure regex — no AI calls, fast, idempotent. Image SEO + WCAG 1.1.1.
+  // Only edits posts that actually have empty alts so optimistic update doesn't
+  // touch unchanged rows.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+      // Detects: <img alt=""> or <img> with no alt at all. Excludes already-filled.
+      const EMPTY_ALT_IMG = /<img\b(?![^>]*\balt=(?!""))[^>]*>|<img\b[^>]*\balt=""[^>]*>/i;
+      const candidates = await prisma.blogPost.findMany({
+        where: { siteId: { in: activeSiteIds }, published: true, deletedAt: null, content_en: { not: "" } },
+        select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true },
+        orderBy: { updated_at: "desc" },
+        take: 80,
+      });
+
+      const fixContent = (html: string, fallbackTitle: string): { content: string; fixed: number } => {
+        let fixed = 0;
+        // Walk through every <img> tag. For each one with empty/missing alt,
+        // derive alt text from the closest preceding heading or figcaption.
+        const out = html.replace(/<img\b[^>]*>/gi, (imgTag, offset: number) => {
+          const hasAlt = /\balt=("([^"]*)"|'([^']*)')/i.exec(imgTag);
+          if (hasAlt && (hasAlt[2] || hasAlt[3] || "").trim().length > 0) return imgTag; // already filled
+
+          // Look back up to 800 chars for context.
+          const window = html.slice(Math.max(0, offset - 800), offset);
+
+          // 1. <figcaption> IMMEDIATELY following the img — must be the next
+          //    non-whitespace tag, otherwise we'd cross figure boundaries and
+          //    pick up the next image's caption (saw this in testing). Also
+          //    skip pure photographer attribution like "Photo: John Doe" which
+          //    is a credit line, not alt text.
+          const after = html.slice(offset + imgTag.length, offset + imgTag.length + 400);
+          const adjacentFigcap = after.match(/^\s*<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
+          let alt = "";
+          if (adjacentFigcap) {
+            const captionText = adjacentFigcap[1]
+              .replace(/<[^>]+>/g, "")
+              .replace(/\s+/g, " ")
+              .trim();
+            const isAttribution = /^(photo|image|photographer|credit|by)\s*[:|–—-]/i.test(captionText);
+            if (!isAttribution && captionText.length > 0) {
+              alt = captionText;
+            }
+          }
+
+          // 2. Closest preceding heading.
+          if (!alt) {
+            const headings = [...window.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)];
+            const last = headings[headings.length - 1];
+            if (last)
+              alt = last[1]
+                .replace(/<[^>]+>/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+          }
+
+          // 3. Fallback to article title.
+          if (!alt) alt = fallbackTitle.trim();
+
+          // Cap at 125 chars (WCAG / screen reader best practice).
+          alt = alt.slice(0, 125);
+          // Escape any quotes in alt text.
+          alt = alt.replace(/"/g, "&quot;");
+          if (!alt) return imgTag; // nothing useful — leave as-is
+
+          fixed++;
+          // Replace empty alt or insert alt before the closing >.
+          if (hasAlt) {
+            return imgTag.replace(/\balt=(""|'')/i, `alt="${alt}"`);
+          } else {
+            return imgTag.replace(/\s*\/?>$/, ` alt="${alt}" />`);
+          }
+        });
+        return { content: out, fixed };
+      };
+
+      let imageAltsFixed = 0;
+      for (const post of candidates) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (imageAltsFixed >= 30) break; // per-run cap
+
+        const enHasEmpty = EMPTY_ALT_IMG.test(post.content_en || "");
+        const arHasEmpty = EMPTY_ALT_IMG.test(post.content_ar || "");
+        if (!enHasEmpty && !arHasEmpty) continue;
+
+        try {
+          const updated = await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const updates: Record<string, unknown> = {};
+              const curEn = (current.content_en as string) || "";
+              const curAr = (current.content_ar as string) || "";
+              const titleEn = (current.title_en as string) || "";
+              const titleAr = (current.title_ar as string) || titleEn;
+              if (EMPTY_ALT_IMG.test(curEn)) {
+                const r = fixContent(curEn, titleEn);
+                if (r.fixed > 0) updates.content_en = r.content;
+              }
+              if (EMPTY_ALT_IMG.test(curAr)) {
+                const r = fixContent(curAr, titleAr);
+                if (r.fixed > 0) updates.content_ar = r.content;
+              }
+              return Object.keys(updates).length > 0 ? updates : null;
+            },
+            { tag: "[content-auto-fix-lite:section-17]" },
+          );
+          if (updated) imageAltsFixed++;
+        } catch (e) {
+          console.warn(
+            `[content-auto-fix-lite] Section 17: alt-fix failed for ${post.slug}:`,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
+
+      results.imageAltsFixed = imageAltsFixed;
+      if (imageAltsFixed > 0) {
+        console.log(`[content-auto-fix-lite] Section 17: filled image alt text on ${imageAltsFixed} articles`);
+      }
+    } catch (e) {
+      results.errors.push(`image-alt-autofill: ${e instanceof Error ? e.message : String(e)}`);
+      console.warn("[content-auto-fix-lite] Section 17 failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
   const totalFixed =
@@ -867,7 +1000,8 @@ async function handleAutoFixLite(request: NextRequest) {
     photoOrdersFulfilled +
     badImagesFixed +
     affiliateBlocksCleaned +
-    results.duplicatesUnpublished;
+    results.duplicatesUnpublished +
+    results.imageAltsFixed;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {

@@ -211,6 +211,7 @@ export const ENHANCEMENT_OWNERS: Record<string, string> = {
   authenticity_signals: "seo-deep-review",
   cannibalization_resolution: "seo-agent",
   affiliate_disclosure: "content-auto-fix",
+  image_alt_text: "content-auto-fix-lite",
 };
 
 // ─── Escalation Policy ──────────────────────────────────────────────────────

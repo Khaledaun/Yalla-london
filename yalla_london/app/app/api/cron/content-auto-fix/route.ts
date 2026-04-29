@@ -67,6 +67,7 @@ async function handleAutoFix(request: NextRequest) {
     placeholderIdsFixed: 0,
     notIndexedEnhanced: 0,
     seoBoostEnhanced: 0,
+    affiliateDisclosuresInjected: 0,
     errors: [] as string[],
   };
 
@@ -103,41 +104,67 @@ async function handleAutoFix(request: NextRequest) {
         const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
         if (hasBadSlug || hasExpandPrefix) {
           try {
-            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
-            await optimisticBlogPostUpdate(post.id, () => ({
-              published: false,
-              meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
-            }), { tag: "[content-auto-fix]" });
+            const reason = hasBadSlug
+              ? `BAD_SLUG: "${post.slug}"`
+              : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
+            await optimisticBlogPostUpdate(
+              post.id,
+              () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+              }),
+              { tag: "[content-auto-fix]" },
+            );
             earlyBadSlugUnpublished++;
             console.log(`[content-auto-fix] Unpublished bad article: ${reason}`);
           } catch (upErr) {
-            console.warn(`[content-auto-fix] Failed to unpublish bad article "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+            console.warn(
+              `[content-auto-fix] Failed to unpublish bad article "${post.slug}":`,
+              upErr instanceof Error ? upErr.message : upErr,
+            );
           }
           continue;
         }
 
-        const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-        const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const enText = (post.content_en || "")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const arText = (post.content_ar || "")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
         const enWords = enText.split(" ").filter(Boolean).length;
         const arWords = arText.split(" ").filter(Boolean).length;
         const wordCount = Math.max(enWords, arWords);
 
         if (wordCount < thinThreshold) {
           try {
-            await optimisticBlogPostUpdate(post.id, () => ({
-              published: false,
-              meta_description_en: `[UNPUBLISHED: THIN_CONTENT ${wordCount}w < ${thinThreshold}w] ${(post.slug || "").slice(0, 80)}`,
-            }), { tag: "[content-auto-fix]" });
+            await optimisticBlogPostUpdate(
+              post.id,
+              () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED: THIN_CONTENT ${wordCount}w < ${thinThreshold}w] ${(post.slug || "").slice(0, 80)}`,
+              }),
+              { tag: "[content-auto-fix]" },
+            );
             earlyThinUnpublished++;
-            console.log(`[content-auto-fix] Unpublished ultra-thin article "${post.slug}" (${wordCount}w < ${thinThreshold}w)`);
+            console.log(
+              `[content-auto-fix] Unpublished ultra-thin article "${post.slug}" (${wordCount}w < ${thinThreshold}w)`,
+            );
           } catch (upErr) {
-            console.warn(`[content-auto-fix] Failed to unpublish thin "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+            console.warn(
+              `[content-auto-fix] Failed to unpublish thin "${post.slug}":`,
+              upErr instanceof Error ? upErr.message : upErr,
+            );
           }
         }
       }
 
       if (earlyThinUnpublished > 0 || earlyBadSlugUnpublished > 0) {
-        console.log(`[content-auto-fix] Section 0: ${earlyThinUnpublished} thin + ${earlyBadSlugUnpublished} bad-slug unpublished`);
+        console.log(
+          `[content-auto-fix] Section 0: ${earlyThinUnpublished} thin + ${earlyBadSlugUnpublished} bad-slug unpublished`,
+        );
       }
       results.thinUnpublished = (results.thinUnpublished || 0) + earlyThinUnpublished;
       results.badSlugUnpublished = (results.badSlugUnpublished || 0) + earlyBadSlugUnpublished;
@@ -152,59 +179,60 @@ async function handleAutoFix(request: NextRequest) {
   // Find reservoir drafts with word_count < MIN_WORD_COUNT, oldest first
   if (Date.now() - cronStart < BUDGET_MS - 25_000) {
     try {
-    const shortDrafts = await prisma.articleDraft.findMany({
-      where: {
-        site_id: { in: activeSiteIds },
-        current_phase: "reservoir",
-        OR: [
-          { word_count: { lt: MIN_WORD_COUNT } },
-          { word_count: null },
-        ],
-        assembled_html: { not: null },
-      },
-      orderBy: { updated_at: "asc" }, // oldest first → longest-waiting first
-      take: MAX_WORD_COUNT_ENHANCES,
-    });
+      const shortDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: "reservoir",
+          OR: [{ word_count: { lt: MIN_WORD_COUNT } }, { word_count: null }],
+          assembled_html: { not: null },
+        },
+        orderBy: { updated_at: "asc" }, // oldest first → longest-waiting first
+        take: MAX_WORD_COUNT_ENHANCES,
+      });
 
-    const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
+      const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
 
-    for (const draft of shortDrafts) {
-      const budgetUsed = Date.now() - cronStart;
-      if (budgetUsed > BUDGET_MS - 25_000) {
-        // Need 25s budget remaining for a full enhance call
-        console.warn(`[content-auto-fix] Budget low (${Math.round(budgetUsed / 1000)}s used) — stopping enhancement loop`);
-        break;
-      }
-
-      const wordCount = (draft.assembled_html || "")
-        .replace(/<[^>]+>/g, " ")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean).length;
-
-      console.log(`[content-auto-fix] Enhancing draft ${draft.id} (keyword: "${draft.keyword}", words: ${wordCount})`);
-
-      try {
-        const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
-        if (result.success) {
-          results.enhanced++;
-          console.log(`[content-auto-fix] Enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
-        } else {
-          results.enhanceFailed++;
-          results.errors.push(`enhance:${draft.id}: ${result.error}`);
-          console.warn(`[content-auto-fix] Enhance failed for ${draft.id}: ${result.error}`);
+      for (const draft of shortDrafts) {
+        const budgetUsed = Date.now() - cronStart;
+        if (budgetUsed > BUDGET_MS - 25_000) {
+          // Need 25s budget remaining for a full enhance call
+          console.warn(
+            `[content-auto-fix] Budget low (${Math.round(budgetUsed / 1000)}s used) — stopping enhancement loop`,
+          );
+          break;
         }
-      } catch (err) {
-        results.enhanceFailed++;
-        const msg = err instanceof Error ? err.message : String(err);
-        results.errors.push(`enhance:${draft.id}: ${msg}`);
-        console.warn(`[content-auto-fix] Enhance threw for ${draft.id}:`, msg);
+
+        const wordCount = (draft.assembled_html || "")
+          .replace(/<[^>]+>/g, " ")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
+
+        console.log(
+          `[content-auto-fix] Enhancing draft ${draft.id} (keyword: "${draft.keyword}", words: ${wordCount})`,
+        );
+
+        try {
+          const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
+          if (result.success) {
+            results.enhanced++;
+            console.log(`[content-auto-fix] Enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
+          } else {
+            results.enhanceFailed++;
+            results.errors.push(`enhance:${draft.id}: ${result.error}`);
+            console.warn(`[content-auto-fix] Enhance failed for ${draft.id}: ${result.error}`);
+          }
+        } catch (err) {
+          results.enhanceFailed++;
+          const msg = err instanceof Error ? err.message : String(err);
+          results.errors.push(`enhance:${draft.id}: ${msg}`);
+          console.warn(`[content-auto-fix] Enhance threw for ${draft.id}:`, msg);
+        }
       }
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    results.errors.push(`word-count-query: ${msg}`);
-    console.warn("[content-auto-fix] Word count query failed:", msg);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`word-count-query: ${msg}`);
+      console.warn("[content-auto-fix] Word count query failed:", msg);
     }
   }
 
@@ -234,13 +262,17 @@ async function handleAutoFix(request: NextRequest) {
           const budgetUsed = Date.now() - cronStart;
           if (budgetUsed > BUDGET_MS - 25_000) break;
 
-          console.log(`[content-auto-fix] Enhancing low-score draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score})`);
+          console.log(
+            `[content-auto-fix] Enhancing low-score draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score})`,
+          );
 
           try {
             const result = await enhanceLowScore(draft as Record<string, unknown>);
             if (result.success) {
               results.enhancedLowScore++;
-              console.log(`[content-auto-fix] Low-score enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
+              console.log(
+                `[content-auto-fix] Low-score enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`,
+              );
             } else {
               results.enhanceFailed++;
               results.errors.push(`low-score:${draft.id}: ${result.error}`);
@@ -278,7 +310,9 @@ async function handleAutoFix(request: NextRequest) {
         orderBy: { created_at: "desc" },
       });
 
-      const { injectInternalLinks } = await import("@/lib/auto-remediate/engine") as { injectInternalLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+      const { injectInternalLinks } = (await import("@/lib/auto-remediate/engine")) as {
+        injectInternalLinks: (id: string, siteId: string) => Promise<{ success: boolean }>;
+      };
       for (const post of postsNoLinks) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const linkCount = ((post.content_en || "").match(/class="internal-link"|href="\/blog\//gi) || []).length;
@@ -307,7 +341,7 @@ async function handleAutoFix(request: NextRequest) {
         orderBy: { created_at: "desc" },
         take: 500,
       });
-      const validSlugs = new Set<string>(realPosts.map(p => p.slug));
+      const validSlugs = new Set<string>(realPosts.map((p) => p.slug));
 
       // Target articles that actually contain broken links (TOPIC_SLUG or hallucinated slugs)
       // instead of just scanning the 50 newest articles — old articles with placeholders
@@ -343,13 +377,13 @@ async function handleAutoFix(request: NextRequest) {
             if (validSlugs.has(slug) || validSlugs.has(slug.toLowerCase())) return fullMatch;
             const topic = slug.toLowerCase().replace(/[-_]/g, " ");
             const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
-            const match = realPosts.find(p => {
+            const match = realPosts.find((p) => {
               const title = (p.title_en || "").toLowerCase();
               return topicWords.filter((w: string) => title.includes(w)).length >= 2;
             });
             if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
             return anchor;
-          }
+          },
         );
         return fixed;
       };
@@ -366,13 +400,22 @@ async function handleAutoFix(request: NextRequest) {
           const updateData: Record<string, string> = {};
           if (enChanged) updateData.content_en = fixedEn;
           if (arChanged) updateData.content_ar = fixedAr;
-          await optimisticBlogPostUpdate(post.id, (current) => {
-            const result: Record<string, unknown> = {};
-            if (enChanged) result.content_en = fixBrokenLinks(current.content_en || "");
-            if (arChanged) result.content_ar = fixBrokenLinks(current.content_ar || "");
-            result.enhancement_log = buildEnhancementLogEntry(current.enhancement_log, "broken_links", "content-auto-fix", `Fixed broken internal links`);
-            return result;
-          }, { tag: "[content-auto-fix]" });
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const result: Record<string, unknown> = {};
+              if (enChanged) result.content_en = fixBrokenLinks(current.content_en || "");
+              if (arChanged) result.content_ar = fixBrokenLinks(current.content_ar || "");
+              result.enhancement_log = buildEnhancementLogEntry(
+                current.enhancement_log,
+                "broken_links",
+                "content-auto-fix",
+                `Fixed broken internal links`,
+              );
+              return result;
+            },
+            { tag: "[content-auto-fix]" },
+          );
           brokenLinksFixed++;
         }
       };
@@ -430,8 +473,11 @@ async function handleAutoFix(request: NextRequest) {
         orderBy: { created_at: "desc" },
       });
 
-      const affiliatePattern = /booking\.com|halalbooking|agoda|getyourguide|viator|klook|boatbookings|class="affiliate|anrdoezrs\.net|dpbolvw\.net|tkqlhce\.com|jdoqocy\.com|kqzyfj\.com|affiliate-recommendation|data-affiliate-id/i;
-      const { injectAffiliateLinks } = await import("@/lib/auto-remediate/engine") as { injectAffiliateLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+      const affiliatePattern =
+        /booking\.com|halalbooking|agoda|getyourguide|viator|klook|boatbookings|class="affiliate|anrdoezrs\.net|dpbolvw\.net|tkqlhce\.com|jdoqocy\.com|kqzyfj\.com|affiliate-recommendation|data-affiliate-id/i;
+      const { injectAffiliateLinks } = (await import("@/lib/auto-remediate/engine")) as {
+        injectAffiliateLinks: (id: string, siteId: string) => Promise<{ success: boolean }>;
+      };
 
       for (const post of postsNoAffiliates) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
@@ -473,17 +519,16 @@ async function handleAutoFix(request: NextRequest) {
           published: true,
           deletedAt: null,
           content_ar: { not: "" },
-          OR: [
-            { meta_title_ar: null },
-            { meta_description_ar: null },
-          ],
+          OR: [{ meta_title_ar: null }, { meta_description_ar: null }],
         },
         select: { id: true },
         take: 2,
       });
 
       if (postsMissingArMeta.length > 0) {
-        const { generateArabicMeta } = await import("@/lib/auto-remediate/engine") as { generateArabicMeta: (id: string) => Promise<{ success: boolean }> };
+        const { generateArabicMeta } = (await import("@/lib/auto-remediate/engine")) as {
+          generateArabicMeta: (id: string) => Promise<{ success: boolean }>;
+        };
         for (const post of postsMissingArMeta) {
           if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
           const result = await generateArabicMeta(post.id);
@@ -529,7 +574,7 @@ async function handleAutoFix(request: NextRequest) {
       }
 
       // Find orphans (0 inbound links)
-      const orphans = allPosts.filter(p => (inboundCount.get(p.slug) || 0) === 0);
+      const orphans = allPosts.filter((p) => (inboundCount.get(p.slug) || 0) === 0);
       let orphansFixed = 0;
 
       for (const orphan of orphans) {
@@ -537,10 +582,13 @@ async function handleAutoFix(request: NextRequest) {
         if (orphansFixed >= 10) break; // Raised from 5 to clear 13-orphan backlog
 
         // Find best host article: same site, has content, doesn't already link to orphan
-        const orphanWords = (orphan.title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        const orphanWords = (orphan.title_en || "")
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
         if (orphanWords.length < 2) continue;
 
-        let bestHost: typeof allPosts[0] | null = null;
+        let bestHost: (typeof allPosts)[0] | null = null;
         let bestScore = 0;
         for (const candidate of allPosts) {
           if (candidate.id === orphan.id) continue;
@@ -548,7 +596,7 @@ async function handleAutoFix(request: NextRequest) {
           if ((candidate.content_en || "").includes(`/blog/${orphan.slug}`)) continue;
           // Score by title word overlap
           const candidateTitle = (candidate.title_en || "").toLowerCase();
-          const score = orphanWords.filter(w => candidateTitle.includes(w)).length;
+          const score = orphanWords.filter((w) => candidateTitle.includes(w)).length;
           if (score > bestScore) {
             bestScore = score;
             bestHost = candidate;
@@ -559,13 +607,21 @@ async function handleAutoFix(request: NextRequest) {
 
         // Skip if the host already has any related section (from seo-agent or previous runs)
         // Prevents accumulation of multiple "Related:" blocks from different injectors.
-        if ((bestHost.content_en || "").includes("related-articles") || (bestHost.content_en || "").includes("related-link")) continue;
+        if (
+          (bestHost.content_en || "").includes("related-articles") ||
+          (bestHost.content_en || "").includes("related-link")
+        )
+          continue;
 
         // Append a "Related reading" link at the end of the host article
         const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
-        await optimisticBlogPostUpdate(bestHost.id, (current) => ({
-          content_en: (current.content_en || "") + linkHtml,
-        }), { tag: "[content-auto-fix]" });
+        await optimisticBlogPostUpdate(
+          bestHost.id,
+          (current) => ({
+            content_en: (current.content_en || "") + linkHtml,
+          }),
+          { tag: "[content-auto-fix]" },
+        );
         orphansFixed++;
         console.log(`[content-auto-fix] Fixed orphan: "${orphan.slug}" — linked from "${bestHost.slug}"`);
       }
@@ -599,10 +655,14 @@ async function handleAutoFix(request: NextRequest) {
       for (const post of autoUnpublished) {
         // Restore original meta description (strip the [AUTO-UNPUBLISHED:...] prefix)
         const originalMeta = (post.meta_description_en || "").replace(/^\[AUTO-UNPUBLISHED:[^\]]*\]\s*/, "").trim();
-        await optimisticBlogPostUpdate(post.id, () => ({
-          published: true,
-          meta_description_en: originalMeta || post.title_en || "",
-        }), { tag: "[content-auto-fix]" });
+        await optimisticBlogPostUpdate(
+          post.id,
+          () => ({
+            published: true,
+            meta_description_en: originalMeta || post.title_en || "",
+          }),
+          { tag: "[content-auto-fix]" },
+        );
         recovered++;
         console.log(`[content-auto-fix] Re-published auto-unpublished article: "${post.slug}"`);
       }
@@ -654,22 +714,37 @@ async function handleAutoFix(request: NextRequest) {
         const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
         if (hasBadSlug || hasExpandPrefix) {
           try {
-            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
-            await optimisticBlogPostUpdate(post.id, () => ({
-              published: false,
-              meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
-            }), { tag: "[content-auto-fix]" });
+            const reason = hasBadSlug
+              ? `BAD_SLUG: "${post.slug}"`
+              : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
+            await optimisticBlogPostUpdate(
+              post.id,
+              () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+              }),
+              { tag: "[content-auto-fix]" },
+            );
             badSlugUnpublished++;
             console.log(`[content-auto-fix] Unpublished bad article: ${reason}`);
           } catch (upErr) {
-            console.warn(`[content-auto-fix] Failed to unpublish bad article "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+            console.warn(
+              `[content-auto-fix] Failed to unpublish bad article "${post.slug}":`,
+              upErr instanceof Error ? upErr.message : upErr,
+            );
           }
           continue;
         }
 
         // ── Word count check — use whichever language has content ──
-        const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-        const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const enText = (post.content_en || "")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const arText = (post.content_ar || "")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
         const enWords = enText.split(" ").filter(Boolean).length;
         const arWords = arText.split(" ").filter(Boolean).length;
         const wordCount = Math.max(enWords, arWords); // Use the longer version
@@ -677,18 +752,29 @@ async function handleAutoFix(request: NextRequest) {
         if (wordCount < thinThreshold) {
           // Ultra-thin: unpublish — actively harmful, zero SEO equity
           try {
-            await optimisticBlogPostUpdate(post.id, () => ({
-              published: false,
-              meta_description_en: `[UNPUBLISHED-THIN: ${wordCount}w < ${thinThreshold}w threshold] ${(post.slug || "").slice(0, 80)}`,
-            }), { tag: "[content-auto-fix]" });
+            await optimisticBlogPostUpdate(
+              post.id,
+              () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED-THIN: ${wordCount}w < ${thinThreshold}w threshold] ${(post.slug || "").slice(0, 80)}`,
+              }),
+              { tag: "[content-auto-fix]" },
+            );
             ultraThinUnpublished++;
-            console.log(`[content-auto-fix] Unpublished ultra-thin article: "${post.slug}" (${wordCount}w < ${thinThreshold}w threshold)`);
+            console.log(
+              `[content-auto-fix] Unpublished ultra-thin article: "${post.slug}" (${wordCount}w < ${thinThreshold}w threshold)`,
+            );
           } catch (upErr) {
-            console.warn(`[content-auto-fix] Failed to unpublish thin "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+            console.warn(
+              `[content-auto-fix] Failed to unpublish thin "${post.slug}":`,
+              upErr instanceof Error ? upErr.message : upErr,
+            );
           }
         } else if (wordCount < CONTENT_QUALITY.minWords) {
           thinCount++;
-          console.log(`[content-auto-fix] Moderate-thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`);
+          console.log(
+            `[content-auto-fix] Moderate-thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`,
+          );
         }
       }
       results.thinUnpublished = ultraThinUnpublished;
@@ -726,7 +812,15 @@ async function handleAutoFix(request: NextRequest) {
             published: true,
             deletedAt: null,
           },
-          select: { id: true, slug: true, title_en: true, created_at: true, meta_description_en: true, content_en: true, seo_score: true },
+          select: {
+            id: true,
+            slug: true,
+            title_en: true,
+            created_at: true,
+            meta_description_en: true,
+            content_en: true,
+            seo_score: true,
+          },
           orderBy: { created_at: "asc" },
           take: 100,
         });
@@ -736,11 +830,23 @@ async function handleAutoFix(request: NextRequest) {
           if (alreadyUnpublished.has(sitePosts[i].id)) continue;
           for (let j = i + 1; j < sitePosts.length; j++) {
             if (alreadyUnpublished.has(sitePosts[j].id)) continue;
-            const wordsA = new Set((sitePosts[i].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
-            const wordsB = new Set((sitePosts[j].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            const wordsA = new Set(
+              (sitePosts[i].title_en || "")
+                .toLowerCase()
+                .split(/\s+/)
+                .filter((w) => w.length > 2),
+            );
+            const wordsB = new Set(
+              (sitePosts[j].title_en || "")
+                .toLowerCase()
+                .split(/\s+/)
+                .filter((w) => w.length > 2),
+            );
             if (wordsA.size < 3 || wordsB.size < 3) continue;
             let intersection = 0;
-            for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+            for (const w of wordsA) {
+              if (wordsB.has(w)) intersection++;
+            }
             const union = new Set([...wordsA, ...wordsB]).size;
             const jaccard = union > 0 ? intersection / union : 0;
 
@@ -756,13 +862,19 @@ async function handleAutoFix(request: NextRequest) {
               const worse = sitePosts[worseIdx];
               const better = sitePosts[betterIdx];
 
-              await optimisticBlogPostUpdate(worse.id, () => ({
-                published: false,
-                meta_description_en: `[DUPLICATE-UNPUBLISHED: kept "${better.slug}"] ${(worse.meta_description_en || "").replace(/\[DUPLICATE[^\]]*\]\s*/, "").slice(0, 100)}`,
-              }), { tag: "[content-auto-fix]" });
+              await optimisticBlogPostUpdate(
+                worse.id,
+                () => ({
+                  published: false,
+                  meta_description_en: `[DUPLICATE-UNPUBLISHED: kept "${better.slug}"] ${(worse.meta_description_en || "").replace(/\[DUPLICATE[^\]]*\]\s*/, "").slice(0, 100)}`,
+                }),
+                { tag: "[content-auto-fix]" },
+              );
               alreadyUnpublished.add(worse.id);
               duplicatesUnpublished++;
-              console.log(`[content-auto-fix] Unpublished duplicate: "${worse.slug}" (${wcA}w/${scoreA}s) — kept "${better.slug}" (${wcB}w/${scoreB}s) (jaccard=${jaccard.toFixed(2)})`);
+              console.log(
+                `[content-auto-fix] Unpublished duplicate: "${worse.slug}" (${wcA}w/${scoreA}s) — kept "${better.slug}" (${wcB}w/${scoreB}s) (jaccard=${jaccard.toFixed(2)})`,
+              );
               if (duplicatesUnpublished >= 5) break;
             }
           }
@@ -805,7 +917,15 @@ async function handleAutoFix(request: NextRequest) {
         // Find the BlogPost and check content quality
         const post = await prisma.blogPost.findFirst({
           where: { slug, siteId: page.site_id },
-          select: { id: true, content_en: true, title_en: true, meta_title_en: true, meta_description_en: true, seo_score: true, tags: true },
+          select: {
+            id: true,
+            content_en: true,
+            title_en: true,
+            meta_title_en: true,
+            meta_description_en: true,
+            seo_score: true,
+            tags: true,
+          },
         });
         if (!post) continue;
 
@@ -825,7 +945,8 @@ async function handleAutoFix(request: NextRequest) {
         if (metaDesc.length < 120 || metaDesc.startsWith("[AUTO-")) {
           const firstParagraph = contentText.split(/[.!?]/).slice(0, 2).join(". ").trim();
           if (firstParagraph.length >= 60) {
-            const trimmedMeta = firstParagraph.length > 155 ? firstParagraph.slice(0, 152) + "..." : firstParagraph + ".";
+            const trimmedMeta =
+              firstParagraph.length > 155 ? firstParagraph.slice(0, 152) + "..." : firstParagraph + ".";
             updateData.meta_description_en = trimmedMeta;
             issues.push("fixed meta desc");
           } else {
@@ -853,12 +974,12 @@ async function handleAutoFix(request: NextRequest) {
 
         if (Object.keys(updateData).length > 0) {
           updateData.updated_at = new Date();
-          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix]" });
+          await optimisticBlogPostUpdate(post.id, () => updateData, { tag: "[content-auto-fix]" });
         }
 
         // Reset submission attempts so IndexNow resubmits with improved content
         // Only reset if we actually fixed something (meta desc or meta title)
-        if (issues.some(i => i.startsWith("fixed"))) {
+        if (issues.some((i) => i.startsWith("fixed"))) {
           await prisma.uRLIndexingStatus.update({
             where: { id: page.id },
             data: {
@@ -870,7 +991,9 @@ async function handleAutoFix(request: NextRequest) {
         }
 
         chronicIndexingFixed++;
-        console.log(`[content-auto-fix] Chronic indexing fix: ${slug} (${page.submission_attempts} attempts, ${issues.join(", ") || "no fixable issues"})`);
+        console.log(
+          `[content-auto-fix] Chronic indexing fix: ${slug} (${page.submission_attempts} attempts, ${issues.join(", ") || "no fixable issues"})`,
+        );
       }
       if (chronicIndexingFixed > 0) {
         console.log(`[content-auto-fix] Fixed ${chronicIndexingFixed} chronic indexing failures`);
@@ -895,10 +1018,7 @@ async function handleAutoFix(request: NextRequest) {
           published: true,
           deletedAt: null,
           siteId: { in: activeSiteIds },
-          OR: [
-            { content_en: { contains: " words)" } },
-            { content_ar: { contains: " words)" } },
-          ],
+          OR: [{ content_en: { contains: " words)" } }, { content_ar: { contains: " words)" } }],
         },
         select: { id: true, content_en: true, content_ar: true, slug: true },
         take: 50,
@@ -910,10 +1030,14 @@ async function handleAutoFix(request: NextRequest) {
         const cleanAr = sanitizeContentBody(post.content_ar || "");
         // Only update if content actually changed
         if (cleanEn !== post.content_en || cleanAr !== post.content_ar) {
-          await optimisticBlogPostUpdate(post.id, (current) => ({
-            ...(cleanEn !== post.content_en ? { content_en: sanitizeContentBody(current.content_en || "") } : {}),
-            ...(cleanAr !== post.content_ar ? { content_ar: sanitizeContentBody(current.content_ar || "") } : {}),
-          }), { tag: "[content-auto-fix]" });
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => ({
+              ...(cleanEn !== post.content_en ? { content_en: sanitizeContentBody(current.content_en || "") } : {}),
+              ...(cleanAr !== post.content_ar ? { content_ar: sanitizeContentBody(current.content_ar || "") } : {}),
+            }),
+            { tag: "[content-auto-fix]" },
+          );
           wordCountArtifactsCleaned++;
           console.log(`[content-auto-fix] Stripped word count artifacts from: ${post.slug}`);
         }
@@ -936,8 +1060,9 @@ async function handleAutoFix(request: NextRequest) {
     try {
       // Find articles where content_ar is exactly the same as content_en (English fallback)
       // Use raw query since Prisma doesn't support column-to-column comparison
-      const dupeContentPosts: Array<{ id: string; title_en: string; slug: string; content_en: string }> = await prisma.$queryRawUnsafe(
-        `SELECT id, title_en, slug, LEFT(content_en, 6000) as content_en
+      const dupeContentPosts: Array<{ id: string; title_en: string; slug: string; content_en: string }> =
+        await prisma.$queryRawUnsafe(
+          `SELECT id, title_en, slug, LEFT(content_en, 6000) as content_en
          FROM "BlogPost"
          WHERE published = true
            AND "deletedAt" IS NULL
@@ -946,11 +1071,13 @@ async function handleAutoFix(request: NextRequest) {
            AND content_ar = content_en
          ORDER BY created_at DESC
          LIMIT 5`,
-        activeSiteIds,
-      );
+          activeSiteIds,
+        );
 
       if (dupeContentPosts.length > 0) {
-        console.log(`[content-auto-fix] Found ${dupeContentPosts.length} articles with English-in-Arabic fallback — backfilling`);
+        console.log(
+          `[content-auto-fix] Found ${dupeContentPosts.length} articles with English-in-Arabic fallback — backfilling`,
+        );
         const { generateCompletion } = await import("@/lib/ai/provider");
         const { SITES, getDefaultSiteId } = await import("@/config/sites");
         let backfilled = 0;
@@ -966,8 +1093,16 @@ async function handleAutoFix(request: NextRequest) {
             const site = SITES[siteId];
 
             const messages = [
-              { role: "system" as const, content: site?.systemPromptEN || "You are a professional Arabic translator specializing in luxury travel content." },
-              { role: "user" as const, content: `Translate this English travel article into Arabic. Maintain the HTML structure, headings (h2, h3), paragraph tags, and links. Write naturally in Modern Standard Arabic (فصحى). Add dir="rtl" lang="ar" to the wrapping element. Keep all href URLs unchanged. Do NOT translate brand names, hotel names, or restaurant names.\n\nTitle: ${post.title_en}\n\nContent:\n${enContent}` },
+              {
+                role: "system" as const,
+                content:
+                  site?.systemPromptEN ||
+                  "You are a professional Arabic translator specializing in luxury travel content.",
+              },
+              {
+                role: "user" as const,
+                content: `Translate this English travel article into Arabic. Maintain the HTML structure, headings (h2, h3), paragraph tags, and links. Write naturally in Modern Standard Arabic (فصحى). Add dir="rtl" lang="ar" to the wrapping element. Keep all href URLs unchanged. Do NOT translate brand names, hotel names, or restaurant names.\n\nTitle: ${post.title_en}\n\nContent:\n${enContent}`,
+              },
             ];
 
             const arResult = await generateCompletion(messages, {
@@ -1033,18 +1168,24 @@ async function handleAutoFix(request: NextRequest) {
         let modified = false;
 
         // Extract all affiliate link hrefs
-        const affiliateLinkRegex = /<a\s[^>]*(?:rel="[^"]*sponsored[^"]*"|class="[^"]*affiliate[^"]*")[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi;
+        const affiliateLinkRegex =
+          /<a\s[^>]*(?:rel="[^"]*sponsored[^"]*"|class="[^"]*affiliate[^"]*")[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi;
         const linksToCheck: Array<{ fullMatch: string; url: string }> = [];
         let linkMatch: RegExpExecArray | null;
         while ((linkMatch = affiliateLinkRegex.exec(content)) !== null) {
           const href = linkMatch[1];
           // Only check external URLs (skip our own /api/affiliate/click — those are tracked redirects)
-          if (href && !href.startsWith("/api/affiliate/click") && (href.startsWith("http://") || href.startsWith("https://"))) {
+          if (
+            href &&
+            !href.startsWith("/api/affiliate/click") &&
+            (href.startsWith("http://") || href.startsWith("https://"))
+          ) {
             linksToCheck.push({ fullMatch: linkMatch[0], url: href });
           }
         }
 
-        for (const link of linksToCheck.slice(0, 3)) { // Max 3 checks per article
+        for (const link of linksToCheck.slice(0, 3)) {
+          // Max 3 checks per article
           if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
           try {
             const controller = new AbortController();
@@ -1062,7 +1203,9 @@ async function handleAutoFix(request: NextRequest) {
               content = content.replace(link.fullMatch, "<!-- affiliate link removed: dead -->");
               modified = true;
               results.deadAffiliateLinksRemoved++;
-              console.log(`[content-auto-fix] Removed dead affiliate link (${res.status}) in /${post.slug}: ${link.url.substring(0, 80)}`);
+              console.log(
+                `[content-auto-fix] Removed dead affiliate link (${res.status}) in /${post.slug}: ${link.url.substring(0, 80)}`,
+              );
             }
           } catch {
             // Timeout or network error — don't remove, might be transient
@@ -1071,10 +1214,17 @@ async function handleAutoFix(request: NextRequest) {
 
         if (modified) {
           // Also remove empty affiliate-recommendation divs left behind
-          content = content.replace(/<div class="affiliate-recommendation"[^>]*>\s*<!-- affiliate link removed: dead -->\s*<\/div>/gi, "");
+          content = content.replace(
+            /<div class="affiliate-recommendation"[^>]*>\s*<!-- affiliate link removed: dead -->\s*<\/div>/gi,
+            "",
+          );
           const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
-          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
-            console.warn("[content-auto-fix] Dead link update failed:", err instanceof Error ? err.message : String(err))
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(
+            (err) =>
+              console.warn(
+                "[content-auto-fix] Dead link update failed:",
+                err instanceof Error ? err.message : String(err),
+              ),
           );
         }
       }
@@ -1091,7 +1241,9 @@ async function handleAutoFix(request: NextRequest) {
     try {
       const currentYear = new Date().getFullYear();
       const stalePatterns = [
-        new RegExp(`\\b20(?:${Array.from({ length: currentYear - 2020 }, (_, i) => String(20 + i).padStart(2, "0")).join("|")})\\b`), // 2020-2025 (past years)
+        new RegExp(
+          `\\b20(?:${Array.from({ length: currentYear - 2020 }, (_, i) => String(20 + i).padStart(2, "0")).join("|")})\\b`,
+        ), // 2020-2025 (past years)
         /\bexpired?\b/i,
         /\bclosed\b/i,
         /\bsold\s+out\b/i,
@@ -1146,8 +1298,12 @@ async function handleAutoFix(request: NextRequest) {
 
         if (modified) {
           const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
-          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
-            console.warn("[content-auto-fix] Stale link update failed:", err instanceof Error ? err.message : String(err))
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(
+            (err) =>
+              console.warn(
+                "[content-auto-fix] Stale link update failed:",
+                err instanceof Error ? err.message : String(err),
+              ),
           );
         }
       }
@@ -1166,25 +1322,47 @@ async function handleAutoFix(request: NextRequest) {
     try {
       // Known affiliate partner domains — includes CJ deep link domains and Travelpayouts
       const AFFILIATE_PARTNER_DOMAINS = [
-        "booking.com", "agoda.com", "expedia.com", "hotels.com",
-        "getyourguide.com", "viator.com", "klook.com",
-        "halalbooking.com", "tripadvisor.com", "tripadvisor.co.uk",
-        "thefork.co.uk", "thefork.com", "thefork.fr", "opentable.co.uk", "opentable.com",
-        "welcomepickups.com", "tiqets.com", "ticketnetwork.com",
-        "blacklane.com", "stubhub.co.uk", "stubhub.com",
-        "boatbookings.com", "clickandboat.com",
-        "harrods.com", "selfridges.com",
+        "booking.com",
+        "agoda.com",
+        "expedia.com",
+        "hotels.com",
+        "getyourguide.com",
+        "viator.com",
+        "klook.com",
+        "halalbooking.com",
+        "tripadvisor.com",
+        "tripadvisor.co.uk",
+        "thefork.co.uk",
+        "thefork.com",
+        "thefork.fr",
+        "opentable.co.uk",
+        "opentable.com",
+        "welcomepickups.com",
+        "tiqets.com",
+        "ticketnetwork.com",
+        "blacklane.com",
+        "stubhub.co.uk",
+        "stubhub.com",
+        "boatbookings.com",
+        "clickandboat.com",
+        "harrods.com",
+        "selfridges.com",
         "allianztravelinsurance.com",
         // CJ deep link domains
-        "anrdoezrs.net", "dpbolvw.net", "jdoqocy.com", "kqzyfj.com", "tkqlhce.com",
+        "anrdoezrs.net",
+        "dpbolvw.net",
+        "jdoqocy.com",
+        "kqzyfj.com",
+        "tkqlhce.com",
         // Travelpayouts
-        "tp.media", "tp-em.com",
+        "tp.media",
+        "tp-em.com",
         // Vrbo / VRBO
         "vrbo.com",
       ];
 
       // Build OR conditions: articles with rel="sponsored" OR any known partner domain
-      const partnerDomainConditions = AFFILIATE_PARTNER_DOMAINS.map(domain => ({
+      const partnerDomainConditions = AFFILIATE_PARTNER_DOMAINS.map((domain) => ({
         content_en: { contains: domain },
       }));
 
@@ -1207,9 +1385,7 @@ async function handleAutoFix(request: NextRequest) {
       const { getDefaultSiteId } = await import("@/config/sites");
 
       // Build regex pattern for all partner domains
-      const domainPattern = AFFILIATE_PARTNER_DOMAINS
-        .map(d => d.replace(/\./g, "\\."))
-        .join("|");
+      const domainPattern = AFFILIATE_PARTNER_DOMAINS.map((d) => d.replace(/\./g, "\\.")).join("|");
 
       for (const post of postsForTracking) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
@@ -1217,13 +1393,23 @@ async function handleAutoFix(request: NextRequest) {
 
         let content = post.content_en || "";
         // Skip if ALL affiliate links are already tracked
-        if (!content.includes("booking.com") && !content.includes("getyourguide.com") &&
-            !content.includes("viator.com") && !content.includes("agoda.com") &&
-            !content.includes("anrdoezrs.net") && !content.includes("welcomepickups.com") &&
-            !content.includes("tiqets.com") && !content.includes("ticketnetwork.com") &&
-            !content.includes('rel="sponsored"') && !content.includes("affiliate-recommendation") &&
-            !content.includes("halalbooking.com") && !content.includes("vrbo.com") &&
-            !content.includes("expedia.com") && !content.includes("tripadvisor")) continue;
+        if (
+          !content.includes("booking.com") &&
+          !content.includes("getyourguide.com") &&
+          !content.includes("viator.com") &&
+          !content.includes("agoda.com") &&
+          !content.includes("anrdoezrs.net") &&
+          !content.includes("welcomepickups.com") &&
+          !content.includes("tiqets.com") &&
+          !content.includes("ticketnetwork.com") &&
+          !content.includes('rel="sponsored"') &&
+          !content.includes("affiliate-recommendation") &&
+          !content.includes("halalbooking.com") &&
+          !content.includes("vrbo.com") &&
+          !content.includes("expedia.com") &&
+          !content.includes("tripadvisor")
+        )
+          continue;
 
         let modified = false;
         const postSiteId = post.siteId || getDefaultSiteId();
@@ -1233,7 +1419,7 @@ async function handleAutoFix(request: NextRequest) {
         // This catches: rel="sponsored" links, AI-generated inline links, CJ deep links, Travelpayouts links
         const partnerLinkRegex = new RegExp(
           `<a\\s([^>]*)href="(https?:\\/\\/[^"]*(?:${domainPattern})[^"]*)"([^>]*)>`,
-          "gi"
+          "gi",
         );
         let directMatch: RegExpExecArray | null;
 
@@ -1263,10 +1449,16 @@ async function handleAutoFix(request: NextRequest) {
         }
 
         if (modified) {
-          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
-            console.warn("[content-auto-fix] Tracking wrap failed:", err instanceof Error ? err.message : String(err))
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(
+            (err) =>
+              console.warn(
+                "[content-auto-fix] Tracking wrap failed:",
+                err instanceof Error ? err.message : String(err),
+              ),
           );
-          console.log(`[content-auto-fix] Wrapped ${results.untrackedLinksWrapped} untracked affiliate links in /${post.slug}`);
+          console.log(
+            `[content-auto-fix] Wrapped ${results.untrackedLinksWrapped} untracked affiliate links in /${post.slug}`,
+          );
         }
       }
     } catch (err) {
@@ -1347,9 +1539,11 @@ async function handleAutoFix(request: NextRequest) {
           const href = match[2];
 
           // Check if this href contains a placeholder pattern
-          const hasPlaceholder = PLACEHOLDER_PATTERNS.some(p => p.test(href));
+          const hasPlaceholder = PLACEHOLDER_PATTERNS.some((p) => p.test(href));
           // Reset regex lastIndex after test()
-          PLACEHOLDER_PATTERNS.forEach(p => { p.lastIndex = 0; });
+          PLACEHOLDER_PATTERNS.forEach((p) => {
+            p.lastIndex = 0;
+          });
 
           if (!hasPlaceholder) continue;
           if (href.includes("/api/affiliate/click")) continue;
@@ -1361,11 +1555,7 @@ async function handleAutoFix(request: NextRequest) {
             pattern.lastIndex = 0;
           }
           // Clean up resulting URL (remove dangling ?&, &&, trailing &)
-          cleanUrl = cleanUrl
-            .replace(/[?&]$/, "")
-            .replace(/&&+/g, "&")
-            .replace(/\?&/, "?")
-            .replace(/\?$/, "");
+          cleanUrl = cleanUrl.replace(/[?&]$/, "").replace(/&&+/g, "&").replace(/\?&/, "?").replace(/\?$/, "");
 
           const trackedUrl = `/api/affiliate/click?url=${encodeURIComponent(cleanUrl)}&sid=${encodeURIComponent(sid)}`;
           let newTag = fullTag.replace(`href="${href}"`, `href="${trackedUrl}"`);
@@ -1389,8 +1579,12 @@ async function handleAutoFix(request: NextRequest) {
         }
 
         if (modified) {
-          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
-            console.warn("[content-auto-fix] Placeholder cleanup failed:", err instanceof Error ? err.message : String(err))
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(
+            (err) =>
+              console.warn(
+                "[content-auto-fix] Placeholder cleanup failed:",
+                err instanceof Error ? err.message : String(err),
+              ),
           );
           console.log(`[content-auto-fix] Fixed ${replacements.length} placeholder affiliate IDs in /${post.slug}`);
         }
@@ -1423,10 +1617,12 @@ async function handleAutoFix(request: NextRequest) {
 
       if (stuckUrls.length > 0) {
         // Extract slugs from URLs to find matching BlogPosts
-        const slugsFromUrls = stuckUrls.map(u => {
-          const parts = u.url.split("/blog/");
-          return parts[1]?.replace(/\/$/, "") || null;
-        }).filter(Boolean) as string[];
+        const slugsFromUrls = stuckUrls
+          .map((u) => {
+            const parts = u.url.split("/blog/");
+            return parts[1]?.replace(/\/$/, "") || null;
+          })
+          .filter(Boolean) as string[];
 
         const postsToFix = await prisma.blogPost.findMany({
           where: {
@@ -1447,14 +1643,32 @@ async function handleAutoFix(request: NextRequest) {
           try {
             const enhanceResult = await enhancePublishedArticle(
               post.id,
-              ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"],
-              { operations: ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"] },
+              [
+                "expand_content",
+                "add_internal_links",
+                "add_affiliate_links",
+                "add_authenticity",
+                "fix_meta_description",
+                "inject_images",
+              ],
+              {
+                operations: [
+                  "expand_content",
+                  "add_internal_links",
+                  "add_affiliate_links",
+                  "add_authenticity",
+                  "fix_meta_description",
+                  "inject_images",
+                ],
+              },
               Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
             );
 
             if (enhanceResult.success) {
               results.notIndexedEnhanced++;
-              console.log(`[content-auto-fix] Enhanced not-indexed article /${post.slug}: +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links`);
+              console.log(
+                `[content-auto-fix] Enhanced not-indexed article /${post.slug}: +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links`,
+              );
 
               // Resubmit to IndexNow
               try {
@@ -1465,11 +1679,17 @@ async function handleAutoFix(request: NextRequest) {
                 await submitToIndexNow([articleUrl]);
                 console.log(`[content-auto-fix] Resubmitted /${post.slug} to IndexNow`);
               } catch (indexErr) {
-                console.warn("[content-auto-fix] IndexNow resubmit failed:", indexErr instanceof Error ? indexErr.message : String(indexErr));
+                console.warn(
+                  "[content-auto-fix] IndexNow resubmit failed:",
+                  indexErr instanceof Error ? indexErr.message : String(indexErr),
+                );
               }
             }
           } catch (err) {
-            console.warn(`[content-auto-fix] Not-indexed fix failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+            console.warn(
+              `[content-auto-fix] Not-indexed fix failed for /${post.slug}:`,
+              err instanceof Error ? err.message : String(err),
+            );
           }
         }
       }
@@ -1507,17 +1727,38 @@ async function handleAutoFix(request: NextRequest) {
           try {
             const enhanceResult = await enhancePublishedArticle(
               post.id,
-              ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"],
-              { operations: ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"] },
+              [
+                "add_internal_links",
+                "add_affiliate_links",
+                "inject_images",
+                "fix_meta_description",
+                "fix_meta_title",
+                "add_authenticity",
+              ],
+              {
+                operations: [
+                  "add_internal_links",
+                  "add_affiliate_links",
+                  "inject_images",
+                  "fix_meta_description",
+                  "fix_meta_title",
+                  "add_authenticity",
+                ],
+              },
               Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
             );
 
             if (enhanceResult.success && (enhanceResult.operationsApplied?.length || 0) > 0) {
               results.seoBoostEnhanced++;
-              console.log(`[content-auto-fix] SEO boosted /${post.slug} (score: ${post.seo_score}): +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links, +${enhanceResult.changes?.affiliateLinksAdded || 0} affiliates`);
+              console.log(
+                `[content-auto-fix] SEO boosted /${post.slug} (score: ${post.seo_score}): +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links, +${enhanceResult.changes?.affiliateLinksAdded || 0} affiliates`,
+              );
             }
           } catch (err) {
-            console.warn(`[content-auto-fix] SEO boost failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+            console.warn(
+              `[content-auto-fix] SEO boost failed for /${post.slug}:`,
+              err instanceof Error ? err.message : String(err),
+            );
           }
         }
       }
@@ -1562,12 +1803,7 @@ async function handleAutoFix(request: NextRequest) {
 
       for (const post of contaminated) {
         const update: Record<string, string | null> = {};
-        for (const field of [
-          "meta_description_en",
-          "meta_description_ar",
-          "meta_title_en",
-          "meta_title_ar",
-        ] as const) {
+        for (const field of ["meta_description_en", "meta_description_ar", "meta_title_en", "meta_title_ar"] as const) {
           const val = post[field];
           if (typeof val === "string" && REDIRECTED_RE.test(val)) {
             const cleaned = val.replace(REDIRECTED_RE, "").trim();
@@ -1637,21 +1873,150 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── Section 25: FTC Affiliate Disclosure Injection ────────────────────────
+  // Closes the auditAffiliatePractices "no disclosure paragraph (FTC violation)"
+  // findings by appending a short disclosure paragraph to articles that contain
+  // affiliate links but no disclosure language. Owned by content-auto-fix per
+  // ENHANCEMENT_OWNERS.affiliate_disclosure (rule #121).
+  //
+  // Detection mirrors public-audit/auditAffiliatePractices: link is "affiliate"
+  // if it goes through /api/affiliate/click OR has rel="sponsored". Disclosure
+  // is "present" if the content matches any of the DISCLOSURE_PATTERNS regexes.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const { isEnhancementOwner, buildEnhancementLogEntry } = await import("@/lib/db/enhancement-log");
+      const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+
+      if (!isEnhancementOwner("content-auto-fix", "affiliate_disclosure")) {
+        // Defensive — should never trip given the constants.ts mapping above.
+        console.warn("[content-auto-fix] Section 25 skipped: not the registered owner of affiliate_disclosure");
+      } else {
+        const DISCLOSURE_PATTERNS = [
+          /\baffiliate\s+(?:link|disclosure)\b/i,
+          /\bcommission\b/i,
+          /\bearn\s+(?:a|small)\s+commission\b/i,
+          /\bpartner\s+with\b/i,
+          /\bdisclosure\b/i,
+        ];
+        const AFFILIATE_LINK_RE =
+          /(<a\b[^>]*\bhref="[^"]*\/api\/affiliate\/click[^"]*"[^>]*>)|(<a\b[^>]*\brel="[^"]*\bsponsored\b[^"]*"[^>]*>)/i;
+
+        const candidates = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            content_en: { not: "" },
+          },
+          select: { id: true, slug: true, siteId: true, content_en: true, content_ar: true },
+          orderBy: { updated_at: "desc" },
+          take: 50,
+        });
+
+        const MAX_DISCLOSURE_INJECTIONS = 20;
+        let injected = 0;
+
+        for (const post of candidates) {
+          if (injected >= MAX_DISCLOSURE_INJECTIONS) break;
+          if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+          const en = post.content_en || "";
+          const ar = post.content_ar || "";
+
+          const enHasAffiliate = AFFILIATE_LINK_RE.test(en);
+          const arHasAffiliate = AFFILIATE_LINK_RE.test(ar);
+          if (!enHasAffiliate && !arHasAffiliate) continue;
+
+          const enHasDisclosure = enHasAffiliate ? DISCLOSURE_PATTERNS.some((re) => re.test(en)) : true;
+          const arHasDisclosure = arHasAffiliate ? DISCLOSURE_PATTERNS.some((re) => re.test(ar)) : true;
+          if (enHasDisclosure && arHasDisclosure) continue;
+
+          const enDisclosure =
+            '<p class="affiliate-disclosure"><em>Affiliate disclosure: some links on this page are affiliate links. We may earn a small commission, at no extra cost to you, when you book or purchase through them. We only recommend partners we trust.</em></p>';
+          const arDisclosure =
+            '<p class="affiliate-disclosure" dir="rtl"><em>إفصاح عن الشراكة: تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة صغيرة دون أي تكلفة إضافية عليك عند الحجز أو الشراء عبرها. نوصي فقط بشركاء نثق بهم.</em></p>';
+
+          try {
+            const updated = await optimisticBlogPostUpdate(
+              post.id,
+              (current) => {
+                const updates: Record<string, unknown> = {};
+                const curEn = (current.content_en as string) || "";
+                const curAr = (current.content_ar as string) || "";
+                const curEnHasAffiliate = AFFILIATE_LINK_RE.test(curEn);
+                const curArHasAffiliate = AFFILIATE_LINK_RE.test(curAr);
+                const curEnNeeds = curEnHasAffiliate && !DISCLOSURE_PATTERNS.some((re) => re.test(curEn));
+                const curArNeeds = curArHasAffiliate && !DISCLOSURE_PATTERNS.some((re) => re.test(curAr));
+                if (!curEnNeeds && !curArNeeds) return null;
+                if (curEnNeeds) updates.content_en = `${curEn}\n\n${enDisclosure}`;
+                if (curArNeeds) updates.content_ar = `${curAr}\n\n${arDisclosure}`;
+                const summary = `Injected FTC disclosure (${curEnNeeds ? "EN" : ""}${curEnNeeds && curArNeeds ? "+" : ""}${curArNeeds ? "AR" : ""})`;
+                updates.enhancement_log = buildEnhancementLogEntry(
+                  current.enhancement_log,
+                  "affiliate_disclosure",
+                  "content-auto-fix",
+                  summary,
+                );
+                return updates;
+              },
+              { tag: "[content-auto-fix:section-25]" },
+            );
+            if (updated) injected++;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[content-auto-fix] Section 25: disclosure inject failed for ${post.slug}:`, msg);
+          }
+        }
+
+        results.affiliateDisclosuresInjected = injected;
+        if (injected > 0) {
+          console.log(`[content-auto-fix] Section 25: injected FTC disclosure into ${injected} articles`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`affiliate-disclosure-inject: ${msg}`);
+      console.warn("[content-auto-fix] Section 25 failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesUnpublished + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;
+  const totalFixed =
+    results.enhanced +
+    results.enhancedLowScore +
+    results.internalLinksInjected +
+    results.affiliateLinksInjected +
+    results.duplicateMetasFixed +
+    results.arabicMetaGenerated +
+    results.brokenLinksFixed +
+    results.orphansFixed +
+    results.thinUnpublished +
+    results.duplicatesUnpublished +
+    chronicIndexingFixed +
+    wordCountArtifactsCleaned +
+    results.arabicContentBackfilled +
+    results.deadAffiliateLinksRemoved +
+    results.staleAffiliateLinksRemoved +
+    results.untrackedLinksWrapped +
+    results.placeholderIdsFixed +
+    results.notIndexedEnhanced +
+    results.seoBoostEnhanced +
+    results.affiliateDisclosuresInjected;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
   if (hasErrors && totalFixed === 0) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(err => console.warn("[content-auto-fix] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch((err) =>
+      console.warn("[content-auto-fix] onCronFailure hook failed:", err instanceof Error ? err.message : err),
+    );
   }
 
   // Invalidate sitemap cache if any articles were published/unpublished
   const publishStateChanged =
     (results.thinUnpublished || 0) > 0 ||
-    ((results as Record<string, unknown>).articlesRecovered as number || 0) > 0 ||
+    (((results as Record<string, unknown>).articlesRecovered as number) || 0) > 0 ||
     (results.duplicatesUnpublished || 0) > 0;
   if (publishStateChanged) {
     try {
@@ -1678,7 +2043,7 @@ async function handleAutoFix(request: NextRequest) {
     success: isSuccess,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesUnpublished}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesUnpublished}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}, ftc-disclosure +${results.affiliateDisclosuresInjected}`,
   });
 }
 

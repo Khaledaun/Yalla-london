@@ -46,6 +46,7 @@ const FIX_PROFILE: Record<string, FixProfile> = {
   "seo-deep-review": { fixability: "auto", cost: 1, cron: "/api/cron/seo-deep-review" },
   "content-auto-fix": { fixability: "auto", cost: 1, cron: "/api/cron/content-auto-fix" },
   "content-auto-fix-lite": { fixability: "auto", cost: 1, cron: "/api/cron/content-auto-fix-lite" },
+  "process-indexing-queue": { fixability: "auto", cost: 1, cron: "/api/cron/process-indexing-queue" },
   "affiliate-injection": { fixability: "auto", cost: 1, cron: "/api/cron/affiliate-injection" },
   "diagnostic-sweep": { fixability: "auto", cost: 1, cron: "/api/cron/diagnostic-sweep" },
   "content-cleanup": { fixability: "auto", cost: 5, cron: "/api/admin/content-cleanup" },
@@ -58,9 +59,9 @@ const FIX_PROFILE: Record<string, FixProfile> = {
 // finding just because the nextAction prose mentions both crons.
 //
 // Dimensions with no working auto-fix are mapped to "manual" — currently:
-//   - affiliatePractices: no cron adds FTC disclosure paragraphs
 //   - newsRefresh:        archiving stale news is a human decision
 //   - thin-content:       expansion needs human review
+//   - zero-revenue:       attribution debugging is manual
 //
 // When a dimension is missing from this map, profileForAction falls back to
 // text-matching against FIX_PROFILE keys (longest match wins).
@@ -71,10 +72,19 @@ const DIMENSION_TO_FIX: Record<string, FixProfile> = {
   newsRefresh: FIX_PROFILE.manual,
   seoUpdates: FIX_PROFILE["seo-agent"],
   aioAlignment: FIX_PROFILE["seo-deep-review"],
-  affiliatePractices: FIX_PROFILE.manual, // no cron adds disclosure paragraphs
+  // affiliatePractices: was manual until content-auto-fix Section 25 (FTC
+  // disclosure injection) shipped. Section 25 owns affiliate_disclosure per
+  // ENHANCEMENT_OWNERS in lib/content-pipeline/constants.ts.
+  affiliatePractices: FIX_PROFILE["content-auto-fix"],
   // Indexing dimensions
+  // never-submitted: content-auto-fix-lite catches BlogPosts missing URLIndexingStatus
+  //   records (Section 7), creates them, then submits. Fast.
+  // submission-errors: process-indexing-queue is the canonical IndexNow retry processor —
+  //   far lighter than seo-agent (which does broad URL discovery + AI work and routinely
+  //   exceeds 30-90s). Routing here used to be seo-agent and EVERY call timed out at the
+  //   audit-roundup layer's per-fix abort.
   "never-submitted": FIX_PROFILE["content-auto-fix-lite"],
-  "submission-errors": FIX_PROFILE["seo-agent"],
+  "submission-errors": FIX_PROFILE["process-indexing-queue"],
   // Affiliate revenue dimensions
   "dead-advertisers": FIX_PROFILE["affiliate-injection"],
   "zero-revenue": FIX_PROFILE.manual, // attribution debugging is manual

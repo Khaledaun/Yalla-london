@@ -23,8 +23,17 @@ import { getActiveSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/site
 import { prisma } from "@/lib/db";
 
 const TOTAL_BUDGET_MS = 280_000;
-const PER_FIX_BUDGET_MS = 30_000;
-const MAX_FIXES_PER_RUN = 10;
+// Per-fix budget raised from 30s → 90s. Most downstream crons (image-pipeline,
+// content-auto-fix-lite, content-auto-fix, diagnostic-sweep, affiliate-injection,
+// process-indexing-queue) routinely take 40-80s for real work. The old 30s cap
+// meant submission-errors (routed to seo-agent at the time) and other heavy
+// fixes ALWAYS aborted with "operation aborted due to timeout" — that's why
+// §16 in the briefing was reporting 0% success on roundup:submission-errors.
+//
+// 5 fixes × 90s = 450s, but the elapsed-time guard inside processSite() stops
+// firing once total budget approaches 280s, so we usually fire ~3 per run.
+const PER_FIX_BUDGET_MS = 90_000;
+const MAX_FIXES_PER_RUN = 5;
 // Minimum ROI score to bother executing — anything lower wastes the cron run.
 const MIN_ROI_SCORE = 50;
 

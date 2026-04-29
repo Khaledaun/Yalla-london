@@ -14,8 +14,8 @@
 // Drafting is highest because multi-section articles need 2-3 cron runs.
 // Assembly is medium because raw HTML fallback triggers at >= 2 attempts.
 export const MAX_ATTEMPTS = {
-  drafting: 8,   // 6-8 section articles need multiple runs; each timeout = 1 attempt
-  assembly: 5,   // Raw fallback fires at attempts >= 2; extra margin for edge cases
+  drafting: 8, // 6-8 section articles need multiple runs; each timeout = 1 attempt
+  assembly: 5, // Raw fallback fires at attempts >= 2; extra margin for edge cases
   research: 3,
   outline: 3,
   images: 3,
@@ -64,10 +64,10 @@ export const SELECTOR_DEDUP_WINDOW_MS = 120_000; // 120 seconds
 // ─── AI Provider Budget ─────────────────────────────────────────────────────
 // First provider gets this share of total budget. Remaining split among fallbacks.
 export const AI_FIRST_PROVIDER_SHARE = {
-  light: 0.45,    // Quick tasks (meta generation): balanced split
-  medium: 0.50,   // Standard tasks (section drafting): balanced
-  heavy: 0.55,    // Complex tasks (campaign enhance): slightly more to first
-  default: 0.50,  // Backwards compatible
+  light: 0.45, // Quick tasks (meta generation): balanced split
+  medium: 0.5, // Standard tasks (section drafting): balanced
+  heavy: 0.55, // Complex tasks (campaign enhance): slightly more to first
+  default: 0.5, // Backwards compatible
 } as const;
 // Minimum time per provider to make a meaningful API call.
 export const AI_MIN_PROVIDER_MS = 5_000;
@@ -150,13 +150,13 @@ export const ACTIVE_DRAFT_STALENESS_HOURS = 1;
 // Valid transitions for ArticleDraft.current_phase. Any transition not in this
 // map is a bug. Call validatePhaseTransition() before every phase change.
 export const VALID_TRANSITIONS: Record<string, string[]> = {
-  research:  ["outline", "rejected"],
-  outline:   ["drafting", "rejected"],
-  drafting:  ["drafting", "assembly", "rejected"],  // self-transition for partial progress (multi-section)
-  assembly:  ["images", "rejected"],
-  images:    ["seo", "rejected"],
-  seo:       ["scoring", "rejected"],
-  scoring:   ["reservoir", "rejected"],
+  research: ["outline", "rejected"],
+  outline: ["drafting", "rejected"],
+  drafting: ["drafting", "assembly", "rejected"], // self-transition for partial progress (multi-section)
+  assembly: ["images", "rejected"],
+  images: ["seo", "rejected"],
+  seo: ["scoring", "rejected"],
+  scoring: ["reservoir", "rejected"],
   reservoir: ["promoting", "rejected"],
   promoting: ["published", "reservoir", "rejected"],
 };
@@ -175,9 +175,7 @@ export function validatePhaseTransition(from: string, to: string): void {
     throw new Error(`[state-machine] Unknown source phase "${from}" — cannot transition to "${to}"`);
   }
   if (!allowed.includes(to)) {
-    throw new Error(
-      `[state-machine] Invalid transition: "${from}" → "${to}". Allowed: ${allowed.join(", ")}`
-    );
+    throw new Error(`[state-machine] Invalid transition: "${from}" → "${to}". Allowed: ${allowed.join(", ")}`);
   }
 }
 
@@ -186,16 +184,16 @@ export function validatePhaseTransition(from: string, to: string): void {
 // Fixes: doubled words ("Best Best"), hash suffixes ("893f"), template tails.
 export function sanitizeKeyword(raw: string): string {
   return raw
-    .replace(/^EXPAND:\s*/i, '')                           // strip "EXPAND:" prefix from content-strategy proposals
-    .replace(/\s+[a-f0-9]{4,8}(?:\s|:|$)/gi, ' ')        // hash suffixes like "893f"
-    .replace(/\s+\d{2}\s+\d{2}\s*$/g, '')                 // trailing date fragments like " 02 20", " 02 28"
-    .replace(/\s+\d{2}\s*$/g, '')                          // single trailing 2-digit number like " 18"
-    .replace(/[/\\]/g, ' ')                                // forward/back slashes → space ("News/tube" → "News tube")
-    .replace(/:\s*Complete Guide\s*&?\s*Reviews?$/i, '')   // generic template suffix
-    .replace(/\s+Comparison\s+Complete\s+Guide\s*&?\s*Reviews?$/i, '') // "Comparison Complete Guide & Reviews"
-    .replace(/\s+Complete\s+Guide$/i, '')                  // trailing "Complete Guide"
-    .replace(/\b(\w+)\s+\1\b/gi, '$1')                    // doubled words: "Best Best" → "Best"
-    .replace(/\s{2,}/g, ' ')                               // collapse whitespace
+    .replace(/^EXPAND:\s*/i, "") // strip "EXPAND:" prefix from content-strategy proposals
+    .replace(/\s+[a-f0-9]{4,8}(?:\s|:|$)/gi, " ") // hash suffixes like "893f"
+    .replace(/\s+\d{2}\s+\d{2}\s*$/g, "") // trailing date fragments like " 02 20", " 02 28"
+    .replace(/\s+\d{2}\s*$/g, "") // single trailing 2-digit number like " 18"
+    .replace(/[/\\]/g, " ") // forward/back slashes → space ("News/tube" → "News tube")
+    .replace(/:\s*Complete Guide\s*&?\s*Reviews?$/i, "") // generic template suffix
+    .replace(/\s+Comparison\s+Complete\s+Guide\s*&?\s*Reviews?$/i, "") // "Comparison Complete Guide & Reviews"
+    .replace(/\s+Complete\s+Guide$/i, "") // trailing "Complete Guide"
+    .replace(/\b(\w+)\s+\1\b/gi, "$1") // doubled words: "Best Best" → "Best"
+    .replace(/\s{2,}/g, " ") // collapse whitespace
     .trim();
 }
 
@@ -212,14 +210,15 @@ export const ENHANCEMENT_OWNERS: Record<string, string> = {
   broken_links: "content-auto-fix",
   authenticity_signals: "seo-deep-review",
   cannibalization_resolution: "seo-agent",
+  affiliate_disclosure: "content-auto-fix",
 };
 
 // ─── Escalation Policy ──────────────────────────────────────────────────────
 // Controls CEO Inbox alert volume and pipeline auto-pause behavior.
 export const ESCALATION_POLICY = {
-  MAX_DAILY_CEO_ALERTS: 10,        // After this, batch remaining into daily digest
-  AUTO_PAUSE_THRESHOLD: 5,          // Critical failures in 1 hour → auto-pause pipeline
-  ALERT_COOLDOWN_MINUTES: 30,       // Minimum gap between alerts for same job
-  PIPELINE_MIN_SUCCESS_RATE: 0.30,  // Below 30% success rate in 4h → auto-pause
-  PIPELINE_HEALTH_WINDOW_HOURS: 4,  // Window for computing success rate
+  MAX_DAILY_CEO_ALERTS: 10, // After this, batch remaining into daily digest
+  AUTO_PAUSE_THRESHOLD: 5, // Critical failures in 1 hour → auto-pause pipeline
+  ALERT_COOLDOWN_MINUTES: 30, // Minimum gap between alerts for same job
+  PIPELINE_MIN_SUCCESS_RATE: 0.3, // Below 30% success rate in 4h → auto-pause
+  PIPELINE_HEALTH_WINDOW_HOURS: 4, // Window for computing success rate
 };

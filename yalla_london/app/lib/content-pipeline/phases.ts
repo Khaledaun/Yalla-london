@@ -51,6 +51,7 @@ export interface DraftRecord {
   phase_attempts: number;
   topic_proposal_id: string | null;
   generation_strategy: string | null;
+  page_type?: string | null;
 }
 
 interface OutlineSection {
@@ -1159,9 +1160,24 @@ Return JSON:
 
     // Store articleType in seo_meta so the cockpit gate_check can apply the right
     // quality thresholds (news 150w, information 300w, guide 400w, blog 1000w).
+    //
+    // Source preference, in order:
+    //   1. draft.page_type — set by content-builder-create from TopicProposal.suggested_page_type
+    //      (which the AI topic-research returns explicitly per topic). Trust this signal — it's
+    //      the editorial intent, not a heuristic guess.
+    //   2. Keyword regex fallback — used only when page_type is null (template-cycle drafts,
+    //      legacy topics, or AI returned an empty pageType).
     const keyword = draft.keyword.toLowerCase();
     let articleType = "blog";
-    if (/\b(news|alert|update|announcement|breaking|strike|closure|warning)\b/.test(keyword)) {
+    const draftPageType = (draft.page_type as string | null | undefined) || null;
+    if (
+      draftPageType &&
+      ["guide", "comparison", "listicle", "deep-dive", "answer", "review", "seasonal", "news", "information"].includes(
+        draftPageType,
+      )
+    ) {
+      articleType = draftPageType;
+    } else if (/\b(news|alert|update|announcement|breaking|strike|closure|warning)\b/.test(keyword)) {
       articleType = "news";
     } else if (/\b(what is|how does|facts|history of|overview|introduction|faq)\b/.test(keyword)) {
       articleType = "information";

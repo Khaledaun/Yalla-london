@@ -188,16 +188,18 @@ async function handleCreate(request: NextRequest) {
             topicProposalId = candidate.id;
             strategy = "topic_db";
             // Forward AI-suggested pageType so phases.ts knows to write a
-            // comparison/listicle/answer instead of a generic guide. Filtered
-            // to known page types in weekly-topics save (rule: trust the validation
-            // upstream rather than re-validating here).
+            // comparison/listicle/answer instead of a generic guide.
+            //
+            // CRITICAL: ArticleDraft has NO `page_type` COLUMN (only BlogPost
+            // and TopicProposal do). Stashing in research_data JSON instead.
+            // The SEO phase reads it via draft.research_data._suggestedPageType.
             if (typeof candidate.suggested_page_type === "string" && candidate.suggested_page_type.length > 0) {
               suggestedPageType = candidate.suggested_page_type;
             }
 
             const hasLongtails = Array.isArray(candidate.longtails) && candidate.longtails.length > 0;
             const hasQuestions = Array.isArray(candidate.questions) && candidate.questions.length > 0;
-            if (hasLongtails || hasQuestions) {
+            if (hasLongtails || hasQuestions || suggestedPageType) {
               prePopulatedResearch = {
                 keywordData: {
                   primary: keyword,
@@ -214,6 +216,7 @@ async function handleCreate(request: NextRequest) {
                 },
                 _prePopulated: true,
                 _source: "topic_proposal",
+                ...(suggestedPageType ? { _suggestedPageType: suggestedPageType } : {}),
               };
             }
           }
@@ -254,7 +257,6 @@ async function handleCreate(request: NextRequest) {
               generation_strategy: strategy,
               phase_started_at: new Date(),
               research_data: prePopulatedResearch,
-              ...(suggestedPageType ? { page_type: suggestedPageType } : {}),
             },
           });
 
@@ -271,7 +273,6 @@ async function handleCreate(request: NextRequest) {
               // Share pre-populated research with AR draft — saves one full research phase
               // (AR uses the same keyword data/content strategy, just generates in Arabic)
               research_data: prePopulatedResearch,
-              ...(suggestedPageType ? { page_type: suggestedPageType } : {}),
             },
           });
 

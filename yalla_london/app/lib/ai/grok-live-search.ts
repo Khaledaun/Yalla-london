@@ -70,10 +70,10 @@ async function callResponsesAPI(
 ): Promise<GrokSearchResult> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('XAI_API_KEY or GROK_API_KEY not configured');
+    throw new Error("XAI_API_KEY or GROK_API_KEY not configured");
   }
 
-  const model = options.model || 'grok-4-1-fast';
+  const model = options.model || "grok-4-1-fast";
   const timeoutMs = options.timeoutMs || 30_000;
 
   const body: Record<string, any> = {
@@ -87,10 +87,10 @@ async function callResponsesAPI(
     body.inline_citations = true;
   }
 
-  const response = await fetch('https://api.x.ai/v1/responses', {
-    method: 'POST',
+  const response = await fetch("https://api.x.ai/v1/responses", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     signal: AbortSignal.timeout(timeoutMs),
@@ -98,7 +98,7 @@ async function callResponsesAPI(
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
+    const errorText = await response.text().catch(() => "");
     throw new Error(`Grok Responses API error (${response.status}): ${errorText.slice(0, 300)}`);
   }
 
@@ -106,13 +106,13 @@ async function callResponsesAPI(
 
   // Extract the text output from the response
   // The Responses API returns an array of output items
-  let content = '';
+  let content = "";
   if (data.output) {
     for (const item of data.output) {
-      if (item.type === 'message' && item.content) {
+      if (item.type === "message" && item.content) {
         for (const block of item.content) {
-          if (block.type === 'output_text' || block.type === 'text') {
-            content += block.text || '';
+          if (block.type === "output_text" || block.type === "text") {
+            content += block.text || "";
           }
         }
       }
@@ -141,11 +141,8 @@ async function callResponsesAPI(
  * Search the web via Grok with optional domain filtering.
  * Uses the web_search tool for real-time web data.
  */
-export async function searchWeb(
-  query: string,
-  options: WebSearchOptions = {},
-): Promise<GrokSearchResult> {
-  const tool: Record<string, any> = { type: 'web_search' };
+export async function searchWeb(query: string, options: WebSearchOptions = {}): Promise<GrokSearchResult> {
+  const tool: Record<string, any> = { type: "web_search" };
 
   if (options.allowedDomains?.length) {
     tool.filters = { allowed_domains: options.allowedDomains.slice(0, 5) };
@@ -160,11 +157,8 @@ export async function searchWeb(
  * Search X/Twitter posts via Grok with optional handle/date filtering.
  * Uses the x_search tool for real-time social data.
  */
-export async function searchX(
-  query: string,
-  options: XSearchOptions = {},
-): Promise<GrokSearchResult> {
-  const tool: Record<string, any> = { type: 'x_search' };
+export async function searchX(query: string, options: XSearchOptions = {}): Promise<GrokSearchResult> {
+  const tool: Record<string, any> = { type: "x_search" };
 
   const filters: Record<string, any> = {};
   if (options.allowedHandles?.length) {
@@ -191,7 +185,7 @@ export async function searchAll(
   query: string,
   options: WebSearchOptions & XSearchOptions = {},
 ): Promise<GrokSearchResult> {
-  const tools: any[] = [{ type: 'web_search' }, { type: 'x_search' }];
+  const tools: any[] = [{ type: "web_search" }, { type: "x_search" }];
 
   if (options.allowedDomains?.length) {
     tools[0].filters = { allowed_domains: options.allowedDomains.slice(0, 5) };
@@ -219,19 +213,20 @@ export async function searchAll(
  * Search for trending travel topics relevant to a destination.
  * Combines X social signals with web news for comprehensive trend detection.
  */
-export async function searchTrendingTopics(
-  destination: string,
-  locale: string = 'en',
-): Promise<GrokSearchResult> {
-  const today = new Date().toISOString().split('T')[0];
-  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().split('T')[0];
+export async function searchTrendingTopics(destination: string, locale: string = "en"): Promise<GrokSearchResult> {
+  const today = new Date().toISOString().split("T")[0];
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().split("T")[0];
 
-  const prompt = locale === 'en'
-    ? `You are a travel content strategist for a travel blog covering ${destination} for all visitors and tourists.
+  const prompt =
+    locale === "en"
+      ? `You are a travel content strategist for a travel blog covering ${destination} for all visitors and tourists.
 
 Search for the most trending and newsworthy topics about ${destination} travel RIGHT NOW.
 Focus on: hotels, restaurants, attractions, tickets, events, seasonal activities, transport updates, new openings, nightlife, day trips, shopping, family activities, itineraries, budget tips.
 TOPIC MIX: 7-8 topics must be general travel. 1-2 can be halal/Arab-traveller niche topics.
+PAGETYPE MIX: At least 2 must be "comparison" (X vs Y queries) and at least 2 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
+
+Each topic MUST include 3 long-tail keyword variations (3-6 words, including modifiers like "vs", "best for", "how to", "is X worth it") AND 2-3 question-format queries real travelers actually search.
 
 Return a JSON array of 8-10 trending topics:
 [{
@@ -240,17 +235,24 @@ Return a JSON array of 8-10 trending topics:
   "rationale": "Why this is trending now (1-2 sentences)",
   "trending_score": 0.0-1.0,
   "sources": ["source-domain.com"],
-  "category": "hotels|restaurants|shopping|events|transport|culture|seasonal|nightlife|wellness|attractions|itineraries|family"
+  "category": "hotels|restaurants|shopping|events|transport|culture|seasonal|nightlife|wellness|attractions|itineraries|family",
+  "longtails": ["long-tail variation 1", "long-tail variation 2", "long-tail variation 3"],
+  "questions": ["Question travelers type 1?", "Question travelers type 2?"],
+  "pageType": "guide" | "comparison" | "listicle" | "deep-dive" | "answer" | "review" | "seasonal",
+  "intent": "info" | "commercial" | "transactional"
 }]
 
 Return ONLY the JSON array, no other text.`
-    : `أنت استراتيجي محتوى سفر لمدونة سفر تغطي ${destination} لجميع الزوار والسياح.
+      : `أنت استراتيجي محتوى سفر لمدونة سفر تغطي ${destination} لجميع الزوار والسياح.
 
 ابحث عن أكثر المواضيع رواجاً حول السفر إلى ${destination} الآن.
 ركز على: الفنادق، المطاعم، المعالم السياحية، التذاكر، الفعاليات، الأنشطة الموسمية، التسوق، الأنشطة العائلية.
+مزيج أنواع الصفحات: على الأقل 2 "comparison" (مقارنة) و2 "answer" (إجابة مباشرة). الباقي يمكن أن يكون "guide" أو "listicle" أو "deep-dive" أو "review".
+
+لكل موضوع 3 كلمات مفتاحية طويلة الذيل (3-6 كلمات) و2-3 أسئلة يبحث عنها المسافرون فعلياً.
 
 أرجع مصفوفة JSON من 8-10 مواضيع:
-[{"title", "slug", "rationale", "trending_score", "sources", "category"}]
+[{"title", "slug", "rationale", "trending_score", "sources", "category", "longtails": ["..."], "questions": ["..."], "pageType": "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", "intent": "info"|"commercial"|"transactional"}]
 
 أرجع فقط مصفوفة JSON.`;
 
@@ -266,10 +268,7 @@ Return ONLY the JSON array, no other text.`
  * Search for real-time news about a city from trusted sources.
  * Uses web_search with domain filtering for authoritative news.
  */
-export async function searchCityNews(
-  city: string,
-  trustedDomains: string[],
-): Promise<GrokSearchResult> {
+export async function searchCityNews(city: string, trustedDomains: string[]): Promise<GrokSearchResult> {
   const prompt = `Search for the latest news, events, and updates about ${city} from the past 48 hours.
 Focus on: transport disruptions, new restaurant/hotel openings, events, weather alerts, safety updates,
 seasonal events, sales, and anything relevant to tourists visiting ${city}.
@@ -298,12 +297,9 @@ Return ONLY the JSON array, no other text.`;
  * Search X for social buzz about a destination.
  * Good for detecting emerging trends before they hit mainstream news.
  */
-export async function searchSocialBuzz(
-  destination: string,
-  handles: string[] = [],
-): Promise<GrokSearchResult> {
-  const today = new Date().toISOString().split('T')[0];
-  const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString().split('T')[0];
+export async function searchSocialBuzz(destination: string, handles: string[] = []): Promise<GrokSearchResult> {
+  const today = new Date().toISOString().split("T")[0];
+  const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString().split("T")[0];
 
   const prompt = `What are people on X/Twitter saying about visiting ${destination} right now?
 Look for: viral posts about ${destination} travel, trending restaurants/hotels, travel tips,

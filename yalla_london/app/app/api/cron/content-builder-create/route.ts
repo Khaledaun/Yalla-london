@@ -49,19 +49,30 @@ async function handleCreate(request: NextRequest) {
 
     for (const siteId of activeSites) {
       if (Date.now() - cronStart > BUDGET_MS - 5_000) {
-        console.log(`[builder-create] Budget low — processed ${activeSites.indexOf(siteId)} of ${activeSites.length} sites`);
+        console.log(
+          `[builder-create] Budget low — processed ${activeSites.indexOf(siteId)} of ${activeSites.length} sites`,
+        );
         break;
       }
 
       // Yacht sites don't use the content pipeline — skip
-      if (isYachtSite(siteId)) { skippedSites.push(`${siteId}(yacht-site)`); continue; }
+      if (isYachtSite(siteId)) {
+        skippedSites.push(`${siteId}(yacht-site)`);
+        continue;
+      }
 
       // Per-site feature flag check — allows disabling content creation for a single site
       const siteFlag = await checkCronEnabled("content-builder-create", siteId);
-      if (siteFlag) { skippedSites.push(`${siteId}(disabled)`); continue; }
+      if (siteFlag) {
+        skippedSites.push(`${siteId}(disabled)`);
+        continue;
+      }
 
       const site = SITES[siteId];
-      if (!site) { skippedSites.push(siteId); continue; }
+      if (!site) {
+        skippedSites.push(siteId);
+        continue;
+      }
 
       // Skip if reservoir is full (per-site cap from SiteSettings, falls back to global)
       const siteReservoirCap = await getReservoirCap(siteId);
@@ -117,18 +128,30 @@ async function handleCreate(request: NextRequest) {
             },
             updated_at: { gte: oneHourAgo },
           },
-          select: { id: true, keyword: true, current_phase: true, phase_attempts: true, last_error: true, updated_at: true },
+          select: {
+            id: true,
+            keyword: true,
+            current_phase: true,
+            phase_attempts: true,
+            last_error: true,
+            updated_at: true,
+          },
           take: 10,
         });
-        const breakdown = activeDetails.map(d => ({
+        const breakdown = activeDetails.map((d) => ({
           id: d.id.substring(0, 8),
           kw: (d.keyword || "?").substring(0, 30),
           phase: d.current_phase,
           attempts: d.phase_attempts,
           minsAgo: Math.round((Date.now() - new Date(d.updated_at).getTime()) / 60_000),
-          excluded: d.phase_attempts >= 3 || (d.last_error || "").includes("MAX_RECOVERIES") || (d.last_error || "").includes("[diagnostic-agent"),
+          excluded:
+            d.phase_attempts >= 3 ||
+            (d.last_error || "").includes("MAX_RECOVERIES") ||
+            (d.last_error || "").includes("[diagnostic-agent"),
         }));
-        console.log(`[builder-create] Site ${siteId}: ${activeDrafts} active (cap=8), ${activeDetails.length} total in 30min window. Breakdown: ${JSON.stringify(breakdown)}`);
+        console.log(
+          `[builder-create] Site ${siteId}: ${activeDrafts} active (cap=8), ${activeDetails.length} total in 30min window. Breakdown: ${JSON.stringify(breakdown)}`,
+        );
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
         continue;
       }
@@ -138,6 +161,7 @@ async function handleCreate(request: NextRequest) {
       let topicProposalId: string | null = null;
       let strategy = "template_cycle";
       let prePopulatedResearch: Record<string, unknown> | undefined;
+      let suggestedPageType: string | null = null;
 
       try {
         const candidate = await prisma.topicProposal.findFirst({
@@ -159,10 +183,17 @@ async function handleCreate(request: NextRequest) {
 
           if (claimed.count > 0) {
             // Sanitize keyword: remove hash suffixes, deduplicate words, strip template patterns
-            const { sanitizeKeyword } = await import('@/lib/content-pipeline/constants');
+            const { sanitizeKeyword } = await import("@/lib/content-pipeline/constants");
             keyword = sanitizeKeyword(candidate.primary_keyword) || candidate.primary_keyword;
             topicProposalId = candidate.id;
             strategy = "topic_db";
+            // Forward AI-suggested pageType so phases.ts knows to write a
+            // comparison/listicle/answer instead of a generic guide. Filtered
+            // to known page types in weekly-topics save (rule: trust the validation
+            // upstream rather than re-validating here).
+            if (typeof candidate.suggested_page_type === "string" && candidate.suggested_page_type.length > 0) {
+              suggestedPageType = candidate.suggested_page_type;
+            }
 
             const hasLongtails = Array.isArray(candidate.longtails) && candidate.longtails.length > 0;
             const hasQuestions = Array.isArray(candidate.questions) && candidate.questions.length > 0;
@@ -188,16 +219,20 @@ async function handleCreate(request: NextRequest) {
           }
         }
       } catch (topicErr) {
-        console.warn(`[builder-create] TopicProposal query failed for ${siteId}:`, topicErr instanceof Error ? topicErr.message : topicErr);
+        console.warn(
+          `[builder-create] TopicProposal query failed for ${siteId}:`,
+          topicErr instanceof Error ? topicErr.message : topicErr,
+        );
       }
 
       // Fallback to template cycle if no topic found
       if (!keyword) {
         const topics = site.topicsEN;
-        if (!topics || topics.length === 0) { skippedSites.push(siteId); continue; }
-        const dayOfYear = Math.floor(
-          (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000,
-        );
+        if (!topics || topics.length === 0) {
+          skippedSites.push(siteId);
+          continue;
+        }
+        const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000);
         keyword = topics[dayOfYear % topics.length].keyword;
         strategy = "template_cycle";
       }
@@ -207,55 +242,67 @@ async function handleCreate(request: NextRequest) {
       // Timeout raised from default 5s to 30s — bilingual pair creation + topic dedup
       // check can take 20s+ during Supabase pool contention (cold starts, concurrent crons).
       // Error: "Transaction already closed: timeout was 5000 ms, however 21980 ms passed"
-      const { enDraft, arDraft } = await prisma.$transaction(async (tx: typeof prisma) => {
-        const en = await tx.articleDraft.create({
-          data: {
-            site_id: siteId,
-            keyword,
-            locale: "en",
-            current_phase: "research",
-            topic_proposal_id: topicProposalId,
-            generation_strategy: strategy,
-            phase_started_at: new Date(),
-            research_data: prePopulatedResearch,
-          },
-        });
+      const { enDraft, arDraft } = await prisma.$transaction(
+        async (tx: typeof prisma) => {
+          const en = await tx.articleDraft.create({
+            data: {
+              site_id: siteId,
+              keyword,
+              locale: "en",
+              current_phase: "research",
+              topic_proposal_id: topicProposalId,
+              generation_strategy: strategy,
+              phase_started_at: new Date(),
+              research_data: prePopulatedResearch,
+              ...(suggestedPageType ? { page_type: suggestedPageType } : {}),
+            },
+          });
 
-        const ar = await tx.articleDraft.create({
-          data: {
-            site_id: siteId,
-            keyword,
-            locale: "ar",
-            current_phase: "research",
-            topic_proposal_id: topicProposalId,
-            generation_strategy: strategy + "_ar",
-            phase_started_at: new Date(),
-            paired_draft_id: en.id,
-            // Share pre-populated research with AR draft — saves one full research phase
-            // (AR uses the same keyword data/content strategy, just generates in Arabic)
-            research_data: prePopulatedResearch,
-          },
-        });
+          const ar = await tx.articleDraft.create({
+            data: {
+              site_id: siteId,
+              keyword,
+              locale: "ar",
+              current_phase: "research",
+              topic_proposal_id: topicProposalId,
+              generation_strategy: strategy + "_ar",
+              phase_started_at: new Date(),
+              paired_draft_id: en.id,
+              // Share pre-populated research with AR draft — saves one full research phase
+              // (AR uses the same keyword data/content strategy, just generates in Arabic)
+              research_data: prePopulatedResearch,
+              ...(suggestedPageType ? { page_type: suggestedPageType } : {}),
+            },
+          });
 
-        await tx.articleDraft.update({
-          where: { id: en.id },
-          data: { paired_draft_id: ar.id },
-        });
+          await tx.articleDraft.update({
+            where: { id: en.id },
+            data: { paired_draft_id: ar.id },
+          });
 
-        return { enDraft: en, arDraft: ar };
-      }, { timeout: 30000 });
+          return { enDraft: en, arDraft: ar };
+        },
+        { timeout: 30000 },
+      );
 
       if (topicProposalId) {
-        await prisma.topicProposal.update({
-          where: { id: topicProposalId },
-          data: { status: "generated" },
-        }).catch((err: unknown) => {
-          console.warn(`[builder-create] Failed to mark topic ${topicProposalId} as generated:`, err instanceof Error ? err.message : err);
-        });
+        await prisma.topicProposal
+          .update({
+            where: { id: topicProposalId },
+            data: { status: "generated" },
+          })
+          .catch((err: unknown) => {
+            console.warn(
+              `[builder-create] Failed to mark topic ${topicProposalId} as generated:`,
+              err instanceof Error ? err.message : err,
+            );
+          });
       }
 
       created.push({ siteId, keyword, enId: enDraft.id, arId: arDraft.id });
-      console.log(`[builder-create] Created pair for "${siteId}": EN=${enDraft.id}, AR=${arDraft.id} keyword="${keyword}" (${strategy})`);
+      console.log(
+        `[builder-create] Created pair for "${siteId}": EN=${enDraft.id}, AR=${arDraft.id} keyword="${keyword}" (${strategy})`,
+      );
     }
 
     const durationMs = Date.now() - cronStart;
@@ -269,7 +316,9 @@ async function handleCreate(request: NextRequest) {
         skipped: skippedSites,
         fullReservoirs,
       },
-    }).catch(err => console.warn("[builder-create] logCronExecution failed:", err instanceof Error ? err.message : err));
+    }).catch((err) =>
+      console.warn("[builder-create] logCronExecution failed:", err instanceof Error ? err.message : err),
+    );
 
     return NextResponse.json({
       success: true,
@@ -286,10 +335,14 @@ async function handleCreate(request: NextRequest) {
     await logCronExecution("content-builder-create", "failed", {
       durationMs,
       errorMessage: errMsg,
-    }).catch(err => console.warn("[builder-create] logCronExecution failed:", err instanceof Error ? err.message : err));
+    }).catch((err) =>
+      console.warn("[builder-create] logCronExecution failed:", err instanceof Error ? err.message : err),
+    );
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "content-builder-create", error: errMsg }).catch(err => console.warn("[builder-create] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+    onCronFailure({ jobName: "content-builder-create", error: errMsg }).catch((err) =>
+      console.warn("[builder-create] onCronFailure hook failed:", err instanceof Error ? err.message : err),
+    );
 
     return NextResponse.json({ success: false, error: errMsg }, { status: 500 });
   }

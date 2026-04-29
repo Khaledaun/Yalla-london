@@ -999,8 +999,8 @@ async function buildValidation(siteIds: string[]): Promise<Validation> {
       whenToCheck: "Within 4h",
     },
     "roundup:submission-errors": {
-      how: "Re-fetch the article URL. View source. Confirm canonical, meta tags, and JSON-LD all valid. seo-agent should have re-attempted submission.",
-      whenToCheck: "Next briefing (24h)",
+      how: "Open /admin/cockpit Indexing tab. process-indexing-queue retries failed submissions with exponential backoff — URL count in 'submission-failed' should drop. If a URL keeps failing 5+ times, content-auto-fix Section 14 will tag it for manual review.",
+      whenToCheck: "Within 4h",
     },
     "roundup:stuck-24h": {
       how: "Open /admin/cockpit pipeline tab. Confirm stuck-draft count dropped. diagnostic-sweep auto-rejects drafts after 5 attempts.",
@@ -1174,24 +1174,47 @@ async function buildPerSiteDeepDive(siteIds: string[]): Promise<PerSiteDeepDive[
     };
 
     // Pull this site's audit findings for proposals.
-    const siteCriticals: Array<{ detail: string; nextAction: string }> = [];
+    //
+    // Dedupe by dimension so we get up to 3 DIFFERENT improvement types instead
+    // of three rows that all read "Fix #1: Missing featured_image" — which is
+    // what was happening when 4-5 articles shared the same dimension. Pull from
+    // the first 12 topActions (the public-audit cap) to give dedup a wider pool.
+    const siteCriticals: Array<{ dimension: string; detail: string; nextAction: string; pagesAffected: number }> = [];
     try {
       const audit = await runPublicAudit(siteId, 200);
-      for (const a of audit.topActions.slice(0, 5)) {
-        if (a.severity === "critical" || a.severity === "high") {
-          siteCriticals.push({ detail: a.detail, nextAction: a.nextAction });
-        }
+      const seenDimensions = new Set<string>();
+      const dimCounts = new Map<string, number>();
+      // Count pages per dimension so we can show "(affects N articles)" once
+      // instead of N separate rows.
+      for (const a of audit.topActions) {
+        if (a.severity !== "critical" && a.severity !== "high") continue;
+        dimCounts.set(a.dimension, (dimCounts.get(a.dimension) || 0) + 1);
+      }
+      for (const a of audit.topActions) {
+        if (a.severity !== "critical" && a.severity !== "high") continue;
+        if (seenDimensions.has(a.dimension)) continue;
+        seenDimensions.add(a.dimension);
+        siteCriticals.push({
+          dimension: a.dimension,
+          detail: a.detail,
+          nextAction: a.nextAction,
+          pagesAffected: dimCounts.get(a.dimension) || 1,
+        });
       }
     } catch {
       // Audit may have failed; deep dive still proceeds with general advice.
     }
 
-    const improvements = siteCriticals.slice(0, 3).map((c, i) => ({
-      title: `Fix #${i + 1}: ${c.detail.slice(0, 60)}`,
-      expectedImpact: "Recover SERP visibility on affected URLs",
-      effort: "small" as const,
-      plan: [c.nextAction],
-    }));
+    const improvements = siteCriticals.slice(0, 3).map((c, i) => {
+      const suffix = c.pagesAffected > 1 ? ` (affects ${c.pagesAffected} articles)` : "";
+      const detail = c.detail.slice(0, 60);
+      return {
+        title: `Fix #${i + 1}: ${detail}${suffix}`,
+        expectedImpact: "Recover SERP visibility on affected URLs",
+        effort: "small" as const,
+        plan: [c.nextAction],
+      };
+    });
 
     // Algorithm updates — static for now, fed by weekly-policy-monitor cron
     // when wired up. Reads ALGORITHM_CONTEXT from lib/seo/standards.ts.

@@ -21,14 +21,14 @@
 import { validatePhaseTransition, LIFETIME_RECOVERY_CAP } from "@/lib/content-pipeline/constants";
 
 export type DiagnosisCategory =
-  | "timeout"              // AI call exceeds budget
-  | "provider_down"        // All providers failing
-  | "bad_data"             // Malformed input (broken JSON in sections_data, etc.)
-  | "budget_exhaustion"    // Cron runs out of time before reaching this draft
-  | "stuck_loop"           // Draft retried 5+ times on same phase without progress
-  | "schema_mismatch"      // Prisma field doesn't exist
+  | "timeout" // AI call exceeds budget
+  | "provider_down" // All providers failing
+  | "bad_data" // Malformed input (broken JSON in sections_data, etc.)
+  | "budget_exhaustion" // Cron runs out of time before reaching this draft
+  | "stuck_loop" // Draft retried 5+ times on same phase without progress
+  | "schema_mismatch" // Prisma field doesn't exist
   | "database_unavailable" // Can't reach DB server (Supabase pooler down, network error)
-  | "topic_starvation"    // No consumable topics available — needs weekly-topics refill
+  | "topic_starvation" // No consumable topics available — needs weekly-topics refill
   | "unknown";
 
 export interface Diagnosis {
@@ -147,10 +147,15 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
             last_error: `[diagnostic-agent] Reverted from stuck "promoting" (${ageMin}min) back to reservoir`,
           },
         });
-        console.log(`[diagnostic-agent] Reverted stuck "promoting" draft ${pd.id} (${pd.keyword}) back to reservoir after ${ageMin}min`);
+        console.log(
+          `[diagnostic-agent] Reverted stuck "promoting" draft ${pd.id} (${pd.keyword}) back to reservoir after ${ageMin}min`,
+        );
       }
     } catch (promotingErr) {
-      console.warn("[diagnostic-agent] Promoting recovery failed:", promotingErr instanceof Error ? promotingErr.message : promotingErr);
+      console.warn(
+        "[diagnostic-agent] Promoting recovery failed:",
+        promotingErr instanceof Error ? promotingErr.message : promotingErr,
+      );
     }
 
     for (const draft of stuckDrafts) {
@@ -162,15 +167,84 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       let category: DiagnosisCategory = "unknown";
       let details = "";
 
-      if (lastError.includes("timeout") || lastError.includes("aborted") || lastError.includes("budget too low") || lastError.includes("timed out") || lastError.includes("deadline") || lastError.includes("etimedout") || lastError.includes("signal")) {
+      if (
+        lastError.includes("timeout") ||
+        lastError.includes("aborted") ||
+        lastError.includes("budget too low") ||
+        lastError.includes("timed out") ||
+        lastError.includes("deadline") ||
+        lastError.includes("etimedout") ||
+        lastError.includes("signal") ||
+        lastError.includes("function_invocation_timeout") ||
+        lastError.includes("gateway timeout") ||
+        lastError.includes("504")
+      ) {
         category = "timeout";
         details = `Phase "${draft.current_phase}" timing out after ${draft.phase_attempts} attempts. Last error: ${draft.last_error}`;
-      } else if (lastError.includes("api error") || lastError.includes("no api key") || lastError.includes("429") || lastError.includes("503") || lastError.includes("401") || lastError.includes("rate limit") || lastError.includes("quota") || lastError.includes("unauthenticated") || lastError.includes("insufficient")) {
+      } else if (
+        lastError.includes("api error") ||
+        lastError.includes("no api key") ||
+        lastError.includes("429") ||
+        lastError.includes("503") ||
+        lastError.includes("401") ||
+        lastError.includes("403") ||
+        lastError.includes("rate limit") ||
+        lastError.includes("quota") ||
+        lastError.includes("unauthenticated") ||
+        lastError.includes("unauthorized") ||
+        lastError.includes("forbidden") ||
+        lastError.includes("insufficient") ||
+        lastError.includes("circuit") ||
+        lastError.includes("all providers failed") ||
+        lastError.includes("invalid api key")
+      ) {
         category = "provider_down";
         details = `AI provider errors for "${draft.current_phase}". Last error: ${draft.last_error}`;
-      } else if (lastError.includes("json") || lastError.includes("parse") || lastError.includes("unexpected token") || lastError.includes("syntaxerror") || lastError.includes("not valid")) {
+      } else if (
+        lastError.includes("json") ||
+        lastError.includes("parse") ||
+        lastError.includes("unexpected token") ||
+        lastError.includes("syntaxerror") ||
+        lastError.includes("not valid") ||
+        lastError.includes("malformed")
+      ) {
         category = "bad_data";
         details = `Malformed data in phase "${draft.current_phase}". Last error: ${draft.last_error}`;
+      } else if (
+        // Network-level transient errors — usually self-healing on next run.
+        lastError.includes("econnreset") ||
+        lastError.includes("socket hang up") ||
+        lastError.includes("failed to fetch") ||
+        lastError.includes("network error") ||
+        lastError.includes("network timeout") ||
+        lastError.includes("enotfound") ||
+        lastError.includes("epipe") ||
+        lastError.includes("getaddrinfo")
+      ) {
+        category = "provider_down";
+        details = `Transient network error in "${draft.current_phase}" — likely self-heals next run. Last error: ${draft.last_error}`;
+      } else if (
+        // Database / Prisma errors that aren't pool-timeout (those handled in cron path).
+        lastError.includes("prisma") ||
+        lastError.includes("p2002") ||
+        lastError.includes("unique constraint") ||
+        lastError.includes("foreign key") ||
+        lastError.includes("does not exist on")
+      ) {
+        category = "schema_mismatch";
+        details = `Schema/constraint error in "${draft.current_phase}". Last error: ${draft.last_error}`;
+      } else if (
+        // JS runtime errors — usually a code bug, not a transient issue.
+        lastError.includes("cannot read") ||
+        lastError.includes("cannot access") ||
+        lastError.includes("is not a function") ||
+        lastError.includes("is not defined") ||
+        lastError.includes("typeerror") ||
+        lastError.includes("rangeerror") ||
+        lastError.includes("referenceerror")
+      ) {
+        category = "bad_data";
+        details = `Runtime error in "${draft.current_phase}" — likely a code bug, not transient. Last error: ${draft.last_error}`;
       } else if ((draft.phase_attempts || 0) >= LIFETIME_RECOVERY_CAP) {
         category = "stuck_loop";
         details = `Draft stuck in "${draft.current_phase}" for ${draft.phase_attempts} attempts over ${Math.round(ageHours)}h`;
@@ -230,9 +304,20 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
       const combinedMsg = errorMsg + " " + resultStr;
       let category: DiagnosisCategory = "unknown";
 
-      if (combinedMsg.includes("can't reach") || combinedMsg.includes("econnrefused") || combinedMsg.includes("enotfound") || combinedMsg.includes("pooler") || combinedMsg.includes("database server")) {
+      if (
+        combinedMsg.includes("can't reach") ||
+        combinedMsg.includes("econnrefused") ||
+        combinedMsg.includes("enotfound") ||
+        combinedMsg.includes("pooler") ||
+        combinedMsg.includes("database server")
+      ) {
         category = "database_unavailable";
-      } else if (combinedMsg.includes("no consumable topic") || combinedMsg.includes("no topic") || combinedMsg.includes("topic pool") || combinedMsg.includes("nothing to process")) {
+      } else if (
+        combinedMsg.includes("no consumable topic") ||
+        combinedMsg.includes("no topic") ||
+        combinedMsg.includes("topic pool") ||
+        combinedMsg.includes("nothing to process")
+      ) {
         category = "topic_starvation";
       } else if (
         // AI cascade patterns (must come BEFORE generic timeout/api checks):
@@ -246,12 +331,60 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
         combinedMsg.includes("circuit breaker")
       ) {
         category = "provider_down";
-      } else if (errorMsg.includes("timeout") || errorMsg.includes("aborted")) {
+      } else if (
+        errorMsg.includes("timeout") ||
+        errorMsg.includes("aborted") ||
+        errorMsg.includes("function_invocation_timeout") ||
+        errorMsg.includes("gateway timeout") ||
+        errorMsg.includes("504") ||
+        combinedMsg.includes("operation aborted")
+      ) {
         category = "timeout";
-      } else if (errorMsg.includes("api") || errorMsg.includes("429") || errorMsg.includes("503")) {
+      } else if (
+        errorMsg.includes("api") ||
+        errorMsg.includes("429") ||
+        errorMsg.includes("503") ||
+        errorMsg.includes("401") ||
+        errorMsg.includes("403") ||
+        errorMsg.includes("rate limit") ||
+        errorMsg.includes("quota") ||
+        errorMsg.includes("unauthorized") ||
+        errorMsg.includes("forbidden") ||
+        errorMsg.includes("invalid api key")
+      ) {
         category = "provider_down";
-      } else if (errorMsg.includes("prisma") || errorMsg.includes("p2") || errorMsg.includes("does not exist")) {
+      } else if (
+        // Network-level transient errors that aren't pooler/db.
+        errorMsg.includes("econnreset") ||
+        errorMsg.includes("socket hang up") ||
+        errorMsg.includes("failed to fetch") ||
+        errorMsg.includes("network error") ||
+        errorMsg.includes("epipe") ||
+        errorMsg.includes("getaddrinfo") ||
+        errorMsg.includes("502") ||
+        errorMsg.includes("bad gateway")
+      ) {
+        category = "provider_down";
+      } else if (
+        errorMsg.includes("prisma") ||
+        errorMsg.includes("p2") ||
+        errorMsg.includes("does not exist") ||
+        errorMsg.includes("unique constraint") ||
+        errorMsg.includes("foreign key")
+      ) {
         category = "schema_mismatch";
+      } else if (
+        // JS runtime errors — code bug, not transient. Keep unknown for now —
+        // these need engineer attention rather than auto-recovery.
+        errorMsg.includes("cannot read") ||
+        errorMsg.includes("cannot access") ||
+        errorMsg.includes("is not a function") ||
+        errorMsg.includes("is not defined") ||
+        errorMsg.includes("typeerror") ||
+        errorMsg.includes("rangeerror") ||
+        errorMsg.includes("referenceerror")
+      ) {
+        category = "bad_data";
       }
 
       diagnoses.push({
@@ -523,7 +656,11 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             rawHtml += `<h${level}>${section.heading || ""}</h${level}>\n${section.content || ""}\n`;
           }
           rawHtml += "</article>";
-          const wordCount = rawHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+          const wordCount = rawHtml
+            .replace(/<[^>]+>/g, " ")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean).length;
 
           // Do NOT set updated_at — diagnostic touches must not inflate active draft counts.
           validatePhaseTransition("assembly", "images");
@@ -594,7 +731,13 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
-          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: bdAttempts } };
+          return {
+            diagnosis,
+            fixApplied: "permanently_rejected_at_cap",
+            success: true,
+            before,
+            after: { phase: "rejected", attempts: bdAttempts },
+          };
         }
 
         // Try to repair JSON fields
@@ -621,9 +764,18 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         // Can't auto-repair — just clear the lock, let attempts accumulate to cap
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared bad_data lock (attempts=${bdAttempts}, preserved)` },
+          data: {
+            phase_started_at: null,
+            last_error: `[diagnostic-agent] Cleared bad_data lock (attempts=${bdAttempts}, preserved)`,
+          },
         });
-        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: bdAttempts } };
+        return {
+          diagnosis,
+          fixApplied: "unlock_stale_lock",
+          success: true,
+          before,
+          after: { phase: draft.current_phase, attempts: bdAttempts },
+        };
       }
 
       case "provider_down": {
@@ -634,21 +786,38 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
-          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: pdAttempts } };
+          return {
+            diagnosis,
+            fixApplied: "permanently_rejected_at_cap",
+            success: true,
+            before,
+            after: { phase: "rejected", attempts: pdAttempts },
+          };
         }
         // Just clear the lock — let attempts accumulate to cap naturally
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared provider_down lock (attempts=${pdAttempts}, preserved)` },
+          data: {
+            phase_started_at: null,
+            last_error: `[diagnostic-agent] Cleared provider_down lock (attempts=${pdAttempts}, preserved)`,
+          },
         });
-        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: pdAttempts } };
+        return {
+          diagnosis,
+          fixApplied: "unlock_stale_lock",
+          success: true,
+          before,
+          after: { phase: draft.current_phase, attempts: pdAttempts },
+        };
       }
 
       case "schema_mismatch": {
         // Schema mismatches indicate code bugs (wrong field names, missing required fields).
         // These can't be auto-fixed by resetting attempts — the same code will crash again.
         // Log a critical alert and reject the draft to prevent infinite retry loops.
-        console.error(`[diagnostic-agent] SCHEMA MISMATCH detected for draft ${draft.id} in phase "${draft.current_phase}": ${diagnosis.details}`);
+        console.error(
+          `[diagnostic-agent] SCHEMA MISMATCH detected for draft ${draft.id} in phase "${draft.current_phase}": ${diagnosis.details}`,
+        );
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
@@ -674,7 +843,13 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
-          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: unkAttempts } };
+          return {
+            diagnosis,
+            fixApplied: "permanently_rejected_at_cap",
+            success: true,
+            before,
+            after: { phase: "rejected", attempts: unkAttempts },
+          };
         }
 
         // If attempts=0 but draft is stuck (stale phase_started_at lock >2h),
@@ -687,15 +862,30 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
               last_error: `[diagnostic-agent] Cleared stale lock (was ${Math.round((Date.now() - new Date(draft.phase_started_at).getTime()) / 60000)}min old, 0 attempts)`,
             },
           });
-          return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: 0, phase_started_at: null } };
+          return {
+            diagnosis,
+            fixApplied: "unlock_stale_lock",
+            success: true,
+            before,
+            after: { phase: draft.current_phase, attempts: 0, phase_started_at: null },
+          };
         }
 
         // Just clear the lock — let attempts accumulate to cap naturally
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared unknown lock (attempts=${unkAttempts}, preserved)` },
+          data: {
+            phase_started_at: null,
+            last_error: `[diagnostic-agent] Cleared unknown lock (attempts=${unkAttempts}, preserved)`,
+          },
         });
-        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: unkAttempts } };
+        return {
+          diagnosis,
+          fixApplied: "unlock_stale_lock",
+          success: true,
+          before,
+          after: { phase: draft.current_phase, attempts: unkAttempts },
+        };
       }
     }
   } catch (err) {
@@ -713,7 +903,13 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
 // ─── Phase 3: VERIFY ────────────────────────────────────────────────────────
 
 export async function verifyFix(fix: DiagnosticFix): Promise<DiagnosticVerification> {
-  if (!fix.success || fix.fixApplied === "logged_only" || fix.fixApplied === "none" || fix.fixApplied === "no_downstream_damage" || fix.fixApplied === "cron_fix_error") {
+  if (
+    !fix.success ||
+    fix.fixApplied === "logged_only" ||
+    fix.fixApplied === "none" ||
+    fix.fixApplied === "no_downstream_damage" ||
+    fix.fixApplied === "cron_fix_error"
+  ) {
     return { fix, verified: true, verificationDetails: "No verification needed" };
   }
 
@@ -735,19 +931,35 @@ export async function verifyFix(fix: DiagnosticFix): Promise<DiagnosticVerificat
       const expectedAttempts = fix.after.attempts as number | undefined;
 
       if (expectedPhase && draft.current_phase !== expectedPhase) {
-        return { fix, verified: false, verificationDetails: `Phase is "${draft.current_phase}" but expected "${expectedPhase}"` };
+        return {
+          fix,
+          verified: false,
+          verificationDetails: `Phase is "${draft.current_phase}" but expected "${expectedPhase}"`,
+        };
       }
 
       if (expectedAttempts !== undefined && draft.phase_attempts !== expectedAttempts) {
-        return { fix, verified: false, verificationDetails: `Attempts is ${draft.phase_attempts} but expected ${expectedAttempts}` };
+        return {
+          fix,
+          verified: false,
+          verificationDetails: `Attempts is ${draft.phase_attempts} but expected ${expectedAttempts}`,
+        };
       }
 
-      return { fix, verified: true, verificationDetails: `Draft state confirmed: phase=${draft.current_phase}, attempts=${draft.phase_attempts}` };
+      return {
+        fix,
+        verified: true,
+        verificationDetails: `Draft state confirmed: phase=${draft.current_phase}, attempts=${draft.phase_attempts}`,
+      };
     }
 
     return { fix, verified: true, verificationDetails: "Cron fix verified" };
   } catch (err) {
-    return { fix, verified: false, verificationDetails: `Verification failed: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      fix,
+      verified: false,
+      verificationDetails: `Verification failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 
@@ -764,7 +976,11 @@ async function logDiagnostic(verification: DiagnosticVerification, siteId: strin
         fixType: `diagnostic:${verification.fix.diagnosis.category}:${verification.fix.fixApplied}`,
         agent: "diagnostic-agent",
         before: verification.fix.before as Record<string, unknown>,
-        after: { ...verification.fix.after as Record<string, unknown>, verified: verification.verified, verificationDetails: verification.verificationDetails },
+        after: {
+          ...(verification.fix.after as Record<string, unknown>),
+          verified: verification.verified,
+          verificationDetails: verification.verificationDetails,
+        },
         success: verification.fix.success && verification.verified,
         error: verification.fix.error || (verification.verified ? null : verification.verificationDetails),
       },
@@ -851,7 +1067,9 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       },
     });
     if (rejectedDraftingBacklog.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0a3: Rejected ${rejectedDraftingBacklog.count} drafting-backlog drafts (>36h old)`);
+      console.log(
+        `[diagnostic-agent] Phase 0a3: Rejected ${rejectedDraftingBacklog.count} drafting-backlog drafts (>36h old)`,
+      );
     }
 
     // 0b: At permanent cap (5+ attempts) — these will never succeed
@@ -869,7 +1087,20 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     });
 
     // 0c: Reject garbage keyword drafts (slug-format, empty, single vague words)
-    const GARBAGE_KEYWORDS = ["spring", "contact", "summer", "winter", "autumn", "fall", "test", "example", "untitled", "draft", "new", "temp"];
+    const GARBAGE_KEYWORDS = [
+      "spring",
+      "contact",
+      "summer",
+      "winter",
+      "autumn",
+      "fall",
+      "test",
+      "example",
+      "untitled",
+      "draft",
+      "new",
+      "temp",
+    ];
     const garbageCandidates = await p0.articleDraft.findMany({
       where: {
         current_phase: {
@@ -902,8 +1133,15 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       });
     }
 
-    if (rejectedOld.count > 0 || rejectedStuckRetries.count > 0 || rejectedCapped.count > 0 || rejectedGarbage.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >24h, ${rejectedStuckRetries.count} stuck >12h w/2+ attempts, ${rejectedCapped.count} at permanent cap, ${rejectedGarbage.count} garbage keywords`);
+    if (
+      rejectedOld.count > 0 ||
+      rejectedStuckRetries.count > 0 ||
+      rejectedCapped.count > 0 ||
+      rejectedGarbage.count > 0
+    ) {
+      console.log(
+        `[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >24h, ${rejectedStuckRetries.count} stuck >12h w/2+ attempts, ${rejectedCapped.count} at permanent cap, ${rejectedGarbage.count} garbage keywords`,
+      );
     }
   } catch (p0err) {
     console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);
@@ -933,7 +1171,10 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       console.log(`[diagnostic-agent] Phase 0d: Cleared ${zombieLogs.count} zombie "running" CronJobLog entries`);
     }
   } catch (zombieErr) {
-    console.warn("[diagnostic-agent] Phase 0d zombie cleanup failed:", zombieErr instanceof Error ? zombieErr.message : zombieErr);
+    console.warn(
+      "[diagnostic-agent] Phase 0d zombie cleanup failed:",
+      zombieErr instanceof Error ? zombieErr.message : zombieErr,
+    );
   }
 
   // Phase 0e: Reservoir age-out — reject reservoir articles older than 3 days
@@ -954,7 +1195,8 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       data: {
         current_phase: "rejected",
         last_error: "RESERVOIR_AGE_OUT",
-        rejection_reason: "[diagnostic-agent] Aged out of reservoir after 3 days — likely keyword overlap with published articles",
+        rejection_reason:
+          "[diagnostic-agent] Aged out of reservoir after 3 days — likely keyword overlap with published articles",
         completed_at: new Date(),
       },
     });
@@ -962,14 +1204,14 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       console.log(`[diagnostic-agent] Phase 0e: Rejected ${agedOut.count} reservoir articles older than 3 days`);
     }
   } catch (ageErr) {
-    console.warn("[diagnostic-agent] Phase 0e reservoir age-out failed:", ageErr instanceof Error ? ageErr.message : ageErr);
+    console.warn(
+      "[diagnostic-agent] Phase 0e reservoir age-out failed:",
+      ageErr instanceof Error ? ageErr.message : ageErr,
+    );
   }
 
   // Phase 1: Diagnose
-  const [draftDiagnoses, cronDiagnoses] = await Promise.all([
-    diagnoseStuckDrafts(),
-    diagnoseFailedCrons(),
-  ]);
+  const [draftDiagnoses, cronDiagnoses] = await Promise.all([diagnoseStuckDrafts(), diagnoseFailedCrons()]);
   const allDiagnoses = [...draftDiagnoses, ...cronDiagnoses];
 
   // Phase 2: Fix (only draft fixes — crons are informational)
@@ -1009,12 +1251,15 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     const { prisma } = await import("@/lib/db");
     const { getActiveSiteIds } = await import("@/config/sites");
 
-    const normalizeTitle = (t: string) => t.toLowerCase()
-      .replace(/\b20\d{2}\b/g, '')
-      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
-      .replace(/\bv\d+\b/gi, '') // Strip version suffixes (v2, v3, etc.)
-      .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, '') // Preserve Arabic Unicode
-      .replace(/\s+/g, ' ').trim();
+    const normalizeTitle = (t: string) =>
+      t
+        .toLowerCase()
+        .replace(/\b20\d{2}\b/g, "")
+        .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, "")
+        .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
+        .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
+        .replace(/\s+/g, " ")
+        .trim();
 
     for (const sid of getActiveSiteIds()) {
       const published = await prisma.blogPost.findMany({
@@ -1039,15 +1284,17 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
         // Pick the best version: highest SEO score → longest content → oldest (first created)
         const sorted = [...group].sort((a, b) => {
           if ((a.seo_score || 0) !== (b.seo_score || 0)) return (b.seo_score || 0) - (a.seo_score || 0);
-          const aw = a.content_en.replace(/<[^>]*>/g, '').split(/\s+/).length;
-          const bw = b.content_en.replace(/<[^>]*>/g, '').split(/\s+/).length;
+          const aw = a.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
+          const bw = b.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
           if (aw !== bw) return bw - aw;
           return a.created_at.getTime() - b.created_at.getTime();
         });
 
         // Unpublish all except best
         for (let d = 1; d < sorted.length; d++) {
-          console.warn(`[diagnostic] Unpublishing duplicate: "${sorted[d].slug}" (duplicate of "${sorted[0].slug}", site: ${sid})`);
+          console.warn(
+            `[diagnostic] Unpublishing duplicate: "${sorted[d].slug}" (duplicate of "${sorted[0].slug}", site: ${sid})`,
+          );
           await prisma.blogPost.update({
             where: { id: sorted[d].id },
             data: { published: false },
@@ -1060,9 +1307,10 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     console.warn("[diagnostic] Duplicate check failed:", e instanceof Error ? e.message : e);
   }
 
-  const summary = allDiagnoses.length === 0 && duplicateCount === 0
-    ? "All clear — no stuck drafts, failed crons, or duplicate titles"
-    : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}. Duplicate titles: ${duplicateCount} found, ${duplicatesFixed} unpublished`;
+  const summary =
+    allDiagnoses.length === 0 && duplicateCount === 0
+      ? "All clear — no stuck drafts, failed crons, or duplicate titles"
+      : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}. Duplicate titles: ${duplicateCount} found, ${duplicatesFixed} unpublished`;
 
   return {
     timestamp: new Date().toISOString(),

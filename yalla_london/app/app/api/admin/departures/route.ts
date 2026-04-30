@@ -53,7 +53,7 @@ interface CronDef {
   schedule: string;
   label: string;
   icon: string;
-  type: "cron";
+  type: "cron" | "manual";
   description: string;
   category: "content" | "seo" | "analytics" | "maintenance" | "publishing" | "ai" | "email" | "agent";
   feedsInto?: string;
@@ -471,6 +471,17 @@ const CRON_DEFS: CronDef[] = [
     description:
       "Daily duplicate-slug consolidation at 06:15 IDT. Calls content-cleanup with action=fix_all per active site: sanitize title/meta artifacts + unpublish duplicate articles with 301 to canonical slug. Runs BEFORE audit-roundup so the briefing reflects the post-cleanup state.",
     feedsInto: "BlogPost (canonical_slug + unpublished losers)",
+  },
+  {
+    path: "/api/admin/clean-slate?email=true",
+    schedule: "manual",
+    label: "Clean-Slate Dry Run",
+    icon: "🔍",
+    type: "manual",
+    category: "maintenance",
+    description:
+      "Manual dry-run of the platform-wide cleanup operation. Returns full JSON manifest AND emails the preview (cluster list, thin content, slug artifacts, in-place fixes, stale data deletes). Nothing is changed. Hit POST ?confirm=true to execute.",
+    feedsInto: "Email preview + JSON manifest",
   },
   {
     path: "/api/cron/audit-roundup",

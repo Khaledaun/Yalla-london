@@ -470,7 +470,8 @@ async function computeRelatedArticleSlugsFromDB(
         category: true,
       },
       take: 200,
-      orderBy: { published_at: "desc" },
+      // BlogPost has NO published_at column — use created_at (rule #96).
+      orderBy: { created_at: "desc" },
     });
 
     // Score each post by title/category keyword overlap

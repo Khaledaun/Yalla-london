@@ -130,7 +130,11 @@ export const THRESHOLDS = {
   maxRedirectChainLength: 2,
 
   // Index
-  staleSubmissionDays: 14,
+  // staleSubmissionDays: 14 was too aggressive for new domains. Google's
+  // sandbox + indexing latency is typically 30-90 days for sites without
+  // established authority. Bumped to 30 so legitimate "submitted, awaiting
+  // crawl" articles aren't flagged as failed indexing for the first month.
+  staleSubmissionDays: 30,
   chronicFailureAttempts: 5,
   maxTimeToIndexDays: 21,
 

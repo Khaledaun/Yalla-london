@@ -116,12 +116,61 @@ const CRON_FLAG_MAP: Record<string, string> = {
  *   const disabled = await checkCronEnabled("content-builder");
  *   if (disabled) return { skipped: true };
  */
+/**
+ * Crons that produce NEW content. When CONTENT_GENERATION_PAUSE=true is set
+ * (env var OR DB flag), every cron in this set returns disabled regardless
+ * of its individual flag. Used during cleanup operations to prevent the
+ * pipeline from generating new junk while we're cleaning up old junk.
+ *
+ * Recovery / fix-up crons (content-auto-fix, content-auto-fix-lite,
+ * seo-deep-review, etc.) are NOT in this set — they continue running
+ * because their job is to improve existing content, not create more.
+ */
+const CONTENT_GENERATION_CRONS = new Set([
+  "weekly-topics",
+  "daily-content-generate",
+  "schedule-executor",
+  "content-builder-create",
+  "trends-monitor", // creates topic proposals
+  "london-news", // creates news articles
+]);
+
 export async function checkCronEnabled(jobName: string, siteId?: string): Promise<NextResponse | null> {
   // Resolve aliases first (e.g. "discover-deals" → "affiliate-discover-deals")
   const canonicalName = CRON_NAME_ALIASES[jobName] || jobName;
   const flagKey = CRON_FLAG_MAP[canonicalName] || `CRON_${canonicalName.toUpperCase().replace(/-/g, "_")}`;
 
   const siteLabel = siteId ? ` [site:${siteId}]` : "";
+
+  // ── Master pause for content generation ────────────────────────────────
+  // If CONTENT_GENERATION_PAUSE is set (DB flag OR env var), kill any cron
+  // that produces new content. Lets us run the cleanup operation cleanly
+  // without the pipeline competing for budget + adding more duplicates.
+  if (CONTENT_GENERATION_CRONS.has(canonicalName)) {
+    try {
+      const { getFeatureFlagValue } = await import("@/lib/feature-flags");
+      const pauseFlag = await getFeatureFlagValue("CONTENT_GENERATION_PAUSE", siteId);
+      const envPause = process.env.CONTENT_GENERATION_PAUSE;
+      const isPaused = pauseFlag === true || envPause === "true" || envPause === "1";
+      if (isPaused) {
+        console.log(`[${jobName}]${siteLabel} BLOCKED — CONTENT_GENERATION_PAUSE is active`);
+        return NextResponse.json({
+          success: true,
+          skipped: true,
+          message: `${jobName} blocked — CONTENT_GENERATION_PAUSE is active${siteLabel}`,
+          pauseReason:
+            "Master content-generation pause flag is on. Lift via /admin/cockpit feature flags or unset CONTENT_GENERATION_PAUSE env var.",
+          siteId: siteId || null,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.warn(
+        `[${jobName}]${siteLabel} CONTENT_GENERATION_PAUSE check failed, allowing execution:`,
+        (err as Error).message,
+      );
+    }
+  }
 
   try {
     const { getFeatureFlagValue } = await import("@/lib/feature-flags");

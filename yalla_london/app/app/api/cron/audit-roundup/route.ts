@@ -23,16 +23,20 @@ import { getActiveSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/site
 import { prisma } from "@/lib/db";
 
 const TOTAL_BUDGET_MS = 280_000;
-// Per-fix budget raised from 30s → 90s. Most downstream crons (image-pipeline,
-// content-auto-fix-lite, content-auto-fix, diagnostic-sweep, affiliate-injection,
-// process-indexing-queue) routinely take 40-80s for real work. The old 30s cap
-// meant submission-errors (routed to seo-agent at the time) and other heavy
-// fixes ALWAYS aborted with "operation aborted due to timeout" — that's why
-// §16 in the briefing was reporting 0% success on roundup:submission-errors.
+// Per-fix budget raised 90s → 180s after observing content-auto-fix routinely
+// completes in ~136s (25 sections, including AI calls in §17/§22). The 90s cap
+// was the cause of the §16 "roundup:affiliatePractices 0% — operation aborted
+// due to timeout" line in the morning briefing — content-auto-fix actually
+// DID inject the FTC disclosures, but audit-roundup gave up on it before it
+// finished.
 //
-// 5 fixes × 90s = 450s, but the elapsed-time guard inside processSite() stops
-// firing once total budget approaches 280s, so we usually fire ~3 per run.
-const PER_FIX_BUDGET_MS = 90_000;
+// Heavy fixes (content-auto-fix, content-auto-fix-lite, image-pipeline) take
+// 60-180s. Light fixes (process-indexing-queue, affiliate-injection,
+// diagnostic-sweep) take 5-30s. With 280s total budget and 180s max per fix,
+// the elapsed-time guard naturally caps to 1-2 heavy fixes + multiple light
+// fixes per run — which fits the audit-roundup ROI ranking (top heavy fix
+// first, then light fixes for the rest of the budget).
+const PER_FIX_BUDGET_MS = 180_000;
 const MAX_FIXES_PER_RUN = 5;
 // Minimum ROI score to bother executing — anything lower wastes the cron run.
 const MIN_ROI_SCORE = 50;

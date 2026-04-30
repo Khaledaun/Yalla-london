@@ -195,6 +195,40 @@ export async function POST(request: NextRequest) {
           const { sanitizeKeyword } = await import("@/lib/content-pipeline/constants");
           let keyword = sanitizeKeyword(t.title || t.slug || "");
           if (keyword.length < 10) continue; // too short after cleanup
+
+          // ── Topic Discipline Gates (professional-standards.ts) ──────────
+          // These checks PREVENT new duplicate-content from entering the
+          // pipeline. Adopted April 30, 2026 after the F-grade audit
+          // revealed 12+ "Best Halal Restaurants" variants competing for
+          // the same query.
+          const { TOPIC_DISCIPLINE, jaccardSimilarity, normalizeForDuplicateDetection } =
+            await import("@/lib/standards/professional-standards");
+
+          // Gate 1: Forbidden slug patterns (-v3, hex hashes, year tags).
+          // The AI sometimes returns slugs like "best-halal-london-v9-e924a639"
+          // which are clearly cascade-naming artifacts.
+          const candidateSlug = (t.slug || keyword)
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-");
+          const forbiddenMatch = TOPIC_DISCIPLINE.forbiddenSlugPatterns.find((pat) => pat.test(candidateSlug));
+          if (forbiddenMatch) {
+            console.log(`[weekly-topics] REJECTED "${keyword}" — slug "${candidateSlug}" matches forbidden pattern`);
+            continue;
+          }
+
+          // Gate 2: Paused clusters. Some keyword themes have been heavily
+          // over-served and we won't generate more variants until cleanup
+          // operation reduces the existing competition.
+          const keywordLower = keyword.toLowerCase();
+          const pausedMatch = TOPIC_DISCIPLINE.pausedClusters.find((c) => keywordLower.includes(c));
+          if (pausedMatch) {
+            console.log(
+              `[weekly-topics] REJECTED "${keyword}" — cluster "${pausedMatch}" is PAUSED (over-served, awaiting cleanup)`,
+            );
+            continue;
+          }
+
           // Skip duplicates per site (check both topic proposals and published articles)
           const exists = await prisma.topicProposal.findFirst({
             where: { primary_keyword: keyword, locale: t.locale, site_id: targetSiteId },
@@ -218,6 +252,38 @@ export async function POST(request: NextRequest) {
           });
           if (publishedExists) {
             console.log(`[weekly-topics] Skipping "${keyword}" — published article already exists`);
+            continue;
+          }
+
+          // Gate 3: Jaccard similarity vs ALL recent published titles.
+          // Catches near-duplicates that don't share a slug prefix —
+          // e.g. "Best Halal Luxury Dining London" vs published
+          // "Best Halal Restaurants in London for Muslims".
+          const recentPublished = await prisma.blogPost.findMany({
+            where: {
+              siteId: targetSiteId,
+              published: true,
+              deletedAt: null,
+              created_at: { gte: new Date(Date.now() - TOPIC_DISCIPLINE.minDaysBetweenSimilarTopics * 86400000) },
+            },
+            select: { slug: true, title_en: true, title_ar: true },
+            take: 500,
+          });
+          const candidateTitleSet = normalizeForDuplicateDetection(t.title || keyword);
+          let dupSlug: string | null = null;
+          for (const post of recentPublished) {
+            const postTitle = t.locale === "ar" ? post.title_ar || post.title_en || "" : post.title_en || "";
+            if (!postTitle) continue;
+            const sim = jaccardSimilarity(candidateTitleSet, normalizeForDuplicateDetection(postTitle));
+            if (sim >= TOPIC_DISCIPLINE.duplicateRejectionJaccardThreshold) {
+              dupSlug = post.slug;
+              break;
+            }
+          }
+          if (dupSlug) {
+            console.log(
+              `[weekly-topics] REJECTED "${keyword}" — Jaccard ≥ ${TOPIC_DISCIPLINE.duplicateRejectionJaccardThreshold} vs published "${dupSlug}"`,
+            );
             continue;
           }
 

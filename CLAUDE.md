@@ -5764,3 +5764,54 @@ Markdown files created by Stop hook: `YYYY-MM-DD_HH-MM.md` with session ID, bran
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed
+
+### Session: April 30, 2026 — Quality Reset & Clean-Slate Operation
+
+**Context:** After 6 months and 239 published articles, yalla-london had 22 indexed by Google, 19 with impressions, and 3 organic clicks per week. Discovery audit: F grade (12/100). Root cause was NOT code bugs (those got fixed earlier in the day) — it was content quality + topical dilution: 12+ near-duplicate "Best Halal Restaurants" variants competing for the same query, diluting topical authority.
+
+**Decision:** Platform-wide quality reset. Adopt PUBLISH FEWER, MUCH BETTER ARTICLES as the operating principle. Establish 4-tier grading + topic discipline + clean-slate operation to consolidate existing duplicates.
+
+**What shipped (in order):**
+
+1. **`lib/standards/professional-standards.ts`** — single source of truth for content/SEO/AIO/indexing/affiliate/cleanup thresholds. 4 tiers (BRONZE → PLATINUM) with hard requirements per tier. Per-content-type minimum tier (`TIER_FOR_TYPE`). Helpers: `getMinimumRequirements()`, `meetsTier()`, `normalizeForDuplicateDetection()`, `jaccardSimilarity()`.
+
+2. **`lib/cleanup/clean-slate-analyzer.ts`** — read-only manifest builder. Detects DELETE candidates (stale operational data), UNPUBLISH candidates (duplicate clusters by Jaccard ≥0.7, thin content with no traffic, slug artifacts), FIX candidates (title artifacts, meta placeholders). Hard rules: never delete BlogPost rows, never touch articles with traffic or <7 days old.
+
+3. **`lib/cleanup/clean-slate-executor.ts`** — applies the manifest with re-verification. `isStillSafeToTouch()` re-checks GSC traffic + age at execute time so articles that gained traffic between manifest and execute are auto-protected. Logs every change to AutoFixLog. Per-phase caps prevent runaway operations.
+
+4. **`lib/cleanup/clean-slate-email.ts`** — briefing-style HTML emails for manifest preview AND execution result.
+
+5. **`/api/admin/clean-slate`** — single endpoint. `GET ?email=true` for dry-run + email preview. `POST ?confirm=true` to execute + result email. Re-builds manifest at execute time (no stale-manifest exploit).
+
+6. **CONTENT_GENERATION_PAUSE master kill-switch** — single env/DB flag in `cron-feature-guard.ts` that disables ALL content-generating crons in one shot. Recovery/fix-up crons keep running.
+
+7. **Topic-discipline gates in `weekly-topics`** — three gates BEFORE database write:
+   - Forbidden slug patterns (rejects `-v3`, `-v9-hex`, year tags)
+   - Paused clusters (5 over-served themes blocked outright)
+   - Jaccard ≥0.7 vs published in last 90 days
+
+**Khaled's workflow:**
+1. (Optional) Set `CONTENT_GENERATION_PAUSE=true` to stop new content while cleaning up
+2. Tap "Clean-Slate Dry Run" in cockpit → receive JSON + preview email
+3. Review on iPhone
+4. `POST /api/admin/clean-slate?siteId=yalla-london&confirm=true` to execute
+5. Receive result email with applied counts + AutoFixLog audit trail
+6. Lift the pause flag once cleanup is complete
+
+### Critical Rules Learned (April 30 Session — Quality Reset)
+
+176. **`lib/standards/professional-standards.ts` is the single source of truth for content/SEO/AIO/indexing thresholds.** Every cron, prompt, and quality gate must read its thresholds from here. If you find a hardcoded threshold elsewhere, replace it with an import. The legacy `lib/seo/standards.ts` is the tactical floor (currently-enforced values); `professional-standards.ts` is the strategic target (where we're moving the floor as cleanup completes).
+
+177. **`CONTENT_GENERATION_CRONS` set in `cron-feature-guard.ts` defines which jobs respect `CONTENT_GENERATION_PAUSE`.** Adding a new content-generating cron means adding it to this set. Recovery/fix-up crons (content-auto-fix, content-auto-fix-lite, seo-deep-review, seo-agent, indexing-queue) are NOT in the set — they keep running during cleanup because their job is to improve existing content.
+
+178. **The clean-slate executor MUST re-verify protection at execute time.** GSC traffic data can arrive between manifest build and execute. `isStillSafeToTouch(postId, siteId)` re-checks clicks/impressions/age. Trusting the manifest's stale snapshot would unpublish articles that just started ranking.
+
+179. **Never delete a BlogPost record. Set `published: false` + `canonical_slug` to the winner.** Deleting a BlogPost destroys all link equity (Google has the URL crawled and indexed). Setting `published: false` + `canonical_slug` makes the URL 301-redirect to the canonical winner, transferring equity. The BlogPost row stays in the DB as audit trail.
+
+180. **Topic-discipline gates run BEFORE the database write, not after.** The weekly-topics save now has 3 gates (forbidden patterns, paused clusters, Jaccard) BEFORE `prisma.topicProposal.create()`. By the time a row exists, it's been validated. Don't add post-hoc filters that try to clean up bad rows that should never have existed.
+
+181. **Paused clusters are temporary and must be released individually.** When `pausedClusters` blocks a theme, it's because existing competition hurts topical authority. Once clean-slate reduces a cluster to ONE canonical article AND that article ranks, remove the cluster from `TOPIC_DISCIPLINE.pausedClusters` so weekly-topics can explore distinct angles. Keep the list short (5 max).
+
+182. **The Jaccard duplicate threshold for TOPIC GENERATION is 0.7; for CONTENT-SELECTOR PUBLISHING it's 0.85.** Asymmetry is intentional: strict on entry (don't generate near-duplicates), lenient on exit (don't block legitimate topical depth from publishing). Once entry gates work, the publish-side threshold can stay loose.
+
+183. **Tier targets for new domains in sandbox period:** focus on PUBLISH FEWER articles at GOLD tier minimum (1800w, 5 internal, 3 inbound, named author + bio, AIO opener, 3 stats, 3 first-hand markers, structured data). After sandbox release (3-6 months), raise floor to PLATINUM for high-commercial-intent keywords (comparison, deep-dive). The pipeline publishes at the FLOOR for its content type (`TIER_FOR_TYPE[contentType]`); it does NOT need to meet the highest tier.

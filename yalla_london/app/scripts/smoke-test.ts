@@ -2085,6 +2085,290 @@ test("Duplicate Slug Consolidation", "content-auto-fix-lite auto-runs duplicate 
     : { status: FAIL, details: "Auto-cleanup section missing — manual button only" };
 });
 
+// ─── Prisma Field Sanity ──────────────────────────────────────────────────────
+// Mechanically catches the most common "wrong field name" Prisma crashes.
+// 70%+ of production runtime crashes in this project have been wrong field
+// names that compile fine because Prisma's create/update accept arbitrary
+// data objects via type widening from spreads. These tests grep for the
+// EXACT wrong patterns we've hit before — but ONLY inside the actual call
+// block, not anywhere in the file (avoids false positives from BlogPost
+// writes in the same file as ArticleDraft writes).
+
+/**
+ * Extracts the argument block of a Prisma model call (everything between
+ * the opening `(` and matching close `)`). Walks brace + quote depth so
+ * nested objects, template literals, and `{...}` spreads are handled
+ * correctly. Returns array of extracted blocks (one per call site).
+ */
+function extractCallBlocks(content: string, modelMethod: RegExp): string[] {
+  const blocks: string[] = [];
+  let m: RegExpExecArray | null;
+  const reGlobal = new RegExp(modelMethod.source + "\\s*\\(", "g");
+  while ((m = reGlobal.exec(content)) !== null) {
+    const start = m.index + m[0].length;
+    let depth = 1;
+    let inStr: '"' | "'" | "`" | null = null;
+    let escape = false;
+    let i = start;
+    while (i < content.length && depth > 0) {
+      const ch = content[i];
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (inStr) {
+        if (ch === inStr) inStr = null;
+      } else if (ch === '"' || ch === "'" || ch === "`") {
+        inStr = ch as '"' | "'" | "`";
+      } else if (ch === "(") {
+        depth++;
+      } else if (ch === ")") {
+        depth--;
+      }
+      i++;
+    }
+    blocks.push(content.slice(start, i - 1));
+  }
+  return blocks;
+}
+
+const ARTICLE_DRAFT_FORBIDDEN_FIELDS = [
+  // Each entry: [field name, reason / correct field]
+  [
+    "page_type",
+    "ArticleDraft has NO page_type column. Use research_data._suggestedPageType (rule learned April 30, 2026)",
+  ],
+  ["title", "ArticleDraft uses 'keyword' not 'title' (rule #111)"],
+  ["slug", "ArticleDraft has NO slug field (rule #111)"],
+  ["topic_id", "ArticleDraft uses 'topic_proposal_id' not 'topic_id' (rule #111)"],
+];
+
+for (const [field, reason] of ARTICLE_DRAFT_FORBIDDEN_FIELDS) {
+  test("Prisma Field Sanity", `ArticleDraft.create/update never references '${field}'`, () => {
+    const violations: string[] = [];
+    const callRegex = /(?:tx|prisma)\.articleDraft\.(?:create|update|upsert|updateMany)/;
+    const fieldRegex = new RegExp(`(?:^|\\s|,|\\{)${field}:\\s*(?!_)`, "m");
+    const scan = (dir: string) => {
+      let entries: string[];
+      try {
+        entries = fs.readdirSync(path.join(APP_DIR, dir));
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const sub = path.join(dir, entry);
+        const full = path.join(APP_DIR, sub);
+        let stat;
+        try {
+          stat = fs.statSync(full);
+        } catch {
+          continue;
+        }
+        if (stat.isDirectory()) {
+          if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+          scan(sub);
+        } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts") && !sub.includes("smoke-test")) {
+          const content = fs.readFileSync(full, "utf-8");
+          if (!callRegex.test(content)) continue;
+          const blocks = extractCallBlocks(content, callRegex);
+          let count = 0;
+          for (const block of blocks) {
+            if (fieldRegex.test(block)) count++;
+          }
+          if (count > 0) violations.push(`${sub} (${count} ${count === 1 ? "call" : "calls"})`);
+        }
+      }
+    };
+    scan("app");
+    scan("lib");
+    return violations.length === 0
+      ? { status: PASS, details: `No '${field}:' in ArticleDraft writes` }
+      : {
+          status: FAIL,
+          details: `${reason}. Found in: ${violations.slice(0, 3).join(", ")}${violations.length > 3 ? "..." : ""}`,
+        };
+  });
+}
+
+const BLOGPOST_FORBIDDEN = [
+  // [field-pattern (what to grep INSIDE the call block), display name, reason]
+  [
+    "title:\\s*true",
+    "title:true (in select)",
+    "BlogPost has NO 'title' field (uses title_en/title_ar). Rule #1, #96, #111",
+  ],
+  [
+    "published_at:",
+    "published_at:",
+    "BlogPost has NO published_at column (uses created_at/updated_at). Rule #96, #143",
+  ],
+  [
+    "quality_score:\\s*true",
+    "quality_score:true (in select)",
+    "BlogPost has NO quality_score field (uses seo_score). Rule #2, #96",
+  ],
+];
+
+for (const [pattern, displayName, reason] of BLOGPOST_FORBIDDEN) {
+  test("Prisma Field Sanity", `BlogPost queries don't reference '${displayName}'`, () => {
+    const violations: string[] = [];
+    const callRegex =
+      /(?:tx|prisma)\.blogPost\.(?:create|update|upsert|updateMany|findUnique|findFirst|findMany|count|aggregate|groupBy)/;
+    const fieldRegex = new RegExp(pattern);
+    const scan = (dir: string) => {
+      let entries: string[];
+      try {
+        entries = fs.readdirSync(path.join(APP_DIR, dir));
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const sub = path.join(dir, entry);
+        const full = path.join(APP_DIR, sub);
+        let stat;
+        try {
+          stat = fs.statSync(full);
+        } catch {
+          continue;
+        }
+        if (stat.isDirectory()) {
+          if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+          scan(sub);
+        } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts") && !sub.includes("smoke-test")) {
+          const content = fs.readFileSync(full, "utf-8");
+          if (!callRegex.test(content)) continue;
+          const blocks = extractCallBlocks(content, callRegex);
+          for (const block of blocks) {
+            if (fieldRegex.test(block)) {
+              violations.push(sub);
+              break;
+            }
+          }
+        }
+      }
+    };
+    scan("app");
+    scan("lib");
+    return violations.length === 0
+      ? { status: PASS, details: `No '${displayName}' in BlogPost queries` }
+      : {
+          status: FAIL,
+          details: `${reason}. Found in: ${violations.slice(0, 3).join(", ")}${violations.length > 3 ? "..." : ""}`,
+        };
+  });
+}
+
+// AuditLog field sanity (rule #70) — same brace-aware approach
+test("Prisma Field Sanity", "AuditLog uses 'details' not 'metadata'", () => {
+  const violations: string[] = [];
+  const callRegex = /(?:tx|prisma)\.auditLog\.(?:create|update|upsert)/;
+  const fieldRegex = /(?:^|\s|,|\{)metadata:\s*/m;
+  const scan = (dir: string) => {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(path.join(APP_DIR, dir));
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const sub = path.join(dir, entry);
+      const full = path.join(APP_DIR, sub);
+      let stat;
+      try {
+        stat = fs.statSync(full);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) {
+        if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+        scan(sub);
+      } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts") && !sub.includes("smoke-test")) {
+        const content = fs.readFileSync(full, "utf-8");
+        if (!callRegex.test(content)) continue;
+        const blocks = extractCallBlocks(content, callRegex);
+        for (const block of blocks) {
+          if (fieldRegex.test(block)) {
+            violations.push(sub);
+            break;
+          }
+        }
+      }
+    }
+  };
+  scan("app");
+  scan("lib");
+  return violations.length === 0
+    ? { status: PASS, details: "AuditLog writes use 'details' field" }
+    : {
+        status: FAIL,
+        details: `AuditLog has 'details' Json? field, NOT 'metadata' (rule #70). Found in: ${violations.slice(0, 3).join(", ")}`,
+      };
+});
+
+// CharterInquiry field sanity (rule #70)
+test("Prisma Field Sanity", "CharterInquiry uses 'email' not 'contactEmail'", () => {
+  const violations: string[] = [];
+  const callRegex = /(?:tx|prisma)\.charterInquiry\.(?:create|update|upsert)/;
+  const fieldRegex = /(?:^|\s|,|\{)(contactEmail|contactName|phoneNumber):\s*/m;
+  const scan = (dir: string) => {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(path.join(APP_DIR, dir));
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const sub = path.join(dir, entry);
+      const full = path.join(APP_DIR, sub);
+      let stat;
+      try {
+        stat = fs.statSync(full);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) {
+        if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+        scan(sub);
+      } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts") && !sub.includes("smoke-test")) {
+        const content = fs.readFileSync(full, "utf-8");
+        if (!callRegex.test(content)) continue;
+        const blocks = extractCallBlocks(content, callRegex);
+        for (const block of blocks) {
+          if (fieldRegex.test(block)) {
+            violations.push(sub);
+            break;
+          }
+        }
+      }
+    }
+  };
+  scan("app");
+  scan("lib");
+  return violations.length === 0
+    ? { status: PASS, details: "CharterInquiry writes use correct field names" }
+    : {
+        status: FAIL,
+        details: `CharterInquiry uses email/firstName/lastName/phone (rule #70). Found in: ${violations.slice(0, 3).join(", ")}`,
+      };
+});
+
+// Sitemap cache must use getCachedSitemap, not direct prisma.siteSettings reads
+test("Prisma Field Sanity", "discovery scanner uses getCachedSitemap (not raw siteSettings)", () => {
+  const file = "lib/discovery/scanner.ts";
+  if (!fileExists(file)) return { status: WARN, details: "scanner missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  // Should import getCachedSitemap, NOT do raw `category: "sitemap-cache"` Prisma read
+  if (content.includes('category: "sitemap-cache"') && !content.includes("getCachedSitemap")) {
+    return {
+      status: FAIL,
+      details: "scanner reads SiteSettings directly — bypasses 24h staleness check (Apr 30 incident)",
+    };
+  }
+  return content.includes("getCachedSitemap")
+    ? { status: PASS, details: "Uses getCachedSitemap with self-heal regen on stale" }
+    : { status: WARN, details: "No sitemap cache check found" };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map((r) => r.category))];
 let totalPass = 0,

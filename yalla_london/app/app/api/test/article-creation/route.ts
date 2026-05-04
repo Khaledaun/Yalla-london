@@ -132,7 +132,6 @@ Whether you're a first-time visitor or a long-time resident, these spots are wor
     return NextResponse.json({
       success: false,
       error: 'Failed to create article',
-      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   } finally {
     await client.end()

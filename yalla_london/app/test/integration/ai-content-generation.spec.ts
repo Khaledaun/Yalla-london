@@ -347,7 +347,7 @@ describe('AI Content Generation Tests', () => {
     it('should check scheduled content', async () => {
       const scheduled = await prisma.scheduledContent.findMany({
         where: {
-          scheduledFor: { gte: new Date() }
+          scheduled_time: { gte: new Date() }
         },
         take: 10
       });

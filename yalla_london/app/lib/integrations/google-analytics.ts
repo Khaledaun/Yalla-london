@@ -1,12 +1,8 @@
 
 // Google Analytics 4 Integration
-declare global {
-  interface Window {
-    gtag: (command: string, targetId: string, config?: any) => void;
-  }
-}
+// Window.gtag type declared in types/global.d.ts
 
-export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+export const GA_TRACKING_ID = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '').trim();
 
 // Initialize Google Analytics
 export const initGA = () => {

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F1621"/>
+      <stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <text x="400" y="200" text-anchor="middle" font-family="sans-serif" font-size="32" font-weight="700" fill="#EDE9E1" opacity="0.15" letter-spacing="6">YALLA LONDON</text>
+  <text x="400" y="245" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#C49A2A" opacity="0.3" letter-spacing="3">يلّا لندن</text>
+  <line x1="350" y1="265" x2="380" y2="265" stroke="#C8322B" stroke-width="2" opacity="0.4"/>
+  <line x1="383" y1="265" x2="413" y2="265" stroke="#C49A2A" stroke-width="2" opacity="0.4"/>
+  <line x1="416" y1="265" x2="446" y2="265" stroke="#3B7EA1" stroke-width="2" opacity="0.4"/>
+</svg>

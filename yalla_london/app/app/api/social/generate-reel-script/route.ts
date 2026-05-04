@@ -5,6 +5,7 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server'
 import { aiLimiter } from '@/lib/rate-limit'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 export async function POST(request: NextRequest) {
   const blocked = aiLimiter(request);
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       title: `Instagram Reel: ${topic}`,
       hook: lines.find((line: string) => line.toLowerCase().includes('hook')) || lines[0] || '',
       description: scriptContent,
-      callToAction: lines.find((line: string) => line.toLowerCase().includes('call to action') || line.toLowerCase().includes('cta')) || 'Visit yalla-london.com for more luxury London experiences',
+      callToAction: lines.find((line: string) => line.toLowerCase().includes('call to action') || line.toLowerCase().includes('cta')) || `Visit ${getSiteConfig(getDefaultSiteId())?.domain || 'our website'} for more luxury London experiences`,
       hashtags: [
         '#YallaLondon',
         '#LuxuryLondon',

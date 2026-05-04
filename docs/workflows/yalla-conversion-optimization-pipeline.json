@@ -1,0 +1,132 @@
+{
+  "id": "workflow-yalla-cro-2026",
+  "name": "yalla-conversion-optimization-pipeline",
+  "description": "Yalla London Conversion Optimization Pipeline: Bi-weekly data analysis → hypothesis generation → A/B test design → testing → analysis → implementation. Optimizes visitor-to-affiliate-click conversion.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-cro",
+      "type": "start",
+      "name": "start-cro",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Bi-Weekly Trigger (1st & 15th, 8am UTC)" }
+    },
+    {
+      "id": "agent-data-analysis",
+      "type": "subAgent",
+      "name": "conversion-data-analyst",
+      "position": { "x": 300, "y": 200 },
+      "data": {
+        "description": "Conversion Data Analysis Agent",
+        "prompt": "Analyze conversion data across all sites:\n1. Funnel analysis: pageview → scroll → affiliate click → booking\n2. Drop-off points: where do users leave before clicking affiliate links?\n3. Page-level conversion rates: which pages convert best/worst?\n4. Device segmentation: mobile vs desktop conversion differences\n5. Heatmap analysis: where do users click, scroll depth, rage clicks\n6. Time-on-page vs conversion correlation\n7. Entry page → exit page flow analysis\n8. Arabic vs English content conversion comparison\nIdentify top 3 conversion improvement opportunities.",
+        "model": "sonnet",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-hypothesis",
+      "type": "subAgent",
+      "name": "hypothesis-generator",
+      "position": { "x": 550, "y": 200 },
+      "data": {
+        "description": "CRO Hypothesis Generator",
+        "prompt": "Generate testable hypotheses from conversion data:\nFormat: 'If we [change], then [metric] will [improve] because [reason]'\nFocus areas:\n- CTA placement and copy (above fold, inline, end of article)\n- Affiliate link presentation (buttons vs inline links vs comparison tables)\n- Social proof (review badges, booking counts, traveler photos)\n- Urgency signals (limited availability, seasonal pricing)\n- Trust signals (security badges, partner logos, author credentials)\n- Content layout (table of contents, key takeaways positioning)\nPrioritize by: expected impact × ease of implementation.\nMax 3 active hypotheses at a time.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-test-designer",
+      "type": "subAgent",
+      "name": "ab-test-designer",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "description": "A/B Test Designer",
+        "prompt": "Design A/B tests for approved hypotheses:\n1. Define control (A) and variant (B) clearly\n2. Set primary metric (affiliate click rate) and secondary metrics\n3. Calculate required sample size for statistical significance (95% confidence)\n4. Set test duration (minimum 2 weeks, 1 full business cycle)\n5. Define segments: run test on specific site, device type, or language\n6. Implement variant using feature flags in database\n7. Set up GA4 events for test tracking\n8. Document test in AbTest table with hypothesis, start date, expected end date\nAvoid testing during major holidays or Ramadan (skewed data).",
+        "model": "sonnet",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-test-monitor",
+      "type": "subAgent",
+      "name": "test-monitor",
+      "position": { "x": 1050, "y": 200 },
+      "data": {
+        "description": "A/B Test Monitor",
+        "prompt": "Monitor running A/B tests:\n- Daily check: sample size progress, conversion rates per variant\n- Guardrail metrics: bounce rate, page load time, error rates\n- Early stopping rules: stop if variant is clearly harmful (> 20% regression)\n- Check for data quality issues: bot traffic, extreme outliers\n- Alert if test reaches significance before planned end date\n- Generate daily test status for dashboard\n- Never call a test early for positive results (wait for planned duration)",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "ifelse-test-result",
+      "type": "ifElse",
+      "name": "test-result-check",
+      "position": { "x": 1300, "y": 200 },
+      "data": {
+        "evaluationTarget": "A/B test statistical significance and direction",
+        "branches": [
+          { "id": "b-winner", "label": "Winner Found", "condition": "Variant beats control with >= 95% confidence AND >= 5% lift" },
+          { "id": "b-inconclusive", "label": "Inconclusive", "condition": "No significant difference or < 5% lift" }
+        ],
+        "outputPorts": 2
+      }
+    },
+    {
+      "id": "agent-implement-winner",
+      "type": "subAgent",
+      "name": "winner-implementer",
+      "position": { "x": 1550, "y": 120 },
+      "data": {
+        "description": "Winning Variant Implementer",
+        "prompt": "Implement winning A/B test variant:\n1. Roll out winning variant to 100% of traffic\n2. Update component/template/layout permanently\n3. Remove feature flag and A/B test code\n4. Apply winning pattern to similar pages across all sites\n5. Document learning: what worked, why, expected ongoing impact\n6. Update CRO playbook with proven pattern\n7. Mark test as 'completed-winner' in AbTest table\n8. Calculate actual revenue impact (before vs after)\nFeed learnings back to content pipeline for future articles.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-learn-iterate",
+      "type": "subAgent",
+      "name": "learning-iterator",
+      "position": { "x": 1550, "y": 320 },
+      "data": {
+        "description": "Learning & Iteration Agent",
+        "prompt": "Handle inconclusive A/B tests:\n1. Analyze why test was inconclusive (insufficient traffic, wrong metric, external factors)\n2. Document learning: what we tried, what happened, insights gained\n3. Decide: iterate on same hypothesis with different variant, or move to next hypothesis?\n4. If iterating: design new variant based on learnings\n5. If moving on: archive test, update hypothesis backlog priorities\n6. Mark test as 'completed-inconclusive' in AbTest table\n7. Feed insights to next CRO cycle",
+        "model": "haiku",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-cro",
+      "type": "end",
+      "name": "end-cro",
+      "position": { "x": 1800, "y": 220 },
+      "data": { "label": "CRO Report (Dashboard)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-data", "from": "start-cro", "to": "agent-data-analysis", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-data-hypothesis", "from": "agent-data-analysis", "to": "agent-hypothesis", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-hypothesis-design", "from": "agent-hypothesis", "to": "agent-test-designer", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-design-monitor", "from": "agent-test-designer", "to": "agent-test-monitor", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-monitor-result", "from": "agent-test-monitor", "to": "ifelse-test-result", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-result-winner", "from": "ifelse-test-result", "to": "agent-implement-winner", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-result-inconclusive", "from": "ifelse-test-result", "to": "agent-learn-iterate", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-winner-end", "from": "agent-implement-winner", "to": "end-cro", "fromPort": "output", "toPort": "in" },
+    { "id": "conn-learn-end", "from": "agent-learn-iterate", "to": "end-cro", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["cro", "ab-testing", "bi-weekly", "conversion", "affiliate-optimization"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

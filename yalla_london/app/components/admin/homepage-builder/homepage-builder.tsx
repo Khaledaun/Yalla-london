@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -95,6 +95,32 @@ export function HomepageBuilder({ siteId, initialConfig }: HomepageBuilderProps)
   const [undoStack, setUndoStack] = useState<HomepageConfig[]>([]);
   const [redoStack, setRedoStack] = useState<HomepageConfig[]>([]);
 
+  const handleSaveDraft = useCallback(async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/homepage/save-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId,
+          config: {
+            ...config,
+            meta: { ...config.meta, lastModified: new Date() }
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to save draft');
+
+      toast.success('Draft saved');
+    } catch (error) {
+      toast.error('Failed to save draft');
+      console.error('Save error:', error);
+    } finally {
+      setSaving(false);
+    }
+  }, [siteId, config]);
+
   // Auto-save functionality
   useEffect(() => {
     const autoSave = setTimeout(() => {
@@ -104,7 +130,7 @@ export function HomepageBuilder({ siteId, initialConfig }: HomepageBuilderProps)
     }, 2000);
 
     return () => clearTimeout(autoSave);
-  }, [config]);
+  }, [config, handleSaveDraft]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -186,32 +212,6 @@ export function HomepageBuilder({ siteId, initialConfig }: HomepageBuilderProps)
     });
 
     toast.success('Module removed');
-  };
-
-  const handleSaveDraft = async () => {
-    setSaving(true);
-    try {
-      const response = await fetch('/api/admin/homepage/save-draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siteId,
-          config: {
-            ...config,
-            meta: { ...config.meta, lastModified: new Date() }
-          }
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to save draft');
-
-      toast.success('Draft saved');
-    } catch (error) {
-      toast.error('Failed to save draft');
-      console.error('Save error:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handlePublish = async () => {

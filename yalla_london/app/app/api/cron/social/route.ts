@@ -1,14 +1,23 @@
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
 /**
  * Social Media Posting Cron Endpoint
  * Publishes scheduled social media posts every 15 minutes.
  * Configured in vercel.json crons array.
+ *
+ * NOTE: Social API integration is not yet connected.
+ * Posts are currently marked as published in the database but are NOT
+ * actually sent to any social platform. Connect real social APIs
+ * (Twitter/X, Instagram, LinkedIn, etc.) to enable actual posting.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { logCronExecution } from '@/lib/cron-logger';
 
-export async function GET(request: NextRequest) {
+const BUDGET_MS = 280_000;
+
+async function handleSocialCron(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
@@ -16,79 +25,151 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SOCIAL=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("social");
+  if (flagResponse) return flagResponse;
+
+  const { prisma } = await import('@/lib/db');
+
+  // Healthcheck mode — quick status without processing
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const pendingPosts = await prisma.scheduledContent.count({
+        where: {
+          status: 'pending',
+          published: false,
+          platform: { not: 'blog' },
+        },
+      });
+      return NextResponse.json({
+        status: 'healthy',
+        endpoint: 'social cron',
+        pendingPosts,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (hcErr) {
+      console.warn("[social-cron] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
+      return NextResponse.json(
+        { status: 'unhealthy', endpoint: 'social cron' },
+        { status: 503 },
+      );
+    }
+  }
+
   const _cronStart = Date.now();
 
   try {
     const now = new Date();
 
-    // Get posts scheduled for now or earlier that haven't been published
-    const duePosts = await prisma.scheduledContent.findMany({
+    // Check which platforms can be auto-published via env-var credentials.
+    // Twitter/X: fully automated when TWITTER_* env vars are configured.
+    // All other platforms: require manual publishing via the social calendar dashboard.
+    const twitterConfigured = !!(
+      process.env.TWITTER_API_KEY &&
+      process.env.TWITTER_API_SECRET &&
+      process.env.TWITTER_ACCESS_TOKEN &&
+      (process.env.TWITTER_ACCESS_TOKEN_SECRET || process.env.TWITTER_ACCESS_SECRET)
+    );
+
+    // Post Bridge can auto-publish to any connected platform
+    const { isPostBridgeConfigured, getPostBridgeClient } = await import(
+      "@/lib/integrations/post-bridge-client"
+    );
+    let postBridgePlatforms: string[] = [];
+    if (isPostBridgeConfigured()) {
+      const pbClient = getPostBridgeClient();
+      if (pbClient) {
+        try {
+          const accounts = await pbClient.getAccounts();
+          postBridgePlatforms = accounts
+            .filter((a) => a.connected)
+            .map((a) => a.platform);
+        } catch (err) {
+          console.warn(
+            "[social-cron] Failed to fetch Post Bridge accounts:",
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+    }
+
+    // Merge auto-publish platforms: Post Bridge platforms + Twitter direct
+    const autoPublishPlatforms = [
+      ...new Set<string>([
+        ...postBridgePlatforms,
+        ...(twitterConfigured ? ["twitter", "x"] : []),
+      ]),
+    ];
+
+    // Count pending non-auto posts for dashboard visibility (scoped to active sites)
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
+
+    const pendingManualCount = await prisma.scheduledContent.count({
       where: {
         scheduled_time: { lte: now },
         status: 'pending',
         published: false,
-        platform: { not: 'blog' },
+        platform: { notIn: ['blog', ...autoPublishPlatforms] },
+        site_id: { in: activeSiteIds },
       },
-      take: 20,
-    });
+    }).catch(() => 0);
+
+    let duePosts: any[] = [];
+    if (autoPublishPlatforms.length > 0) {
+      // Retry with backoff to handle PgBouncer MaxClientsInSessionMode errors
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          duePosts = await prisma.scheduledContent.findMany({
+            where: {
+              scheduled_time: { lte: now },
+              status: 'pending',
+              published: false,
+              platform: { in: autoPublishPlatforms },
+              site_id: { in: activeSiteIds },
+            },
+            take: 20,
+          });
+          break;
+        } catch (dbErr) {
+          const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
+            const delayMs = attempt * 1000; // 1s, 2s, 3s — kept short to preserve 53s budget
+            console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
+            await new Promise(r => setTimeout(r, delayMs));
+          } else {
+            throw dbErr;
+          }
+        }
+      }
+    }
 
     const results = [];
 
     for (const post of duePosts) {
+      if (Date.now() - _cronStart > BUDGET_MS) {
+        console.log('[social-cron] Budget exhausted, stopping post loop');
+        break;
+      }
+      const platform = (post.platform || '').toLowerCase();
       try {
-        // Get social account for this platform
-        const account = await prisma.modelProvider.findFirst({
-          where: {
-            name: post.platform,
-            provider_type: 'social',
-            is_active: true,
-          },
-        });
-
-        if (!account || !account.api_key_encrypted) {
-          // Mark as failed - no account connected
-          await prisma.scheduledContent.update({
-            where: { id: post.id },
-            data: {
-              status: 'failed',
-              metadata: {
-                ...(post.metadata as any || {}),
-                error: 'Social account not connected',
-                failedAt: now.toISOString(),
-              },
-            },
-          });
-
-          results.push({
-            postId: post.id,
-            platform: post.platform,
-            status: 'failed',
-            reason: 'Account not connected',
-          });
-          continue;
+        // All auto-publishable platforms route through publishPost() which handles:
+        // Post Bridge → Twitter direct → manual fallback
+        const { publishPost } = await import('@/lib/social/scheduler');
+        const result = await publishPost(post.id);
+        if (result.success) {
+          console.log(`[social-cron] Published ${platform} post ${post.id}: ${result.postUrl}`);
+        } else {
+          console.warn(`[social-cron] Publish failed for ${platform} post ${post.id}: ${result.error}`);
         }
-
-        // In production, decrypt token and call social media API
-        // For now, mark as published (mock)
-        await prisma.scheduledContent.update({
-          where: { id: post.id },
-          data: {
-            status: 'published',
-            published: true,
-            published_time: now,
-            metadata: {
-              ...(post.metadata as any || {}),
-              publishedAt: now.toISOString(),
-              note: 'Mock publish - integrate social API for real posting',
-            },
-          },
-        });
-
         results.push({
           postId: post.id,
-          platform: post.platform,
-          status: 'published',
-          note: 'Mock - connect social API',
+          platform,
+          status: result.success ? 'published' : 'failed',
+          postUrl: result.postUrl,
+          reason: result.error,
         });
       } catch (error) {
         // Mark individual post as failed
@@ -106,7 +187,7 @@ export async function GET(request: NextRequest) {
 
         results.push({
           postId: post.id,
-          platform: post.platform,
+          platform,
           status: 'failed',
           reason: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -125,6 +206,8 @@ export async function GET(request: NextRequest) {
         postsProcessed: duePosts.length,
         published,
         failed,
+        twitterEnabled: twitterConfigured,
+        pendingManual: pendingManualCount,
       },
     });
 
@@ -132,20 +215,34 @@ export async function GET(request: NextRequest) {
       success: true,
       timestamp: now.toISOString(),
       postsProcessed: duePosts.length,
+      published,
+      failed,
+      twitterEnabled: twitterConfigured,
+      pendingManual: pendingManualCount,
       results,
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Social cron failed:', error);
     await logCronExecution("social", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "social", error: errMsg }).catch(err => console.warn("[social] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { success: false, error: errMsg },
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleSocialCron(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleSocialCron(request);
 }

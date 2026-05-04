@@ -6,8 +6,10 @@
  *
  * Required env vars:
  *   GA4_PROPERTY_ID - numeric GA4 property ID (e.g. "123456789")
- *   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL or GSC_CLIENT_EMAIL - service account email
- *   GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY or GSC_PRIVATE_KEY - service account private key
+ *   Service account credentials (checked in order):
+ *     GOOGLE_ANALYTICS_CLIENT_EMAIL / GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL / GSC_CLIENT_EMAIL
+ *     GOOGLE_ANALYTICS_PRIVATE_KEY / GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY / GSC_PRIVATE_KEY
+ *     OR: GOOGLE_SERVICE_ACCOUNT_KEY (JSON blob with client_email + private_key)
  *
  * The service account must have "Viewer" role on the GA4 property.
  */
@@ -50,16 +52,34 @@ export interface GA4Report {
   fetchedAt: string;
 }
 
+function parseServiceAccountKey(): { clientEmail?: string; privateKey?: string } {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      clientEmail: parsed.client_email,
+      privateKey: parsed.private_key,
+    };
+  } catch {
+    console.warn("[GA4] GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON");
+    return {};
+  }
+}
+
 function getCredentials(): GA4Credentials | null {
   const propertyId = process.env.GA4_PROPERTY_ID;
+  const serviceAccount = parseServiceAccountKey();
   const clientEmail =
-    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
     process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
-    process.env.GSC_CLIENT_EMAIL;
+    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+    process.env.GSC_CLIENT_EMAIL ||
+    serviceAccount.clientEmail;
   const privateKey =
-    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
     process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
-    process.env.GSC_PRIVATE_KEY;
+    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+    process.env.GSC_PRIVATE_KEY ||
+    serviceAccount.privateKey;
 
   if (!propertyId || !clientEmail || !privateKey) {
     return null;
@@ -176,6 +196,7 @@ function extractMetricValue(
 export async function fetchGA4Metrics(
   startDate: string = "30daysAgo",
   endDate: string = "today",
+  propertyIdOverride?: string,
 ): Promise<GA4Report | null> {
   const creds = getCredentials();
   if (!creds) {
@@ -183,6 +204,10 @@ export async function fetchGA4Metrics(
       "[GA4] Missing credentials (GA4_PROPERTY_ID + service account). Skipping GA4 fetch.",
     );
     return null;
+  }
+  // Per-site property override (multi-tenant support)
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
   }
 
   const token = await getAccessToken(creds.clientEmail, creds.privateKey);
@@ -267,6 +292,202 @@ export async function fetchGA4Metrics(
 }
 
 /**
+ * Run a custom GA4 Data API report with arbitrary dimensions/metrics.
+ * Used by Chrome Bridge for funnel, conversions, channel breakdown queries.
+ *
+ * Returns null if credentials missing, raw GA4 response otherwise.
+ */
+export async function runGA4CustomReport(
+  body: Record<string, unknown>,
+  propertyIdOverride?: string,
+): Promise<Record<string, unknown> | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
+  }
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+  try {
+    return (await runReport(creds.propertyId, token, body)) as Record<string, unknown>;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[GA4] runGA4CustomReport failed:", message);
+    return null;
+  }
+}
+
+/**
+ * Run a GA4 Realtime API report (different endpoint — :runRealtimeReport).
+ * Max lookback: last 30 minutes.
+ */
+export async function runGA4RealtimeReport(
+  body: Record<string, unknown>,
+  propertyIdOverride?: string,
+): Promise<Record<string, unknown> | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
+  }
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+  try {
+    const url = `${GA4_API_BASE}/${creds.propertyId}:runRealtimeReport`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(
+        `[GA4] Realtime report HTTP ${response.status}: ${errorText.slice(0, 200)}`,
+      );
+      return null;
+    }
+    return (await response.json()) as Record<string, unknown>;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[GA4] runGA4RealtimeReport failed:", message);
+    return null;
+  }
+}
+
+/**
+ * Fetch per-page engagement metrics for a specific article.
+ * Returns detailed engagement data including bounce rate, scroll events, and time on page.
+ */
+export async function fetchGA4PageMetrics(
+  pagePath: string,
+  startDate: string = "30daysAgo",
+  endDate: string = "today",
+): Promise<{
+  pageViews: number;
+  sessions: number;
+  avgEngagementTime: number;
+  bounceRate: number;
+  engagementRate: number;
+  newUsers: number;
+  returningUsers: number;
+} | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+
+  try {
+    const report = await runReport(creds.propertyId, token, {
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: "pagePath" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "pagePath",
+          stringFilter: { value: pagePath, matchType: "EXACT" },
+        },
+      },
+      metrics: [
+        { name: "screenPageViews" },
+        { name: "sessions" },
+        { name: "averageSessionDuration" },
+        { name: "bounceRate" },
+        { name: "engagementRate" },
+        { name: "newUsers" },
+        { name: "totalUsers" },
+      ],
+    });
+
+    const row = report?.rows?.[0];
+    if (!row) return null;
+
+    return {
+      pageViews: extractMetricValue(row, 0),
+      sessions: extractMetricValue(row, 1),
+      avgEngagementTime: Math.round(extractMetricValue(row, 2)),
+      bounceRate: Math.round(extractMetricValue(row, 3) * 10000) / 100,
+      engagementRate: Math.round(extractMetricValue(row, 4) * 10000) / 100,
+      newUsers: extractMetricValue(row, 5),
+      returningUsers: extractMetricValue(row, 6) - extractMetricValue(row, 5),
+    };
+  } catch (error) {
+    console.warn("[GA4] Failed to fetch page metrics:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
+ * Fetch device and traffic source breakdown.
+ * Returns how visitors access the site (mobile vs desktop, organic vs direct vs social).
+ */
+export async function fetchGA4TrafficBreakdown(
+  startDate: string = "7daysAgo",
+  endDate: string = "today",
+): Promise<{
+  byDevice: Array<{ device: string; sessions: number; bounceRate: number }>;
+  bySourceMedium: Array<{ source: string; medium: string; sessions: number; users: number }>;
+  byCountry: Array<{ country: string; sessions: number; users: number }>;
+} | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+
+  try {
+    // Parallel: device + source/medium + country
+    const [deviceReport, sourceReport, countryReport] = await Promise.all([
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "deviceCategory" }],
+        metrics: [{ name: "sessions" }, { name: "bounceRate" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 5,
+      }),
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 15,
+      }),
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "country" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 10,
+      }),
+    ]);
+
+    return {
+      byDevice: (deviceReport?.rows || []).map((row: Record<string, unknown>) => ({
+        device: (row as any).dimensionValues?.[0]?.value || "unknown",
+        sessions: extractMetricValue(row, 0),
+        bounceRate: Math.round(extractMetricValue(row, 1) * 10000) / 100,
+      })),
+      bySourceMedium: (sourceReport?.rows || []).map((row: Record<string, unknown>) => ({
+        source: (row as any).dimensionValues?.[0]?.value || "(direct)",
+        medium: (row as any).dimensionValues?.[1]?.value || "(none)",
+        sessions: extractMetricValue(row, 0),
+        users: extractMetricValue(row, 1),
+      })),
+      byCountry: (countryReport?.rows || []).map((row: Record<string, unknown>) => ({
+        country: (row as any).dimensionValues?.[0]?.value || "unknown",
+        sessions: extractMetricValue(row, 0),
+        users: extractMetricValue(row, 1),
+      })),
+    };
+  } catch (error) {
+    console.warn("[GA4] Failed to fetch traffic breakdown:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
  * Check if GA4 credentials are properly configured.
  */
 export function isGA4Configured(): boolean {
@@ -282,18 +503,21 @@ export function getGA4ConfigStatus(): {
   clientEmail: boolean;
   privateKey: boolean;
 } {
+  const serviceAccount = parseServiceAccountKey();
   return {
     configured: isGA4Configured(),
     propertyId: !!process.env.GA4_PROPERTY_ID,
     clientEmail: !!(
-      process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
       process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
-      process.env.GSC_CLIENT_EMAIL
+      process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+      process.env.GSC_CLIENT_EMAIL ||
+      serviceAccount.clientEmail
     ),
     privateKey: !!(
-      process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
       process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
-      process.env.GSC_PRIVATE_KEY
+      process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+      process.env.GSC_PRIVATE_KEY ||
+      serviceAccount.privateKey
     ),
   };
 }

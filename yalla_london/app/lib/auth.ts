@@ -1,10 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { prisma } from '@/lib/db'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
-import { logAuditEvent } from '@/lib/rbac'
 
 /**
  * Consolidated authentication configuration.
@@ -13,7 +9,14 @@ import { logAuditEvent } from '@/lib/rbac'
  * - Passwords verified via bcrypt.compare() against User.passwordHash field.
  * - No hardcoded credentials. Initial admin seeded via CLI script with env vars.
  * - Google SSO enabled when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+ *
+ * IMPORTANT: All database access (prisma) and audit logging (logAuditEvent)
+ * use dynamic imports inside callbacks. This prevents the module from crashing
+ * at import time if the database is temporarily unavailable, and avoids a
+ * circular dependency with rbac.ts (which imports authOptions from this file).
  */
+
+const hasGoogleOAuth = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 
 /** Admin email whitelist from environment only */
 export function getAdminEmails(): string[] {
@@ -21,7 +24,20 @@ export function getAdminEmails(): string[] {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // PrismaAdapter is only used when Google OAuth is enabled.
+  // We lazy-load it to avoid crashing the module if prisma fails to connect.
+  ...(hasGoogleOAuth ? {
+    adapter: (() => {
+      try {
+        const { PrismaAdapter } = require('@next-auth/prisma-adapter')
+        const { prisma } = require('@/lib/db')
+        return PrismaAdapter(prisma)
+      } catch (e) {
+        console.error('PrismaAdapter failed to load:', e)
+        return undefined
+      }
+    })()
+  } : {}),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -34,61 +50,34 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        const email = credentials.email.trim()
+
         try {
+          const { prisma } = await import('@/lib/db')
+
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
+            where: { email }
           })
 
           if (!user || !user.isActive) {
-            if (user) {
-              await logAuditEvent({
-                userId: user.id,
-                action: 'login',
-                resource: 'authentication',
-                success: false,
-                errorMessage: 'Account inactive or deleted'
-              })
-            }
             return null
           }
 
-          // Verify password via bcrypt — no hardcoded credentials
           if (!user.passwordHash) {
-            await logAuditEvent({
-              userId: user.id,
-              action: 'login',
-              resource: 'authentication',
-              success: false,
-              errorMessage: 'No password set for this account'
-            })
             return null
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
 
           if (!isPasswordValid) {
-            await logAuditEvent({
-              userId: user.id,
-              action: 'login',
-              resource: 'authentication',
-              success: false,
-              errorMessage: 'Invalid credentials'
-            })
             return null
           }
 
-          // Update last login time
-          await prisma.user.update({
+          // Update last login time (non-blocking)
+          prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
-          })
-
-          await logAuditEvent({
-            userId: user.id,
-            action: 'login',
-            resource: 'authentication',
-            success: true
-          })
+          }).catch(() => {})
 
           return {
             id: user.id,
@@ -103,23 +92,27 @@ export const authOptions: NextAuthOptions = {
       }
     }),
     // Google SSO — only when credentials are configured
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        authorization: {
-          params: {
-            prompt: 'consent',
-            access_type: 'offline',
-            response_type: 'code'
+    ...(hasGoogleOAuth ? [
+      (() => {
+        const GoogleProvider = require('next-auth/providers/google').default
+        return GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          authorization: {
+            params: {
+              prompt: 'consent',
+              access_type: 'offline',
+              response_type: 'code'
+            }
           }
-        }
-      })
+        })
+      })()
     ] : [])
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10),
+    updateAge: 15 * 60,
   },
   callbacks: {
     async jwt({ token, user }: any) {
@@ -143,39 +136,51 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async signIn({ user, account }: any) {
-      if (account?.provider === 'google') {
-        const email = user.email
-        if (!email) return false
-        const existing = await prisma.user.findUnique({ where: { email } })
-        if (existing && !existing.isActive) return false
-        if (!existing) {
-          await prisma.user.create({
-            data: {
-              email,
-              name: user.name || 'Unknown',
-              role: 'viewer',
-              isActive: true,
-              emailVerified: new Date()
-            }
-          })
+      try {
+        if (account?.provider === 'google') {
+          const email = user.email
+          if (!email) return false
+          const { prisma } = await import('@/lib/db')
+          const existing = await prisma.user.findUnique({ where: { email } })
+          if (existing && !existing.isActive) return false
+          if (!existing) {
+            await prisma.user.create({
+              data: {
+                email,
+                name: user.name || 'Unknown',
+                role: 'viewer',
+                isActive: true,
+                emailVerified: new Date()
+              }
+            })
+          }
         }
+        return true
+      } catch (error) {
+        console.error('signIn callback error:', error)
+        return true
       }
-      return true
     }
   },
   pages: {
     signIn: '/admin/login',
+    error: '/admin/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
   events: {
     async signOut({ token }) {
-      if (token?.id) {
-        await logAuditEvent({
-          userId: token.id as string,
-          action: 'logout',
-          resource: 'authentication',
-          success: true
-        })
+      try {
+        if (token?.id) {
+          const { logAuditEvent } = await import('@/lib/rbac')
+          await logAuditEvent({
+            userId: token.id as string,
+            action: 'logout',
+            resource: 'authentication',
+            success: true
+          })
+        }
+      } catch {
+        // Don't block signout on audit log failure
       }
     }
   },

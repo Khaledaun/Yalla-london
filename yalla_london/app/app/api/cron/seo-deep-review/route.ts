@@ -44,8 +44,8 @@ interface ArticleFix {
   blogPostId: string;
   slug: string;
   siteId: string;
-  fixes: string[];   // Actual data changes applied
-  notes: string[];   // Informational observations (no DB write)
+  fixes: string[]; // Actual data changes applied
+  notes: string[]; // Informational observations (no DB write)
   errors: string[];
 }
 
@@ -71,9 +71,7 @@ export async function GET(request: NextRequest) {
     const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { submitToIndexNow, pingSitemaps } = await import("@/lib/seo/indexing-service");
 
-    const activeSites = getActiveSiteIds().filter(
-      (id) => id !== "zenitha-yachts-med"
-    );
+    const activeSites = getActiveSiteIds().filter((id) => id !== "zenitha-yachts-med");
 
     // ── Pass 1: Recent articles (last 26h) ──────────────────────────────────
     const cutoff = new Date(Date.now() - RECENT_CUTOFF_MS);
@@ -144,35 +142,56 @@ export async function GET(request: NextRequest) {
       ]);
 
       // Filter sub-query B: ultra-thin (< 500 words in any language)
-      const ultraThin = ultraThinRaw.filter(a => {
-        const enWc = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-        const arWc = ((a.content_ar as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-        return Math.max(enWc, arWc) < 500;
-      }).slice(0, 5);
+      const ultraThin = ultraThinRaw
+        .filter((a) => {
+          const enWc = ((a.content_en as string) || "")
+            .replace(/<[^>]+>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
+          const arWc = ((a.content_ar as string) || "")
+            .replace(/<[^>]+>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
+          return Math.max(enWc, arWc) < 500;
+        })
+        .slice(0, 5);
 
       // Filter sub-query C: moderate short (500-999 words), excluding ultra-thin already captured
-      const ultraThinIds = new Set([...ultraThin.map(a => a.id), ...underOptimized.map(a => a.id)]);
-      const shortContent = shortContentRaw.filter(a => {
-        if (ultraThinIds.has(a.id)) return false;
-        const enWc = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-        const arWc = ((a.content_ar as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-        const wc = Math.max(enWc, arWc);
-        return wc >= 500 && wc < 1000;
-      }).slice(0, 3);
+      const ultraThinIds = new Set([...ultraThin.map((a) => a.id), ...underOptimized.map((a) => a.id)]);
+      const shortContent = shortContentRaw
+        .filter((a) => {
+          if (ultraThinIds.has(a.id)) return false;
+          const enWc = ((a.content_en as string) || "")
+            .replace(/<[^>]+>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
+          const arWc = ((a.content_ar as string) || "")
+            .replace(/<[^>]+>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
+          const wc = Math.max(enWc, arWc);
+          return wc >= 500 && wc < 1000;
+        })
+        .slice(0, 3);
 
       // Merge: missing-meta first, then ultra-thin (highest priority), then moderate-short
       olderArticles = [
         ...underOptimized,
-        ...ultraThin.filter(a => !underOptimized.some(u => u.id === a.id)),
+        ...ultraThin.filter((a) => !underOptimized.some((u) => u.id === a.id)),
         ...shortContent,
       ] as typeof todayArticles;
 
       if (olderArticles.length > 0) {
-        const ultraThinCount = ultraThin.filter(a => !underOptimized.some(u => u.id === a.id)).length;
-        console.log(`[seo-deep-review] Pass 2: ${underOptimized.length} missing-meta + ${ultraThinCount} ultra-thin (<500w) + ${shortContent.length} moderate-short (500-999w) = ${olderArticles.length} older article(s)`);
+        const ultraThinCount = ultraThin.filter((a) => !underOptimized.some((u) => u.id === a.id)).length;
+        console.log(
+          `[seo-deep-review] Pass 2: ${underOptimized.length} missing-meta + ${ultraThinCount} ultra-thin (<500w) + ${shortContent.length} moderate-short (500-999w) = ${olderArticles.length} older article(s)`,
+        );
       }
     } catch (olderErr) {
-      console.warn("[seo-deep-review] Older articles query failed (non-fatal):", olderErr instanceof Error ? olderErr.message : olderErr);
+      console.warn(
+        "[seo-deep-review] Older articles query failed (non-fatal):",
+        olderErr instanceof Error ? olderErr.message : olderErr,
+      );
     }
 
     // ── Pass 3: Duplicate-flagged articles ──────────────────────────────
@@ -192,7 +211,10 @@ export async function GET(request: NextRequest) {
         console.log(`[seo-deep-review] Found ${duplicateFlagged.length} duplicate-flagged article(s) to differentiate`);
       }
     } catch (dupErr) {
-      console.warn("[seo-deep-review] Duplicate-flagged query failed (non-fatal):", dupErr instanceof Error ? dupErr.message : dupErr);
+      console.warn(
+        "[seo-deep-review] Duplicate-flagged query failed (non-fatal):",
+        dupErr instanceof Error ? dupErr.message : dupErr,
+      );
     }
 
     // Combine: recent first, then older, then duplicate-flagged (deduped)
@@ -219,7 +241,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[seo-deep-review] Found ${allArticles.length} article(s) to review (${todayArticles.length} recent + ${olderArticles.length} older)`);
+    console.log(
+      `[seo-deep-review] Found ${allArticles.length} article(s) to review (${todayArticles.length} recent + ${olderArticles.length} older)`,
+    );
 
     const resubmitUrls: { url: string; siteId: string }[] = [];
 
@@ -256,7 +280,10 @@ export async function GET(request: NextRequest) {
         let metaTitleEN = (article.meta_title_en as string) || "";
         let metaDescEN = (article.meta_description_en as string) || "";
         const slug = article.slug as string;
-        const wordCount = contentEN.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const wordCount = contentEN
+          .replace(/<[^>]+>/g, " ")
+          .split(/\s+/)
+          .filter(Boolean).length;
 
         console.log(`[seo-deep-review] Reviewing "${titleEN}" (${slug}, ${wordCount}w)`);
 
@@ -298,17 +325,14 @@ Rewrite the DUPLICATE title to:
 
 Return ONLY the new title. No quotes, no explanation.`;
 
-            const result = await generateCompletion(
-              [{ role: "user", content: diffPrompt }],
-              {
-                maxTokens: 100,
-                temperature: 0.8,
-                taskType: "meta_optimization",
-                siteId,
-                calledFrom: "seo-deep-review-dedup",
-                timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart), 10_000),
-              },
-            );
+            const result = await generateCompletion([{ role: "user", content: diffPrompt }], {
+              maxTokens: 100,
+              temperature: 0.8,
+              taskType: "meta_optimization",
+              siteId,
+              calledFrom: "seo-deep-review-dedup",
+              timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart), 10_000),
+            });
 
             const newTitle = (result?.content || "").trim().replace(/^["']|["']$/g, "");
             if (newTitle.length >= 20 && newTitle.length <= 80 && newTitle !== titleEN) {
@@ -348,13 +372,18 @@ Return ONLY the new title. No quotes, no explanation.`;
           const trimmed = metaTitleEN.substring(0, 57);
           metaTitleEN = trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
           updateData.meta_title_en = metaTitleEN;
-          fix.fixes.push(`Meta title trimmed from ${(article.meta_title_en as string).length} to ${metaTitleEN.length} chars`);
+          fix.fixes.push(
+            `Meta title trimmed from ${(article.meta_title_en as string).length} to ${metaTitleEN.length} chars`,
+          );
         }
 
         // ── Fix 2: Meta Description ───────────────────────────────────
         if (!metaDescEN || metaDescEN.length < 120) {
           // Generate from content excerpt
-          const textContent = contentEN.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          const textContent = contentEN
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
           const sentences = textContent.split(/[.!?]/).filter((s) => s.trim().length > 20);
           metaDescEN = sentences.slice(0, 2).join(". ").trim();
           if (metaDescEN.length > 155) metaDescEN = metaDescEN.substring(0, 152) + "...";
@@ -394,10 +423,13 @@ Return ONLY the new title. No quotes, no explanation.`;
 
             if (relatedPosts.length > 0) {
               const linksNeeded = Math.min(3 - currentInternalLinks, relatedPosts.length);
-              const linksHtml = relatedPosts.slice(0, linksNeeded).map(
-                // Use relative URLs for internal links — works across all environments (dev, staging, prod)
-                (p: any) => `<a href="/blog/${p.slug}" class="internal-link">${p.title_en || p.slug}</a>`
-              ).join(", ");
+              const linksHtml = relatedPosts
+                .slice(0, linksNeeded)
+                .map(
+                  // Use relative URLs for internal links — works across all environments (dev, staging, prod)
+                  (p: any) => `<a href="/blog/${p.slug}" class="internal-link">${p.title_en || p.slug}</a>`,
+                )
+                .join(", ");
 
               // Insert before closing </article> or at end of content
               const relatedSection = `\n<section class="related-articles"><h3>You May Also Enjoy</h3><p>Explore more: ${linksHtml}</p></section>`;
@@ -416,8 +448,18 @@ Return ONLY the new title. No quotes, no explanation.`;
         }
 
         // ── Fix 4: Affiliate Links ────────────────────────────────────
-        if (checkArticleBudget()) { allFixes.push(fix); continue; }
-        const affiliatePatterns = [/booking\.com/gi, /halalbooking\.com/gi, /agoda\.com/gi, /getyourguide\.com/gi, /viator\.com/gi, /klook\.com/gi];
+        if (checkArticleBudget()) {
+          allFixes.push(fix);
+          continue;
+        }
+        const affiliatePatterns = [
+          /booking\.com/gi,
+          /halalbooking\.com/gi,
+          /agoda\.com/gi,
+          /getyourguide\.com/gi,
+          /viator\.com/gi,
+          /klook\.com/gi,
+        ];
         const hasAffiliates = affiliatePatterns.some((p) => p.test(updatedContentEN));
 
         if (!hasAffiliates && updatedContentEN.length > 500) {
@@ -444,7 +486,13 @@ Return ONLY the new title. No quotes, no explanation.`;
           updatedContentEN = updatedContentEN.replace(imgWithoutAlt, (imgTag) => {
             // Extract src for context
             const srcMatch = imgTag.match(/src=["']([^"']+)["']/);
-            const filename = srcMatch ? srcMatch[1].split("/").pop()?.replace(/[-_]/g, " ").replace(/\.\w+$/, "") || "image" : "image";
+            const filename = srcMatch
+              ? srcMatch[1]
+                  .split("/")
+                  .pop()
+                  ?.replace(/[-_]/g, " ")
+                  .replace(/\.\w+$/, "") || "image"
+              : "image";
             const altText = `${titleEN} - ${filename}`;
 
             if (imgTag.includes("alt=")) {
@@ -488,7 +536,12 @@ Return ONLY the new title. No quotes, no explanation.`;
         }
 
         // ── Fix 7: Content Expansion (AI) ─────────────────────────────
-        if (wordCount < 1000 && updatedContentEN.length > 100 && !checkArticleBudget() && (Date.now() - cronStart < TOTAL_BUDGET_MS - 15_000)) {
+        if (
+          wordCount < 1000 &&
+          updatedContentEN.length > 100 &&
+          !checkArticleBudget() &&
+          Date.now() - cronStart < TOTAL_BUDGET_MS - 15_000
+        ) {
           try {
             const { generateCompletion } = await import("@/lib/ai/provider");
             const expansionPrompt = `You are an SEO content editor for a luxury travel site. Expand the following article section to add 400+ more words. Add:
@@ -503,24 +556,24 @@ Return ONLY the new HTML sections to append. No preamble.
 Topic: ${titleEN}
 Current word count: ${wordCount}`;
 
-            const expansionResult = await generateCompletion(
-              [{ role: "user", content: expansionPrompt }],
-              {
-                maxTokens: 2000,
-                temperature: 0.7,
-                taskType: "content_expansion",
-                siteId,
-                calledFrom: "seo-deep-review",
-                timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart) - 2000, 20_000),
-                phaseBudgetHint: 'heavy' as const,
-              },
-            );
+            const expansionResult = await generateCompletion([{ role: "user", content: expansionPrompt }], {
+              maxTokens: 2000,
+              temperature: 0.7,
+              taskType: "content_expansion",
+              siteId,
+              calledFrom: "seo-deep-review",
+              timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart) - 2000, 20_000),
+              phaseBudgetHint: "heavy" as const,
+            });
 
             const expansion = expansionResult?.content || "";
             if (expansion.length > 200) {
               updatedContentEN += `\n${expansion}`;
               contentChanged = true;
-              const newWordCount = updatedContentEN.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+              const newWordCount = updatedContentEN
+                .replace(/<[^>]+>/g, " ")
+                .split(/\s+/)
+                .filter(Boolean).length;
               fix.fixes.push(`Content expanded from ${wordCount} to ${newWordCount} words`);
             }
           } catch (aiErr) {
@@ -551,17 +604,22 @@ Current word count: ${wordCount}`;
         // These are template-based (no AI call needed) to stay within budget.
         if (!checkArticleBudget()) {
           const authenticityMarkers = [
-            /when (we|I) visited/i, /insider tip/i, /from (our|my) experience/i,
-            /what struck (us|me)/i, /the (scent|aroma|sound|view|atmosphere)/i,
-            /we (noticed|discovered|found|recommend)/i, /having spent/i,
-            /on (our|my) (last|recent) visit/i, /the staff (told|recommended)/i,
+            /when (we|I) visited/i,
+            /insider tip/i,
+            /from (our|my) experience/i,
+            /what struck (us|me)/i,
+            /the (scent|aroma|sound|view|atmosphere)/i,
+            /we (noticed|discovered|found|recommend)/i,
+            /having spent/i,
+            /on (our|my) (last|recent) visit/i,
+            /the staff (told|recommended)/i,
           ];
-          const markerCount = authenticityMarkers.filter(m => m.test(updatedContentEN)).length;
+          const markerCount = authenticityMarkers.filter((m) => m.test(updatedContentEN)).length;
 
           if (markerCount < 3 && updatedContentEN.length > 1000) {
             // Inject a travel tip callout box with first-person language
             const tipBox = `\n<div class="insider-tip" style="background:#fffbeb;border-left:4px solid #f59e0b;padding:16px;border-radius:8px;margin:24px 0;">
-<p><strong>Insider Tip:</strong> From our experience visiting ${titleEN.replace(/[<>]/g, '').split(':')[0] || 'this destination'}, we recommend arriving early to avoid the crowds. The atmosphere is particularly special during the golden hour, and the staff are incredibly welcoming to Arabic-speaking visitors.</p>
+<p><strong>Insider Tip:</strong> From our experience visiting ${titleEN.replace(/[<>]/g, "").split(":")[0] || "this destination"}, we recommend arriving early to avoid the crowds. The atmosphere is particularly special during the golden hour, and the staff are incredibly welcoming to Arabic-speaking visitors.</p>
 </div>`;
 
             // Find a good insertion point — after the 2nd H2 or midway through content
@@ -577,7 +635,8 @@ Current word count: ${wordCount}`;
               // Find the end of the next paragraph after this H2
               const nextParaEnd = updatedContentEN.indexOf("</p>", insertPos);
               if (nextParaEnd > insertPos) {
-                updatedContentEN = updatedContentEN.slice(0, nextParaEnd + 4) + tipBox + updatedContentEN.slice(nextParaEnd + 4);
+                updatedContentEN =
+                  updatedContentEN.slice(0, nextParaEnd + 4) + tipBox + updatedContentEN.slice(nextParaEnd + 4);
                 contentChanged = true;
                 fix.fixes.push("Injected authenticity signal (insider tip callout)");
               }
@@ -586,7 +645,8 @@ Current word count: ${wordCount}`;
               const midpoint = Math.floor(updatedContentEN.length / 2);
               const nearestParaEnd = updatedContentEN.indexOf("</p>", midpoint);
               if (nearestParaEnd > 0) {
-                updatedContentEN = updatedContentEN.slice(0, nearestParaEnd + 4) + tipBox + updatedContentEN.slice(nearestParaEnd + 4);
+                updatedContentEN =
+                  updatedContentEN.slice(0, nearestParaEnd + 4) + tipBox + updatedContentEN.slice(nearestParaEnd + 4);
                 contentChanged = true;
                 fix.fixes.push("Injected authenticity signal (insider tip callout)");
               }
@@ -602,25 +662,34 @@ Current word count: ${wordCount}`;
         if (Object.keys(updateData).length > 0) {
           // Determine enhancement types for ownership check + logging
           const enhancementTypes: string[] = [];
-          if (fix.fixes.some((f: string) => f.includes("meta") || f.includes("title") || f.includes("description"))) enhancementTypes.push("meta_optimization");
-          if (fix.fixes.some((f: string) => f.includes("content") || f.includes("expand"))) enhancementTypes.push("content_expansion");
-          if (fix.fixes.some((f: string) => f.includes("authenticity") || f.includes("experience"))) enhancementTypes.push("authenticity_signals");
+          if (fix.fixes.some((f: string) => f.includes("meta") || f.includes("title") || f.includes("description")))
+            enhancementTypes.push("meta_optimization");
+          if (fix.fixes.some((f: string) => f.includes("content") || f.includes("expand")))
+            enhancementTypes.push("content_expansion");
+          if (fix.fixes.some((f: string) => f.includes("authenticity") || f.includes("experience")))
+            enhancementTypes.push("authenticity_signals");
 
           // Skip if another cron owns all the enhancement types in this fix
-          const ownedTypes = enhancementTypes.filter(t => isEnhancementOwner("seo-deep-review", t));
+          const ownedTypes = enhancementTypes.filter((t) => isEnhancementOwner("seo-deep-review", t));
           if (enhancementTypes.length > 0 && ownedTypes.length === 0) {
-            console.log(`[seo-deep-review] Skipping "${slug}" — enhancement types ${enhancementTypes.join(",")} owned by other crons`);
+            console.log(
+              `[seo-deep-review] Skipping "${slug}" — enhancement types ${enhancementTypes.join(",")} owned by other crons`,
+            );
           } else {
             updateData.updated_at = new Date();
-            await optimisticBlogPostUpdate(article.id, (current) => ({
-              ...updateData,
-              enhancement_log: buildEnhancementLogEntry(
-                current.enhancement_log,
-                ownedTypes.join(",") || "seo_review",
-                "seo-deep-review",
-                fix.fixes.join(", ")
-              ),
-            }), { tag: "[seo-deep-review]" });
+            await optimisticBlogPostUpdate(
+              article.id,
+              (current) => ({
+                ...updateData,
+                enhancement_log: buildEnhancementLogEntry(
+                  current.enhancement_log,
+                  ownedTypes.join(",") || "seo_review",
+                  "seo-deep-review",
+                  fix.fixes.join(", "),
+                ),
+              }),
+              { tag: "[seo-deep-review]" },
+            );
 
             // Track for resubmission
             resubmitUrls.push({ url: `${domain}/blog/${slug}`, siteId });
@@ -659,16 +728,28 @@ Current word count: ${wordCount}`;
 
           // Update URLIndexingStatus — only mark as "submitted" if IndexNow succeeded
           for (const url of urls) {
-            await prisma.uRLIndexingStatus.updateMany({
-              where: { site_id: siteId, url },
-              data: {
-                ...(indexNowSuccess ? { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() } : {}),
-                submission_attempts: { increment: 1 },
-              },
-            }).catch((e: unknown) => console.warn(`[seo-deep-review] URLIndexingStatus update failed for ${url}:`, e instanceof Error ? e.message : e));
+            await prisma.uRLIndexingStatus
+              .updateMany({
+                where: { site_id: siteId, url },
+                data: {
+                  ...(indexNowSuccess
+                    ? { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() }
+                    : {}),
+                  submission_attempts: { increment: 1 },
+                },
+              })
+              .catch((e: unknown) =>
+                console.warn(
+                  `[seo-deep-review] URLIndexingStatus update failed for ${url}:`,
+                  e instanceof Error ? e.message : e,
+                ),
+              );
           }
         } catch (indexErr) {
-          console.warn(`[seo-deep-review] IndexNow resubmit failed for ${siteId}:`, indexErr instanceof Error ? indexErr.message : indexErr);
+          console.warn(
+            `[seo-deep-review] IndexNow resubmit failed for ${siteId}:`,
+            indexErr instanceof Error ? indexErr.message : indexErr,
+          );
         }
       }
 
@@ -678,7 +759,10 @@ Current word count: ${wordCount}`;
           await pingSitemaps(getSiteDomain(siteId), siteId);
           console.log(`[seo-deep-review] Sitemap pinged for ${siteId}`);
         } catch (pingErr) {
-          console.warn(`[seo-deep-review] Sitemap ping failed for ${siteId}:`, pingErr instanceof Error ? pingErr.message : pingErr);
+          console.warn(
+            `[seo-deep-review] Sitemap ping failed for ${siteId}:`,
+            pingErr instanceof Error ? pingErr.message : pingErr,
+          );
         }
       }
     }
@@ -689,12 +773,37 @@ Current word count: ${wordCount}`;
     const totalErrors = allFixes.reduce((sum, f) => sum + f.errors.length, 0);
     const articlesWithFixes = allFixes.filter((f) => f.fixes.length > 0).length;
 
-    await logCronExecution("seo-deep-review", totalErrors > 0 && totalFixes === 0 ? "failed" : "completed", {
+    // Compose errorMessage from actual fix errors so triage shows the
+    // real reason articles couldn't be enhanced (timeout, JSON parse,
+    // gate rejection, etc.) instead of "null" in CronJobLog.
+    const cronStatus = totalErrors > 0 && totalFixes === 0 ? "failed" : "completed";
+    let composedError: string | undefined;
+    if (totalErrors > 0) {
+      const errorSamples: string[] = [];
+      for (const fix of allFixes) {
+        if (fix.errors.length === 0) continue;
+        for (const err of fix.errors.slice(0, 1)) {
+          errorSamples.push(`${fix.slug}: ${String(err).slice(0, 120)}`);
+          if (errorSamples.length >= 3) break;
+        }
+        if (errorSamples.length >= 3) break;
+      }
+      composedError =
+        errorSamples.length > 0
+          ? `${totalErrors} fix errors across ${allFixes.filter((f) => f.errors.length > 0).length} article(s) — ${errorSamples.join("; ")}`.slice(
+              0,
+              1000,
+            )
+          : `${totalErrors} fix errors across ${allFixes.filter((f) => f.errors.length > 0).length} article(s)`;
+    }
+
+    await logCronExecution("seo-deep-review", cronStatus, {
       durationMs: Date.now() - cronStart,
       itemsProcessed: allArticles.length,
       itemsSucceeded: articlesWithFixes, // Articles that received actual data fixes
       itemsFailed: allFixes.filter((f) => f.errors.length > 0).length,
       sitesProcessed: activeSites,
+      ...(composedError ? { errorMessage: composedError } : {}),
       resultSummary: {
         articlesReviewed: allArticles.length,
         recentArticles: todayArticles.length,
@@ -729,10 +838,7 @@ Current word count: ${wordCount}`;
       errorMessage: errMsg,
     });
 
-    return NextResponse.json(
-      { success: false, error: errMsg, durationMs: Date.now() - cronStart },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: errMsg, durationMs: Date.now() - cronStart }, { status: 500 });
   }
 }
 

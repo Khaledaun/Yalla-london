@@ -2,13 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  SITES,
-  getActiveSiteIds,
-  getSiteConfig,
-  getSiteDomain,
-  isYachtSite,
-} from "@/config/sites";
+import { SITES, getActiveSiteIds, getSiteConfig, getSiteDomain, isYachtSite } from "@/config/sites";
 import type { SiteConfig, TopicTemplate } from "@/config/sites";
 import { logCronExecution } from "@/lib/cron-logger";
 import { getFeatureFlagValue } from "@/lib/feature-flags";
@@ -90,10 +84,40 @@ export async function GET(request: NextRequest) {
     // Extract per-article counts for accurate CronLog (not just site count)
     const siteEntries = Object.values(result.sites || {}) as Array<Record<string, any>>;
     const totalArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.length : 0), 0);
-    const successArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.filter((r: any) => r.status === "success").length : 0), 0);
+    const successArticles = siteEntries.reduce(
+      (sum, s) => sum + (Array.isArray(s.results) ? s.results.filter((r: any) => r.status === "success").length : 0),
+      0,
+    );
 
     const isSuccess = successArticles > 0 || totalArticles === 0;
-    const cronStatus = result.timedOut ? "timed_out" : (isSuccess ? "completed" : "failed");
+    const cronStatus = result.timedOut ? "timed_out" : isSuccess ? "completed" : "failed";
+
+    // Compose a SPECIFIC errorMessage so triage isn't stuck with
+    // "X/N articles failed to generate" — surface the first 2-3 actual
+    // rejection reasons from the per-site results so daily-briefing §6
+    // shows what's wrong, not just that something is.
+    let composedError: string | undefined;
+    if (!isSuccess) {
+      const reasons: string[] = [];
+      for (const [siteId, siteRaw] of Object.entries(result.sites || {})) {
+        const site = siteRaw as Record<string, unknown>;
+        const results = Array.isArray(site.results) ? (site.results as Array<Record<string, unknown>>) : [];
+        for (const r of results) {
+          if (r.status === "success") continue;
+          const reason =
+            (r.error as string) || (r.reason as string) || (r.rejection_reason as string) || "no error message";
+          reasons.push(
+            `[${siteId}] ${(r.keyword as string) || (r.slug as string) || "unknown"}: ${String(reason).slice(0, 120)}`,
+          );
+          if (reasons.length >= 3) break;
+        }
+        if (reasons.length >= 3) break;
+      }
+      composedError =
+        reasons.length > 0
+          ? `${totalArticles - successArticles}/${totalArticles} failed — ${reasons.join("; ")}`.slice(0, 1000)
+          : `${totalArticles - successArticles}/${totalArticles} articles failed to generate`;
+    }
 
     await logCronExecution("daily-content-generate", cronStatus, {
       durationMs: Date.now() - _cronStart,
@@ -101,16 +125,22 @@ export async function GET(request: NextRequest) {
       itemsSucceeded: successArticles,
       itemsFailed: totalArticles - successArticles,
       sitesProcessed: Object.keys(result.sites || {}),
-      resultSummary: { message: result.message, totalArticles, successArticles, sitesCount: Object.keys(result.sites || {}).length },
-      ...(!isSuccess ? { errorMessage: `${totalArticles - successArticles}/${totalArticles} articles failed to generate` } : {}),
+      resultSummary: {
+        message: result.message,
+        totalArticles,
+        successArticles,
+        sitesCount: Object.keys(result.sites || {}).length,
+      },
+      ...(composedError ? { errorMessage: composedError } : {}),
     });
     return NextResponse.json({ success: isSuccess, ...result });
   } catch (error) {
-    const errMsg = error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : JSON.stringify(error) || "Daily content generation crashed with no error details";
+    const errMsg =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error) || "Daily content generation crashed with no error details";
     console.error("Daily content generation failed:", errMsg);
     await logCronExecution("daily-content-generate", "failed", {
       durationMs: Date.now() - _cronStart,
@@ -118,12 +148,11 @@ export async function GET(request: NextRequest) {
     });
 
     // Fire failure hook for automatic recovery
-    onCronFailure({ jobName: "daily-content-generate", error: errMsg }).catch(err => console.warn("[daily-content-generate] onCronFailure hook failed:", err instanceof Error ? err.message : err));
-
-    return NextResponse.json(
-      { error: errMsg },
-      { status: 500 },
+    onCronFailure({ jobName: "daily-content-generate", error: errMsg }).catch((err) =>
+      console.warn("[daily-content-generate] onCronFailure hook failed:", err instanceof Error ? err.message : err),
     );
+
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
 
@@ -144,10 +173,13 @@ async function generateDailyContentAllSites() {
   const aiReady = await isAIAvailable();
   const hasAbacus = !!process.env.ABACUSAI_API_KEY;
   if (!aiReady && !hasAbacus) {
-    console.error("[daily-content-generate] No AI provider configured. Set XAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY");
+    console.error(
+      "[daily-content-generate] No AI provider configured. Set XAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
+    );
     return {
       message: "No AI provider configured — content generation skipped",
-      error: "Set at least one AI API key: XAI_API_KEY (Grok), ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
+      error:
+        "Set at least one AI API key: XAI_API_KEY (Grok), ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
       sites: {},
       timedOut: false,
       timestamp: new Date().toISOString(),
@@ -189,12 +221,12 @@ async function generateDailyContentAllSites() {
       // Reset counter if any article succeeded for this site
       const hasSuccess = result.results?.some((r: any) => r.status === "success");
       if (hasSuccess) consecutiveAIFailures = 0;
-      else if (result.results?.some((r: any) => r.error?.includes("AI providers failed") || r.error?.includes("timed out"))) {
+      else if (
+        result.results?.some((r: any) => r.error?.includes("AI providers failed") || r.error?.includes("timed out"))
+      ) {
         consecutiveAIFailures++;
       }
-      console.log(
-        `[${siteConfig.name}] Content gen: ${JSON.stringify(result)}`,
-      );
+      console.log(`[${siteConfig.name}] Content gen: ${JSON.stringify(result)}`);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : "Unknown error";
       allResults[siteId] = { status: "failed", error: errMsg };
@@ -213,13 +245,13 @@ async function generateDailyContentAllSites() {
   };
 }
 
-async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadline?: { isExpired: () => boolean; remainingMs: () => number }) {
+async function generateDailyContentForSite(
+  site: SiteConfig,
+  prisma: any,
+  deadline?: { isExpired: () => boolean; remainingMs: () => number },
+) {
   const today = new Date();
-  const startOfDay = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   // Check if we already generated today for this site
   const todayCount = await prisma.blogPost.count({
@@ -278,7 +310,11 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
   // Lowered to 18s. The per-call AI timeout cap will prevent Vercel overrun.
   if (todayAR === 0) {
     if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 18_000)) {
-      results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
+      results.push({
+        language: "ar",
+        status: "skipped",
+        error: "timeout_approaching — insufficient time for AR generation",
+      });
     } else {
       try {
         const article = await generateArticle("ar", site, prisma, deadline);
@@ -304,8 +340,7 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
   return {
     site: site.name,
     destination: site.destination,
-    generatedToday:
-      todayCount + results.filter((r) => r.status === "success").length,
+    generatedToday: todayCount + results.filter((r) => r.status === "success").length,
     results,
   };
 }
@@ -325,12 +360,17 @@ async function generateArticle(
     // If AI generation fails and we claimed a topic from the DB, revert its status
     // so it can be picked up again by a future run
     if (topic.id) {
-      await prisma.topicProposal.update({
-        where: { id: topic.id },
-        data: { status: "ready" },
-      }).catch((revertErr: unknown) => {
-        console.warn(`[daily-content-generate] Failed to revert topic ${topic.id} status after AI failure:`, revertErr instanceof Error ? revertErr.message : revertErr);
-      });
+      await prisma.topicProposal
+        .update({
+          where: { id: topic.id },
+          data: { status: "ready" },
+        })
+        .catch((revertErr: unknown) => {
+          console.warn(
+            `[daily-content-generate] Failed to revert topic ${topic.id} status after AI failure:`,
+            revertErr instanceof Error ? revertErr.message : revertErr,
+          );
+        });
     }
     throw aiErr;
   }
@@ -340,7 +380,9 @@ async function generateArticle(
 
   // Hard guard: never publish with an empty or date-only slug (e.g. "-2026-02-14")
   if (!rawSlug || /^-?\d{4}-\d{2}-\d{2}$/.test(rawSlug)) {
-    console.error(`[daily-content-generate] Empty or date-only slug generated from title "${content.title}" — skipping`);
+    console.error(
+      `[daily-content-generate] Empty or date-only slug generated from title "${content.title}" — skipping`,
+    );
     return { slug: rawSlug, deduplicated: true };
   }
 
@@ -361,10 +403,17 @@ async function generateArticle(
     );
     // Mark topic as published so it's not picked again
     if (topic.id) {
-      await prisma.topicProposal.update({
-        where: { id: topic.id },
-        data: { status: "published" },
-      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark dedup topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
+      await prisma.topicProposal
+        .update({
+          where: { id: topic.id },
+          data: { status: "published" },
+        })
+        .catch((e: unknown) =>
+          console.warn(
+            `[daily-content-generate] Failed to mark dedup topic ${topic.id} as published:`,
+            e instanceof Error ? e.message : e,
+          ),
+        );
     }
     return { slug: existingByKeyword.slug, deduplicated: true };
   }
@@ -373,10 +422,17 @@ async function generateArticle(
   if (!slug) {
     // Near-duplicate exists — mark topic as published and skip
     if (topic.id) {
-      await prisma.topicProposal.update({
-        where: { id: topic.id },
-        data: { status: "published" },
-      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark slug-collision topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
+      await prisma.topicProposal
+        .update({
+          where: { id: topic.id },
+          data: { status: "published" },
+        })
+        .catch((e: unknown) =>
+          console.warn(
+            `[daily-content-generate] Failed to mark slug-collision topic ${topic.id} as published:`,
+            e instanceof Error ? e.message : e,
+          ),
+        );
     }
     return { slug: rawSlug, deduplicated: true };
   }
@@ -387,57 +443,42 @@ async function generateArticle(
   let gateBlocked = false;
   let computedSeoScore = 50; // Default to 50 (mediocre) — computed from gate results below
   try {
-    const { runPrePublicationGate } = await import(
-      "@/lib/seo/orchestrator/pre-publication-gate"
+    const { runPrePublicationGate } = await import("@/lib/seo/orchestrator/pre-publication-gate");
+    const gateResult = await runPrePublicationGate(
+      targetUrl,
+      {
+        title_en: primaryLanguage === "en" ? content.title : content.titleTranslation || content.title,
+        title_ar: primaryLanguage === "ar" ? content.title : content.titleTranslation || "",
+        meta_title_en: primaryLanguage === "en" ? content.metaTitle : content.metaTitleTranslation || "",
+        meta_description_en:
+          primaryLanguage === "en" ? content.metaDescription : content.metaDescriptionTranslation || "",
+        content_en: primaryLanguage === "en" ? content.body : content.bodyTranslation || "",
+        content_ar: primaryLanguage === "ar" ? content.body : content.bodyTranslation || "",
+        locale: primaryLanguage,
+        tags: content.tags,
+        seo_score: content.seoScore,
+        keywords_json: content.keywords || [],
+        siteId: site.id,
+      },
+      siteUrl,
     );
-    const gateResult = await runPrePublicationGate(targetUrl, {
-      title_en:
-        primaryLanguage === "en"
-          ? content.title
-          : content.titleTranslation || content.title,
-      title_ar:
-        primaryLanguage === "ar"
-          ? content.title
-          : content.titleTranslation || "",
-      meta_title_en:
-        primaryLanguage === "en"
-          ? content.metaTitle
-          : content.metaTitleTranslation || "",
-      meta_description_en:
-        primaryLanguage === "en"
-          ? content.metaDescription
-          : content.metaDescriptionTranslation || "",
-      content_en:
-        primaryLanguage === "en" ? content.body : content.bodyTranslation || "",
-      content_ar:
-        primaryLanguage === "ar" ? content.body : content.bodyTranslation || "",
-      locale: primaryLanguage,
-      tags: content.tags,
-      seo_score: content.seoScore,
-      keywords_json: content.keywords || [],
-      siteId: site.id,
-    }, siteUrl);
 
     // Compute REAL SEO score from gate checks instead of trusting AI self-report.
     // Start at 100, deduct for each failed check (blockers: -15, warnings: -8).
     const totalChecks = gateResult.checks.length || 1;
     const failedBlockers = gateResult.blockers.length;
     const failedWarnings = gateResult.warnings.length;
-    computedSeoScore = Math.max(0, Math.min(100,
-      100 - (failedBlockers * 15) - (failedWarnings * 8)
-    ));
-    console.log(`[${site.name}] Computed SEO score: ${computedSeoScore} (${totalChecks} checks, ${failedBlockers} blockers, ${failedWarnings} warnings)`);
+    computedSeoScore = Math.max(0, Math.min(100, 100 - failedBlockers * 15 - failedWarnings * 8));
+    console.log(
+      `[${site.name}] Computed SEO score: ${computedSeoScore} (${totalChecks} checks, ${failedBlockers} blockers, ${failedWarnings} warnings)`,
+    );
 
     if (!gateResult.allowed) {
-      console.warn(
-        `[${site.name}] Pre-publication gate BLOCKED: ${gateResult.blockers.join("; ")}`,
-      );
+      console.warn(`[${site.name}] Pre-publication gate BLOCKED: ${gateResult.blockers.join("; ")}`);
       gateBlocked = true;
     }
     if (gateResult.warnings.length > 0) {
-      console.warn(
-        `[${site.name}] Pre-publication warnings: ${gateResult.warnings.join("; ")}`,
-      );
+      console.warn(`[${site.name}] Pre-publication warnings: ${gateResult.warnings.join("; ")}`);
     }
   } catch (gateError) {
     // Gate failure is FATAL — fail closed. Publishing without quality checks
@@ -450,38 +491,42 @@ async function generateArticle(
   // Check ALL articles (published OR unpublished) — content-auto-fix may have unpublished
   // a previous version, and creating another just restarts the publish/unpublish cycle.
   // Uses normalized matching (strips years, filler words, punctuation) — Rule #145/#155
-  const candidateTitle = primaryLanguage === "en"
-    ? content.title
-    : content.titleTranslation || content.title;
+  const candidateTitle = primaryLanguage === "en" ? content.title : content.titleTranslation || content.title;
   if (candidateTitle && candidateTitle.length > 5) {
     // Normalize: strip years, filler words, punctuation — same logic as select-runner
-    const normalizeForDedup = (t: string) => t.toLowerCase()
-      .replace(/\b20\d{2}\b/g, "")
-      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
-      .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
-      .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
-      .replace(/\s+/g, " ").trim();
+    const normalizeForDedup = (t: string) =>
+      t
+        .toLowerCase()
+        .replace(/\b20\d{2}\b/g, "")
+        .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
+        .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
+        .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
+        .replace(/\s+/g, " ")
+        .trim();
 
     const normalizedCandidate = normalizeForDedup(candidateTitle);
 
     // Fetch recent titles and compare normalized forms
-    const recentTitles = await prisma.blogPost.findMany({
-      where: { siteId: site.id, deletedAt: null },
-      select: { id: true, slug: true, title_en: true, published: true },
-      orderBy: { created_at: "desc" },
-      take: 200,
-    }).catch(() => [] as Array<{ id: string; slug: string; title_en: string | null; published: boolean }>);
+    const recentTitles = await prisma.blogPost
+      .findMany({
+        where: { siteId: site.id, deletedAt: null },
+        select: { id: true, slug: true, title_en: true, published: true },
+        orderBy: { created_at: "desc" },
+        take: 200,
+      })
+      .catch(() => [] as Array<{ id: string; slug: string; title_en: string | null; published: boolean }>);
 
-    const existingMatch = recentTitles.find(
-      (p) => normalizeForDedup(p.title_en || "") === normalizedCandidate,
-    );
+    const existingMatch = recentTitles.find((p) => normalizeForDedup(p.title_en || "") === normalizedCandidate);
     if (existingMatch) {
-      console.warn(`[${site.name}] SKIPPED: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already exists as /blog/${existingMatch.slug} (published=${existingMatch.published})`);
+      console.warn(
+        `[${site.name}] SKIPPED: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already exists as /blog/${existingMatch.slug} (published=${existingMatch.published})`,
+      );
       return null;
     }
   }
 
-  const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+  const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } =
+    await import("@/lib/content-pipeline/title-sanitizer");
   // Demote <h1> to <h2> in body content — the blog page template already provides
   // the H1 via the article title. Multiple H1s cause SEO audit failures.
   const demoteH1 = (html: string) => html.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
@@ -489,41 +534,21 @@ async function generateArticle(
   const bodyAr = demoteH1(primaryLanguage === "ar" ? content.body : content.bodyTranslation || "");
   const blogPost = await prisma.blogPost.create({
     data: {
-      title_en: sanitizeTitle(
-        primaryLanguage === "en"
-          ? content.title
-          : content.titleTranslation || content.title),
-      title_ar: sanitizeTitle(
-        primaryLanguage === "ar"
-          ? content.title
-          : content.titleTranslation || content.title),
+      title_en: sanitizeTitle(primaryLanguage === "en" ? content.title : content.titleTranslation || content.title),
+      title_ar: sanitizeTitle(primaryLanguage === "ar" ? content.title : content.titleTranslation || content.title),
       slug,
-      excerpt_en:
-        primaryLanguage === "en"
-          ? content.excerpt
-          : content.excerptTranslation || "",
-      excerpt_ar:
-        primaryLanguage === "ar"
-          ? content.excerpt
-          : content.excerptTranslation || "",
+      excerpt_en: primaryLanguage === "en" ? content.excerpt : content.excerptTranslation || "",
+      excerpt_ar: primaryLanguage === "ar" ? content.excerpt : content.excerptTranslation || "",
       content_en: sanitizeContentBody(bodyEn),
       content_ar: sanitizeContentBody(bodyAr),
-      meta_title_en: sanitizeTitle(
-        primaryLanguage === "en"
-          ? content.metaTitle
-          : content.metaTitleTranslation || ""),
-      meta_title_ar: sanitizeTitle(
-        primaryLanguage === "ar"
-          ? content.metaTitle
-          : content.metaTitleTranslation || ""),
+      meta_title_en: sanitizeTitle(primaryLanguage === "en" ? content.metaTitle : content.metaTitleTranslation || ""),
+      meta_title_ar: sanitizeTitle(primaryLanguage === "ar" ? content.metaTitle : content.metaTitleTranslation || ""),
       meta_description_en: sanitizeMetaDescription(
-        primaryLanguage === "en"
-          ? content.metaDescription
-          : content.metaDescriptionTranslation || ""),
+        primaryLanguage === "en" ? content.metaDescription : content.metaDescriptionTranslation || "",
+      ),
       meta_description_ar: sanitizeMetaDescription(
-        primaryLanguage === "ar"
-          ? content.metaDescription
-          : content.metaDescriptionTranslation || ""),
+        primaryLanguage === "ar" ? content.metaDescription : content.metaDescriptionTranslation || "",
+      ),
       tags: [
         ...content.tags,
         "auto-generated",
@@ -548,9 +573,7 @@ async function generateArticle(
   // Arabic content quality gate — validate before publishing
   if (primaryLanguage === "ar") {
     try {
-      const { validateArabicContent } = await import(
-        "@/lib/skills/arabic-copywriting"
-      );
+      const { validateArabicContent } = await import("@/lib/skills/arabic-copywriting");
       const arContent = content.body || "";
       const qualityReport = validateArabicContent(arContent);
       console.log(
@@ -573,37 +596,32 @@ async function generateArticle(
   try {
     const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
     const postUrl = `${getSiteDomain(site.id)}/blog/${slug}`;
-    ensureUrlTracked(postUrl, site.id, `blog/${slug}`).catch(err => console.warn('[daily-content-generate] ensureUrlTracked failed:', err instanceof Error ? err.message : err));
+    ensureUrlTracked(postUrl, site.id, `blog/${slug}`).catch((err) =>
+      console.warn("[daily-content-generate] ensureUrlTracked failed:", err instanceof Error ? err.message : err),
+    );
   } catch {
     // Non-fatal
   }
 
   // Auto-inject structured data (JSON-LD) for AIO visibility
   try {
-    const { enhancedSchemaInjector } = await import(
-      "@/lib/seo/enhanced-schema-injector"
-    );
-    const contentBody =
-      primaryLanguage === "en" ? content.body : content.bodyTranslation || "";
+    const { enhancedSchemaInjector } = await import("@/lib/seo/enhanced-schema-injector");
+    const contentBody = primaryLanguage === "en" ? content.body : content.bodyTranslation || "";
     const postUrl = `${getSiteDomain(site.id)}/blog/${slug}`;
-    await enhancedSchemaInjector.injectSchemas(
-      contentBody,
-      content.title,
-      postUrl,
-      blogPost.id,
-      {
-        author: await (async () => {
-          try {
-            const { getNextAuthor, assignAuthor } = await import("@/lib/content-pipeline/author-rotation");
-            const author = await getNextAuthor(site.id);
-            if (author.id) await assignAuthor(author.id, "blog_post", blogPost.id);
-            return author.name;
-          } catch { return `${site.name} Editorial Team`; }
-        })(),
-        category: category.name_en,
-        tags: content.tags,
-      },
-    );
+    await enhancedSchemaInjector.injectSchemas(contentBody, content.title, postUrl, blogPost.id, {
+      author: await (async () => {
+        try {
+          const { getNextAuthor, assignAuthor } = await import("@/lib/content-pipeline/author-rotation");
+          const author = await getNextAuthor(site.id);
+          if (author.id) await assignAuthor(author.id, "blog_post", blogPost.id);
+          return author.name;
+        } catch {
+          return `${site.name} Editorial Team`;
+        }
+      })(),
+      category: category.name_en,
+      tags: content.tags,
+    });
     console.log(`[${site.name}] Auto-injected structured data for: ${slug}`);
   } catch (schemaError) {
     console.warn(`[${site.name}] Schema injection failed (non-fatal):`, schemaError);
@@ -617,7 +635,10 @@ async function generateArticle(
         data: { status: "published" },
       });
     } catch (topicErr) {
-      console.warn(`[daily-content-generate] Failed to mark topic ${topic.id} as published:`, topicErr instanceof Error ? topicErr.message : topicErr);
+      console.warn(
+        `[daily-content-generate] Failed to mark topic ${topic.id} as published:`,
+        topicErr instanceof Error ? topicErr.message : topicErr,
+      );
     }
   }
 
@@ -639,7 +660,10 @@ async function generateArticle(
         update: {}, // Don't overwrite if already tracked
       });
     } catch (trackErr) {
-      console.warn(`[${site.name}] URL tracking failed (non-fatal):`, trackErr instanceof Error ? trackErr.message : trackErr);
+      console.warn(
+        `[${site.name}] URL tracking failed (non-fatal):`,
+        trackErr instanceof Error ? trackErr.message : trackErr,
+      );
     }
   }
 
@@ -677,7 +701,9 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
 
       if (claimed.count === 0) {
         // Another process already claimed this topic — fall through to template
-        console.log(`[daily-content-generate] Topic ${candidate.id} already claimed by another process, using fallback`);
+        console.log(
+          `[daily-content-generate] Topic ${candidate.id} already claimed by another process, using fallback`,
+        );
       } else {
         return {
           id: candidate.id,
@@ -690,16 +716,15 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
       }
     }
   } catch (dbErr) {
-    console.warn(`[daily-content-generate] DB topic lookup failed, using fallback topics:`, dbErr instanceof Error ? dbErr.message : dbErr);
+    console.warn(
+      `[daily-content-generate] DB topic lookup failed, using fallback topics:`,
+      dbErr instanceof Error ? dbErr.message : dbErr,
+    );
   }
 
   // Fallback: use site-specific topic templates
-  const topics: TopicTemplate[] =
-    language === "en" ? site.topicsEN : site.topicsAR;
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
-      86400000,
-  );
+  const topics: TopicTemplate[] = language === "en" ? site.topicsEN : site.topicsAR;
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000);
   const topic = topics[dayOfYear % topics.length];
 
   return { id: null, ...topic };
@@ -716,8 +741,7 @@ async function generateWithAI(
 
     // Apply humanization layer to system prompt
     // First try static config, then fall back to SiteSettings (for wizard-created sites)
-    let baseSystemPrompt =
-      language === "en" ? site.systemPromptEN : site.systemPromptAR;
+    let baseSystemPrompt = language === "en" ? site.systemPromptEN : site.systemPromptAR;
 
     if (!baseSystemPrompt) {
       try {
@@ -727,20 +751,22 @@ async function generateWithAI(
         });
         if (contentGenSettings?.config) {
           const s = contentGenSettings.config as Record<string, string>;
-          baseSystemPrompt = language === "en"
-            ? s.systemPromptEN || ""
-            : s.systemPromptAR || "";
+          baseSystemPrompt = language === "en" ? s.systemPromptEN || "" : s.systemPromptAR || "";
         }
       } catch (promptErr) {
-        console.warn(`[daily-content-generate] SiteSettings prompt fallback failed:`, promptErr instanceof Error ? promptErr.message : promptErr);
+        console.warn(
+          `[daily-content-generate] SiteSettings prompt fallback failed:`,
+          promptErr instanceof Error ? promptErr.message : promptErr,
+        );
       }
     }
 
     // Final fallback — generic prompt if nothing found
     if (!baseSystemPrompt) {
-      baseSystemPrompt = language === "en"
-        ? `You are a senior luxury travel content writer for ${site.name}. Write 1,500–2,000 words minimum with proper heading hierarchy, 3+ internal links, and 2+ affiliate links. Always respond with valid JSON.`
-        : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب 1,500–2,000 كلمة كحد أدنى. أجب دائماً بـ JSON صالح.`;
+      baseSystemPrompt =
+        language === "en"
+          ? `You are a senior luxury travel content writer for ${site.name}. Write 1,500–2,000 words minimum with proper heading hierarchy, 3+ internal links, and 2+ affiliate links. Always respond with valid JSON.`
+          : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب 1,500–2,000 كلمة كحد أدنى. أجب دائماً بـ JSON صالح.`;
     }
 
     const writingStyle = pickWritingStyle();
@@ -764,23 +790,29 @@ async function generateWithAI(
         }
       }
     } catch (wfErr) {
-      console.warn(`[daily-content-generate] Workflow settings load failed:`, wfErr instanceof Error ? wfErr.message : wfErr);
+      console.warn(
+        `[daily-content-generate] Workflow settings load failed:`,
+        wfErr instanceof Error ? wfErr.message : wfErr,
+      );
     }
 
     // Inject Arabic copywriting directives for AR content
     let arabicDirectives = "";
     if (language === "ar") {
       try {
-        const { getArabicCopywritingDirectives } = await import(
-          "@/lib/skills/arabic-copywriting"
-        );
-        arabicDirectives = "\n\n" + getArabicCopywritingDirectives({
-          destination: site.destination,
-          contentType: topic.authorityLinks?.contentType || "guide",
-          audience: "general",
-        });
+        const { getArabicCopywritingDirectives } = await import("@/lib/skills/arabic-copywriting");
+        arabicDirectives =
+          "\n\n" +
+          getArabicCopywritingDirectives({
+            destination: site.destination,
+            contentType: topic.authorityLinks?.contentType || "guide",
+            audience: "general",
+          });
       } catch (arErr) {
-        console.warn(`[daily-content-generate] Arabic copywriting directives unavailable:`, arErr instanceof Error ? arErr.message : arErr);
+        console.warn(
+          `[daily-content-generate] Arabic copywriting directives unavailable:`,
+          arErr instanceof Error ? arErr.message : arErr,
+        );
       }
     }
 
@@ -890,9 +922,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
     // Previous 30s cap was too tight — full article generation (1,500-2,000 words, 6000 tokens)
     // needs more time than pipeline drafting sections. Pipeline phases use 65-80s timeouts.
     // With 2 providers at 50% split, each gets 30s at 60s budget — enough for a real attempt.
-    const aiTimeoutMs = deadline
-      ? Math.max(10_000, Math.min(60_000, deadline.remainingMs() - 5_000))
-      : 60_000;
+    const aiTimeoutMs = deadline ? Math.max(10_000, Math.min(60_000, deadline.remainingMs() - 5_000)) : 60_000;
     // Pass timeoutMs INTO generateJSON so the provider fallback chain respects
     // the per-call budget. Previously only the outer Promise.race had the timeout,
     // but the inner provider chain used its default 25s budget — meaning grok alone
@@ -903,55 +933,54 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
         maxTokens: 6000,
         temperature: 0.7,
         timeoutMs: aiTimeoutMs,
-        phaseBudgetHint: 'heavy',
+        phaseBudgetHint: "heavy",
         taskType: "content_generation",
         calledFrom: "daily-content-generate",
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`AI generation timed out after ${Math.round(aiTimeoutMs / 1000)}s`)), aiTimeoutMs)
+        setTimeout(
+          () => reject(new Error(`AI generation timed out after ${Math.round(aiTimeoutMs / 1000)}s`)),
+          aiTimeoutMs,
+        ),
       ),
     ]);
     return aiResult;
   } catch (aiError) {
-    console.warn(
-      `[${site.name}] AI provider failed, trying AbacusAI:`,
-      aiError,
-    );
+    console.warn(`[${site.name}] AI provider failed, trying AbacusAI:`, aiError);
   }
 
   // Fallback to AbacusAI
   const apiKey = process.env.ABACUSAI_API_KEY;
   if (apiKey) {
     try {
-      const response = await fetch(
-        "https://apps.abacus.ai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(18_000, deadline.remainingMs() - 8_000)) : 18_000),
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content:
-                  language === "en"
-                    ? `You are a luxury travel content writer for ${site.name}. Write SEO-optimized content about ${site.destination} for luxury travelers. Respond with valid JSON only.`
-                    : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب محتوى محسّن لمحركات البحث عن ${site.destination}. أجب بـ JSON صالح فقط.`,
-              },
-              {
-                role: "user",
-                content: `Write a detailed 1500-2000 word article about "${topic.keyword}" for Arab travelers. Include 4-6 H2 sections, internal links, affiliate links (Booking.com, HalalBooking, GetYourGuide), and a Key Takeaways section. The bodyTranslation must be a FULL translation (1000+ words), not a summary. Return JSON: {"title":"...","titleTranslation":"...","body":"<h2>...</h2><p>...</p>...","bodyTranslation":"Full translation...","excerpt":"...","excerptTranslation":"...","metaTitle":"...","metaTitleTranslation":"...","metaDescription":"...","metaDescriptionTranslation":"...","tags":["..."],"keywords":["..."],"questions":["..."],"pageType":"guide","seoScore":85}`,
-              },
-            ],
-            max_tokens: 6000,
-            temperature: 0.7,
-          }),
+      const response = await fetch("https://apps.abacus.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      );
+        signal: AbortSignal.timeout(
+          deadline ? Math.max(10_000, Math.min(18_000, deadline.remainingMs() - 8_000)) : 18_000,
+        ),
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                language === "en"
+                  ? `You are a luxury travel content writer for ${site.name}. Write SEO-optimized content about ${site.destination} for luxury travelers. Respond with valid JSON only.`
+                  : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب محتوى محسّن لمحركات البحث عن ${site.destination}. أجب بـ JSON صالح فقط.`,
+            },
+            {
+              role: "user",
+              content: `Write a detailed 1500-2000 word article about "${topic.keyword}" for Arab travelers. Include 4-6 H2 sections, internal links, affiliate links (Booking.com, HalalBooking, GetYourGuide), and a Key Takeaways section. The bodyTranslation must be a FULL translation (1000+ words), not a summary. Return JSON: {"title":"...","titleTranslation":"...","body":"<h2>...</h2><p>...</p>...","bodyTranslation":"Full translation...","excerpt":"...","excerptTranslation":"...","metaTitle":"...","metaTitleTranslation":"...","metaDescription":"...","metaDescriptionTranslation":"...","tags":["..."],"keywords":["..."],"questions":["..."],"pageType":"guide","seoScore":85}`,
+            },
+          ],
+          max_tokens: 6000,
+          temperature: 0.7,
+        }),
+      });
 
       const data = await response.json();
       const raw = data.choices?.[0]?.message?.content || "";
@@ -961,16 +990,11 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
       if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
       return JSON.parse(jsonStr.trim());
     } catch (fallbackError) {
-      console.error(
-        `[${site.name}] AbacusAI fallback also failed:`,
-        fallbackError,
-      );
+      console.error(`[${site.name}] AbacusAI fallback also failed:`, fallbackError);
     }
   }
 
-  throw new Error(
-    `All AI providers failed for ${site.name} - cannot generate content`,
-  );
+  throw new Error(`All AI providers failed for ${site.name} - cannot generate content`);
 }
 
 function generateSlug(title: string, language: string): string {
@@ -990,7 +1014,10 @@ function generateSlug(title: string, language: string): string {
     // Replace second and subsequent occurrences of the same year
     let firstSeen = false;
     cleanTitle = cleanTitle.replace(new RegExp(`-?${year}`, "g"), (match) => {
-      if (!firstSeen) { firstSeen = true; return match; }
+      if (!firstSeen) {
+        firstSeen = true;
+        return match;
+      }
       return "";
     });
   }
@@ -1032,7 +1059,9 @@ async function ensureUniqueSlug(slug: string, siteId: string, prisma: any): Prom
   if (!existing) return slug;
 
   // A near-duplicate already exists — return null to signal "skip this topic"
-  console.warn(`[daily-content-generate] Near-duplicate slug exists: "${existing.slug}" for new "${slug}" — skipping to prevent duplicate content`);
+  console.warn(
+    `[daily-content-generate] Near-duplicate slug exists: "${existing.slug}" for new "${slug}" — skipping to prevent duplicate content`,
+  );
   return null;
 }
 
@@ -1076,11 +1105,7 @@ async function getOrCreateSystemUser(site: SiteConfig, prisma: any) {
  * Generate content-type-specific prompts for AI.
  * Each type produces a different article structure optimized for that format.
  */
-function getContentTypePrompt(
-  contentType: string,
-  topic: any,
-  site: SiteConfig,
-): string {
+function getContentTypePrompt(contentType: string, topic: any, site: SiteConfig): string {
   const keyword = topic.keyword;
 
   switch (contentType) {

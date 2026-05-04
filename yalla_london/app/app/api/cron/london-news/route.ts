@@ -1196,11 +1196,26 @@ export async function GET(request: NextRequest) {
     // (Rule #130-132: status must reflect actual outcomes, but template updates count as work)
     const itemsWorked = itemsPublished + itemsUpdated;
     const cronStatus = itemsWorked > 0 ? "completed" : grokResult.status === "failed" ? "failed" : "completed";
+
+    // Compose a USEFUL error_message so triage can read CronJobLog.error_message
+    // directly (vs digging into result_summary). Required so daily-briefing
+    // §6/§16 surface the actual rejection reason, not "null".
+    let composedError: string | undefined;
+    if (cronStatus === "failed" || itemsSkipped > 0) {
+      const parts: string[] = [];
+      if (grokResult.status === "failed" && grokResult.errorMessage) parts.push(`grok: ${grokResult.errorMessage}`);
+      if (errors.length > 0) parts.push(...errors.slice(0, 3));
+      if (itemsSkipped > 0 && parts.length === 0)
+        parts.push(`${itemsSkipped} items skipped (no actionable templates returned by grok)`);
+      composedError = parts.join("; ").slice(0, 1000) || undefined;
+    }
+
     await logCronExecution("london-news", cronStatus, {
       durationMs,
       itemsProcessed: itemsFound,
       itemsSucceeded,
       itemsFailed: itemsSkipped,
+      ...(composedError ? { errorMessage: composedError } : {}),
       resultSummary: {
         runType,
         month: currentMonth,

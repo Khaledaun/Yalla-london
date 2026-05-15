@@ -14,6 +14,7 @@ import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
 import { Stay22Map } from '@/components/integrations/stay22-map'
 import { WeatherWidget } from '@/components/integrations/weather-widget'
+import AffiliateDisclosure from '@/components/affiliate/AffiliateDisclosure'
 
 interface AuthorData {
   name_en: string;
@@ -220,6 +221,31 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
     }
     return result;
   }, [sanitizedContent, tocHeadings]);
+
+  // ═══ FTC Disclosure trigger ═══
+  // Renders the disclosure paragraph above article content whenever any affiliate
+  // marker is present. Covers all injection pathways: tracker redirect, sponsored
+  // rel, recommendation/cta blocks, raw partner URLs known to be affiliate networks.
+  const hasAffiliateLinks = useMemo(() => {
+    if (!sanitizedContent) return false;
+    const c = sanitizedContent;
+    return (
+      c.includes('/api/affiliate/click') ||
+      c.includes('rel="sponsored"') ||
+      c.includes('rel="noopener sponsored"') ||
+      c.includes('class="affiliate-recommendation"') ||
+      c.includes('class="affiliate-cta-block"') ||
+      c.includes('class="affiliate-partners-section"') ||
+      c.includes('data-affiliate-partner=') ||
+      c.includes('data-affiliate=') ||
+      c.includes('data-affiliate-id=') ||
+      // Direct partner URLs (Travelpayouts marker, CJ deep link networks)
+      c.includes('marker=') ||
+      c.includes('anrdoezrs.net') ||
+      c.includes('jdoqocy.com') ||
+      c.includes('kqzyfj.com')
+    );
+  }, [sanitizedContent]);
 
   // ═══ Key Takeaways extraction ═══
   const keyTakeaways = useMemo(() => {
@@ -552,6 +578,13 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
                       dangerouslySetInnerHTML={{ __html: keyTakeaways }}
                     />
                   </div>
+                )}
+
+                {/* ─── FTC Affiliate Disclosure ─── */}
+                {/* Required by 16 CFR Part 255 + Google's quality rater guidelines whenever any */}
+                {/* affiliate or partner link appears in the body. Auto-detected via hasAffiliateLinks. */}
+                {hasAffiliateLinks && !isThinContent && (
+                  <AffiliateDisclosure language={effectiveLanguage} className="mb-6" />
                 )}
 
                 {/* ─── Article HTML Content ─── */}

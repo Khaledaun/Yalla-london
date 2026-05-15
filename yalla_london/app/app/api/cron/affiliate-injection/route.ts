@@ -776,7 +776,10 @@ async function handleAffiliateInjection(request: NextRequest) {
         title_en: true,
         siteId: true,
       },
-      take: 100,
+      // 250/run × 4 runs/day = 1000 article-checks/day → covers 691 published articles in <1 day.
+      // Most posts skip via the cheap marker filter below, so wall time is dominated by the
+      // ~50–100 that actually need new affiliates injected.
+      take: 250,
       orderBy: { created_at: "desc" },
     });
 

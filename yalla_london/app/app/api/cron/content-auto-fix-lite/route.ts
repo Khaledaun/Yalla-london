@@ -511,11 +511,19 @@ async function handleAutoFixLite(request: NextRequest) {
         "never-submitted-catchup",
       )) as Array<{ slug: string; siteId: string }>;
 
-      // Build all URLs for blog posts
-      const postUrls: Array<{ url: string; siteId: string; slug: string }> = untrackedPosts.map((post) => {
+      // Build all URLs for blog posts — INCLUDING /ar/ Arabic variants.
+      // Previously only EN URLs were tracked, so the 293-URL backlog flagged
+      // in the May 15 briefing kept growing because every published article
+      // also has a /ar/blog/<slug> variant that was never tracked.
+      // Per CLAUDE.md rule #22, ensureUrlTracked() now auto-tracks AR variants
+      // — but historical EN tracks are missing AR equivalents. This catches
+      // them in one sweep.
+      const postUrls: Array<{ url: string; siteId: string; slug: string }> = [];
+      for (const post of untrackedPosts) {
         const domain = getSiteDomain(post.siteId);
-        return { url: `${domain}/blog/${post.slug}`, siteId: post.siteId, slug: post.slug };
-      });
+        postUrls.push({ url: `${domain}/blog/${post.slug}`, siteId: post.siteId, slug: post.slug });
+        postUrls.push({ url: `${domain}/ar/blog/${post.slug}`, siteId: post.siteId, slug: `ar/${post.slug}` });
+      }
 
       // Also check news items (were previously missing from never-submitted scan)
       try {
@@ -536,6 +544,7 @@ async function handleAutoFixLite(request: NextRequest) {
         for (const news of newsItems) {
           const domain = getSiteDomain(news.siteId);
           postUrls.push({ url: `${domain}/news/${news.slug}`, siteId: news.siteId, slug: news.slug });
+          postUrls.push({ url: `${domain}/ar/news/${news.slug}`, siteId: news.siteId, slug: `ar/${news.slug}` });
         }
       } catch {
         // NewsItem table may not exist — proceed with blog posts only

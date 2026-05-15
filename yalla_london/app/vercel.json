@@ -140,7 +140,7 @@
     },
     {
       "path": "/api/cron/affiliate-injection",
-      "schedule": "25 9 * * *"
+      "schedule": "25 3,9,15,21 * * *"
     },
     {
       "path": "/api/cron/scheduled-publish",

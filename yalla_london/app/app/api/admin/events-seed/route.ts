@@ -214,6 +214,9 @@ export async function POST(request: NextRequest) {
   let updated = 0;
   let failed = 0;
   const sample: Array<{ title: string; date: string; category: string; bookingUrl: string }> = [];
+  // Capture the first N actual error messages so the cockpit can surface
+  // them instead of "Failed: 50" with no explanation.
+  const errorSamples: Array<{ title: string; error: string }> = [];
 
   for (const e of tmEvents) {
     if (Date.now() - startTime > BUDGET_MS - 5_000) break;
@@ -283,12 +286,16 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       failed++;
-      console.warn(`[events-seed] failed for "${e.name}" (${e.id}):`, err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[events-seed] failed for "${e.name}" (${e.id}):`, msg);
+      if (errorSamples.length < 5) {
+        errorSamples.push({ title: e.name.slice(0, 60), error: msg.slice(0, 240) });
+      }
     }
   }
 
   return NextResponse.json({
-    success: true,
+    success: created > 0 || updated > 0 || (failed === 0 && tmEvents.length === 0),
     siteId,
     archived,
     created,
@@ -297,5 +304,6 @@ export async function POST(request: NextRequest) {
     totalPublished: created + updated,
     durationMs: Date.now() - startTime,
     sample,
+    errorSamples,
   });
 }

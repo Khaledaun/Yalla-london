@@ -46,6 +46,7 @@ type SeedResult = {
   totalPublished?: number;
   durationMs?: number;
   sample?: Array<{ title: string; date: string; category: string; bookingUrl: string }>;
+  errorSamples?: Array<{ title: string; error: string }>;
   error?: string;
 };
 
@@ -249,26 +250,38 @@ export default function EventsAdminPage() {
           </div>
 
           {lastSeedResult && (
-            <div
-              className={`mt-3 rounded p-2 text-[11px] leading-relaxed ${
-                lastSeedResult.success
-                  ? "bg-emerald-950/40 border border-emerald-800/50 text-emerald-200"
-                  : "bg-red-950/40 border border-red-800/50 text-red-200"
-              }`}
-            >
-              {lastSeedResult.success ? (
-                <>
-                  <div className="font-semibold mb-1">Last run:</div>
-                  Created {lastSeedResult.created || 0} · Updated {lastSeedResult.updated || 0}
-                  {lastSeedResult.archived ? ` · Archived ${lastSeedResult.archived}` : ""}
-                  {lastSeedResult.failed ? ` · Failed ${lastSeedResult.failed}` : ""} ·{" "}
-                  {Math.round((lastSeedResult.durationMs || 0) / 1000)}s
-                </>
-              ) : (
-                <>
-                  <div className="font-semibold mb-1">Last run failed:</div>
-                  {lastSeedResult.error}
-                </>
+            <div className="mt-3 space-y-2">
+              <div
+                className={`rounded p-2 text-[11px] leading-relaxed ${
+                  (lastSeedResult.created || 0) + (lastSeedResult.updated || 0) > 0
+                    ? "bg-emerald-950/40 border border-emerald-800/50 text-emerald-200"
+                    : "bg-red-950/40 border border-red-800/50 text-red-200"
+                }`}
+              >
+                <div className="font-semibold mb-1">Last run:</div>
+                Created {lastSeedResult.created || 0} · Updated {lastSeedResult.updated || 0}
+                {lastSeedResult.archived ? ` · Archived ${lastSeedResult.archived}` : ""}
+                {lastSeedResult.failed ? ` · Failed ${lastSeedResult.failed}` : ""} ·{" "}
+                {Math.round((lastSeedResult.durationMs || 0) / 1000)}s
+                {lastSeedResult.error && <div className="mt-1 opacity-90">Error: {lastSeedResult.error}</div>}
+              </div>
+
+              {/* Per-event error samples — surfaced when failed > 0 so Khaled */}
+              {/* can diagnose without checking server logs. */}
+              {lastSeedResult.errorSamples && lastSeedResult.errorSamples.length > 0 && (
+                <div className="rounded p-2 text-[11px] leading-relaxed bg-amber-950/40 border border-amber-800/50 text-amber-200">
+                  <div className="font-semibold mb-1">
+                    Why writes failed (first {lastSeedResult.errorSamples.length}):
+                  </div>
+                  <ul className="space-y-1.5">
+                    {lastSeedResult.errorSamples.map((s, i) => (
+                      <li key={i} className="leading-snug">
+                        <span className="font-medium">{s.title}</span>
+                        <span className="block text-amber-300/70 mt-0.5 break-words">→ {s.error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}

@@ -1197,6 +1197,120 @@ function buildTrackedUrl(partnerUrl: string, slug: string, siteId: string): stri
   return `/api/affiliate/click?url=${encodeURIComponent(partnerUrl)}&sid=${encodeURIComponent(sid)}`;
 }
 
+// ── Mid-content CTA helpers ────────────────────────────────────────────
+// Map H2 heading text to a partner category. We match conservatively —
+// the keyword has to actually be in the heading text, not just nearby.
+const H2_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  hotel: ["hotel", "stay", "accommodation", "resort", "where to stay", "فندق", "إقامة", "منتجع"],
+  restaurant: [
+    "restaurant",
+    "dining",
+    "eat",
+    "food",
+    "halal",
+    "michelin",
+    "kitchen",
+    "cuisine",
+    "brunch",
+    "lunch",
+    "dinner",
+    "مطعم",
+    "طعام",
+    "حلال",
+  ],
+  activity: ["tour", "experience", "things to do", "activity", "explore", "walk", "visit", "جولة", "تجربة", "نشاط"],
+  tickets: ["ticket", "event", "concert", "match", "show", "theatre", "musical", "تذكرة"],
+  transport: ["transfer", "airport", "taxi", "pickup", "car", "transport", "uber", "ride", "نقل", "مطار"],
+  shopping: ["shopping", "shop", "buy", "harrods", "selfridges", "fashion", "تسوق"],
+};
+
+function classifyHeading(text: string): string | null {
+  const lower = text.toLowerCase();
+  for (const [cat, kws] of Object.entries(H2_CATEGORY_KEYWORDS)) {
+    for (const kw of kws) {
+      if (lower.includes(kw)) return cat;
+    }
+  }
+  return null;
+}
+
+function injectMidContentCtas(
+  html: string,
+  candidateMatches: Array<{ name: string; url: string; param: string; category: string }>,
+  articleSlug: string,
+  siteId: string,
+  alreadyPlacedPartners: string[],
+): { html: string; partnersAdded: string[] } {
+  // Don't inject in short articles — count distinct H2 tags first.
+  const allH2s = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];
+  if (allH2s.length < 4) return { html, partnersAdded: [] };
+
+  // Track partners already used so we don't double-insert the same one
+  // (across placeholders, mid-content, and partners-section).
+  const usedNames = new Set<string>(alreadyPlacedPartners);
+  // Also track partners already present in the existing article HTML so
+  // we never double-up across runs.
+  for (const m of html.matchAll(/data-affiliate-partner="([^"]+)"/g)) {
+    usedNames.add(m[1]);
+  }
+
+  // Build category → first-available-match index for fast lookup
+  const matchByCategory = new Map<string, (typeof candidateMatches)[number]>();
+  for (const m of candidateMatches) {
+    if (usedNames.has(m.name)) continue;
+    // Skip empty-param affiliates — same rule as placeholder/partner section.
+    const pv = m.param.split("=").pop() || "";
+    if (!pv || m.param.endsWith("=") || !isValidAffiliateUrl(m.url + m.param)) continue;
+    if (!matchByCategory.has(m.category)) matchByCategory.set(m.category, m);
+  }
+
+  if (matchByCategory.size === 0) return { html, partnersAdded: [] };
+
+  const MAX_INSERTIONS = 3;
+  let insertions = 0;
+  const partnersAdded: string[] = [];
+  // Walk H2s, build cta, replace each matched </h2> with </h2>+cta.
+  // We replace from the END to the START so earlier indices stay valid.
+  type Insertion = { matchEnd: number; ctaHtml: string };
+  const queue: Insertion[] = [];
+
+  for (const h2 of allH2s) {
+    if (insertions >= MAX_INSERTIONS) break;
+    const text = (h2[1] || "").replace(/<[^>]+>/g, "").trim();
+    if (!text) continue;
+    const category = classifyHeading(text);
+    if (!category) continue;
+    const partner = matchByCategory.get(category);
+    if (!partner) continue;
+
+    const safeName = escapeHtml(partner.name);
+    const trackedUrl = buildTrackedUrl(partner.url + partner.param, articleSlug, siteId);
+    const ctaHtml = `
+<div class="affiliate-mid-cta" data-affiliate-partner="${safeName}" data-category="${escapeHtml(partner.category)}" style="margin: 1rem 0 1.5rem; padding: 0.75rem 1rem; background: #fffbeb; border-left: 3px solid #c49a2a; border-radius: 6px; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+  <span style="font-size: 0.875rem; color: #6b7280; flex: 1; min-width: 200px;">Recommended for this section:</span>
+  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 1rem; background: #c49a2a; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 0.875rem; white-space: nowrap;">Book on ${safeName} →</a>
+</div>`;
+
+    // h2.index is the start of the <h2> match; we want to insert after </h2>.
+    // The full match string ends at h2.index + h2[0].length.
+    queue.push({ matchEnd: (h2.index || 0) + h2[0].length, ctaHtml });
+    partnersAdded.push(partner.name);
+    insertions++;
+    // Remove this partner so each insertion uses a different one
+    matchByCategory.delete(category);
+  }
+
+  if (queue.length === 0) return { html, partnersAdded: [] };
+
+  // Apply insertions in REVERSE so the indices we computed stay valid.
+  queue.sort((a, b) => b.matchEnd - a.matchEnd);
+  let out = html;
+  for (const { matchEnd, ctaHtml } of queue) {
+    out = out.slice(0, matchEnd) + ctaHtml + out.slice(matchEnd);
+  }
+  return { html: out, partnersAdded };
+}
+
 export function injectAffiliates(
   html: string,
   siteId: string,
@@ -1251,6 +1365,30 @@ export function injectAffiliates(
 
   // Replace any remaining placeholders with the partners section
   result = result.replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
+
+  // ── Mid-content inline CTAs (Commit 13) ────────────────────────────────
+  // Density audit found top travel blogs (Eater, Time Out, The Infatuation)
+  // embed affiliate links INLINE next to relevant section headings, not just
+  // at the article end. We currently only do placeholder replacement + end-
+  // of-article partners section. This adds a 3rd placement type: a slim
+  // "Book on [Partner]" CTA inserted immediately after relevant H2 headings.
+  //
+  // SAFETY:
+  //  - Only matches H2 headings whose text contains a partner-category
+  //    keyword (hotel/restaurant/tour/ticket/transport) — prevents random
+  //    insertion in heading text like "Top 5 Things to Know".
+  //  - Caps at 3 mid-content insertions per article (no clutter).
+  //  - Skips articles with <4 H2 headings (too short to support inline CTAs
+  //    without overwhelming the body).
+  //  - Skips partner names already used in the inline placeholder CTAs above
+  //    (no duplicate partner in the same article body).
+  //  - Each CTA inherits the existing buildTrackedUrl/data-affiliate-partner
+  //    so click tracking and dedup still work end-to-end.
+  const midContentResult = injectMidContentCtas(result, matches, articleSlug, siteId, partners);
+  result = midContentResult.html;
+  // Track partners injected mid-content so the end-of-article partners
+  // section doesn't render duplicate cards for the same brand.
+  partners.push(...midContentResult.partnersAdded);
 
   // Add recommended partners section at the end — only with tracked (approved) partners
   const trackedMatches = matches.filter((m) => {

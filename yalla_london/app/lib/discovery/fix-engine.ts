@@ -31,8 +31,13 @@ export async function submitPage(slug: string, siteId: string): Promise<Discover
     const env = globalThis as unknown as { process?: { env?: { INDEXNOW_KEY?: string } } };
     const key = env.process?.env?.INDEXNOW_KEY;
     if (!key) {
-      return { success: false, fixId: "submit-indexnow", action: "submit_page",
-        result: { before: {}, after: {}, message: "INDEXNOW_KEY not configured" }, error: "Missing INDEXNOW_KEY env var" };
+      return {
+        success: false,
+        fixId: "submit-indexnow",
+        action: "submit_page",
+        result: { before: {}, after: {}, message: "INDEXNOW_KEY not configured" },
+        error: "Missing INDEXNOW_KEY env var",
+      };
     }
 
     await submitToIndexNow([url, arUrl], `https://${domain}`, key);
@@ -40,16 +45,36 @@ export async function submitPage(slug: string, siteId: string): Promise<Discover
     // Update tracking
     await p.uRLIndexingStatus.upsert({
       where: { url },
-      create: { url, slug, site_id: siteId, status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() },
+      create: {
+        url,
+        slug,
+        site_id: siteId,
+        status: "submitted",
+        submitted_indexnow: true,
+        last_submitted_at: new Date(),
+      },
       update: { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date(), last_error: null },
     });
 
-    return { success: true, fixId: "submit-indexnow", action: "submit_page",
-      result: { before: { status: "never_submitted" }, after: { status: "submitted", channels: ["IndexNow"] }, message: `Submitted ${url} + Arabic variant to Bing, Yandex, and IndexNow Registry` } };
+    return {
+      success: true,
+      fixId: "submit-indexnow",
+      action: "submit_page",
+      result: {
+        before: { status: "never_submitted" },
+        after: { status: "submitted", channels: ["IndexNow"] },
+        message: `Submitted ${url} + Arabic variant to Bing, Yandex, and IndexNow Registry`,
+      },
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, fixId: "submit-indexnow", action: "submit_page",
-      result: { before: {}, after: {}, message: `Submission failed: ${msg}` }, error: msg };
+    return {
+      success: false,
+      fixId: "submit-indexnow",
+      action: "submit_page",
+      result: { before: {}, after: {}, message: `Submission failed: ${msg}` },
+      error: msg,
+    };
   }
 }
 
@@ -59,12 +84,25 @@ export async function refreshSitemap(siteId: string): Promise<DiscoveryFixRespon
   try {
     const { regenerateSitemapCache } = await import("@/lib/sitemap-cache");
     await regenerateSitemapCache(siteId);
-    return { success: true, fixId: "refresh-sitemap", action: "refresh_sitemap",
-      result: { before: { cached: "stale" }, after: { cached: "fresh" }, message: "Sitemap cache regenerated with all published articles" } };
+    return {
+      success: true,
+      fixId: "refresh-sitemap",
+      action: "refresh_sitemap",
+      result: {
+        before: { cached: "stale" },
+        after: { cached: "fresh" },
+        message: "Sitemap cache regenerated with all published articles",
+      },
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, fixId: "refresh-sitemap", action: "refresh_sitemap",
-      result: { before: {}, after: {}, message: `Sitemap refresh failed: ${msg}` }, error: msg };
+    return {
+      success: false,
+      fixId: "refresh-sitemap",
+      action: "refresh_sitemap",
+      result: { before: {}, after: {}, message: `Sitemap refresh failed: ${msg}` },
+      error: msg,
+    };
   }
 }
 
@@ -89,34 +127,47 @@ export async function fixPlaceholders(slug: string, siteId: string): Promise<Dis
     where: { slug, siteId, published: true },
     select: { id: true, content_en: true, content_ar: true },
   });
-  if (!post) return { success: false, fixId: "fix-placeholder-links", action: "fix_placeholders",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "fix-placeholder-links",
+      action: "fix_placeholders",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const realPosts = await p.blogPost.findMany({
     where: { siteId, published: true, deletedAt: null, id: { not: post.id } },
     select: { slug: true, title_en: true },
     take: 100,
   });
-  const validSlugs = new Set(realPosts.map(p => p.slug));
+  const validSlugs = new Set(realPosts.map((p) => p.slug));
 
   const fixContent = (content: string): { fixed: string; count: number } => {
     let count = 0;
     // Phase 1: Strip TOPIC_SLUG placeholders
-    let fixed = content.replace(/<a\s+[^>]*href="\/blog\/TOPIC_SLUG"[^>]*>(.*?)<\/a>/gi, (_m, anchor) => { count++; return anchor; });
+    let fixed = content.replace(/<a\s+[^>]*href="\/blog\/TOPIC_SLUG"[^>]*>(.*?)<\/a>/gi, (_m, anchor) => {
+      count++;
+      return anchor;
+    });
     // Phase 2: Fix hallucinated slugs
-    fixed = fixed.replace(/<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
+    fixed = fixed.replace(
+      /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
       (fullMatch, pre, linkSlug, post2, anchor) => {
         if (validSlugs.has(linkSlug)) return fullMatch;
         const topic = linkSlug.toLowerCase().replace(/[-_]/g, " ");
         const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
-        const match = realPosts.find(p => {
+        const match = realPosts.find((p) => {
           const title = (p.title_en || "").toLowerCase();
           return topicWords.filter((w: string) => title.includes(w)).length >= 2;
         });
-        if (match) { count++; return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`; }
+        if (match) {
+          count++;
+          return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
+        }
         count++;
         return anchor; // Remove link entirely if no match
-      }
+      },
     );
     return { fixed, count };
   };
@@ -132,8 +183,16 @@ export async function fixPlaceholders(slug: string, siteId: string): Promise<Dis
     await p.blogPost.update({ where: { id: post.id }, data: updateData });
   }
 
-  return { success: true, fixId: "fix-placeholder-links", action: "fix_placeholders",
-    result: { before: { brokenLinks: totalFixed }, after: { brokenLinks: 0 }, message: `Fixed ${totalFixed} broken/placeholder links` } };
+  return {
+    success: true,
+    fixId: "fix-placeholder-links",
+    action: "fix_placeholders",
+    result: {
+      before: { brokenLinks: totalFixed },
+      after: { brokenLinks: 0 },
+      message: `Fixed ${totalFixed} broken/placeholder links`,
+    },
+  };
 }
 
 // ─── Fix Meta Title ──────────────────────────────────────────────────────────
@@ -144,8 +203,14 @@ export async function fixMetaTitle(slug: string, siteId: string): Promise<Discov
     where: { slug, siteId },
     select: { id: true, title_en: true, meta_title_en: true, content_en: true },
   });
-  if (!post) return { success: false, fixId: "fix-meta-title", action: "fix_meta_title",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "fix-meta-title",
+      action: "fix_meta_title",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const { generateCompletion } = await import("@/lib/ai/provider");
   const textPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 500);
@@ -161,16 +226,27 @@ Article title: ${post.title_en}
 Content preview: ${textPreview}
 
 Return ONLY the meta title text, nothing else.`),
-    { maxTokens: 100, temperature: 0.7, taskType: "seo-optimization", calledFrom: "discovery-fix-engine", siteId }
+    { maxTokens: 100, temperature: 0.7, taskType: "seo-optimization", calledFrom: "discovery-fix-engine", siteId },
   );
 
-  const newTitle = result.content.replace(/^["']|["']$/g, "").trim().slice(0, 60);
+  const newTitle = result.content
+    .replace(/^["']|["']$/g, "")
+    .trim()
+    .slice(0, 60);
   const oldTitle = post.meta_title_en || "(none)";
 
   await p.blogPost.update({ where: { id: post.id }, data: { meta_title_en: newTitle } });
 
-  return { success: true, fixId: "fix-meta-title", action: "fix_meta_title",
-    result: { before: { metaTitle: oldTitle, length: oldTitle.length }, after: { metaTitle: newTitle, length: newTitle.length }, message: `Meta title updated: "${newTitle}"` } };
+  return {
+    success: true,
+    fixId: "fix-meta-title",
+    action: "fix_meta_title",
+    result: {
+      before: { metaTitle: oldTitle, length: oldTitle.length },
+      after: { metaTitle: newTitle, length: newTitle.length },
+      message: `Meta title updated: "${newTitle}"`,
+    },
+  };
 }
 
 // ─── Fix Meta Description ────────────────────────────────────────────────────
@@ -181,8 +257,14 @@ export async function fixMetaDescription(slug: string, siteId: string): Promise<
     where: { slug, siteId },
     select: { id: true, title_en: true, meta_description_en: true, content_en: true },
   });
-  if (!post) return { success: false, fixId: "fix-meta-desc", action: "fix_meta_description",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "fix-meta-desc",
+      action: "fix_meta_description",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const { generateCompletion } = await import("@/lib/ai/provider");
   const textPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 800);
@@ -199,16 +281,27 @@ Article title: ${post.title_en}
 Content preview: ${textPreview}
 
 Return ONLY the meta description text, nothing else.`),
-    { maxTokens: 100, temperature: 0.7, taskType: "seo-optimization", calledFrom: "discovery-fix-engine", siteId }
+    { maxTokens: 100, temperature: 0.7, taskType: "seo-optimization", calledFrom: "discovery-fix-engine", siteId },
   );
 
-  const newDesc = result.content.replace(/^["']|["']$/g, "").trim().slice(0, 160);
+  const newDesc = result.content
+    .replace(/^["']|["']$/g, "")
+    .trim()
+    .slice(0, 160);
   const oldDesc = post.meta_description_en || "(none)";
 
   await p.blogPost.update({ where: { id: post.id }, data: { meta_description_en: newDesc } });
 
-  return { success: true, fixId: "fix-meta-desc", action: "fix_meta_description",
-    result: { before: { metaDescription: oldDesc, length: oldDesc.length }, after: { metaDescription: newDesc, length: newDesc.length }, message: `Meta description updated (${newDesc.length} chars)` } };
+  return {
+    success: true,
+    fixId: "fix-meta-desc",
+    action: "fix_meta_description",
+    result: {
+      before: { metaDescription: oldDesc, length: oldDesc.length },
+      after: { metaDescription: newDesc, length: newDesc.length },
+      message: `Meta description updated (${newDesc.length} chars)`,
+    },
+  };
 }
 
 // ─── Fix Headings (H1 → H2) ─────────────────────────────────────────────────
@@ -219,8 +312,14 @@ export async function fixHeadings(slug: string, siteId: string): Promise<Discove
     where: { slug, siteId },
     select: { id: true, content_en: true, content_ar: true },
   });
-  if (!post) return { success: false, fixId: "fix-headings", action: "fix_headings",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "fix-headings",
+      action: "fix_headings",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   let h1Fixed = 0;
   const fixH1 = (content: string): string => {
@@ -237,8 +336,12 @@ export async function fixHeadings(slug: string, siteId: string): Promise<Discove
     await p.blogPost.update({ where: { id: post.id }, data: { content_en: fixedEn, content_ar: fixedAr } });
   }
 
-  return { success: true, fixId: "fix-headings", action: "fix_headings",
-    result: { before: { h1Tags: h1Fixed }, after: { h1Tags: 0 }, message: `Demoted ${h1Fixed} H1 tags to H2` } };
+  return {
+    success: true,
+    fixId: "fix-headings",
+    action: "fix_headings",
+    result: { before: { h1Tags: h1Fixed }, after: { h1Tags: 0 }, message: `Demoted ${h1Fixed} H1 tags to H2` },
+  };
 }
 
 // ─── Inject Internal Links ───────────────────────────────────────────────────
@@ -249,38 +352,62 @@ export async function injectInternalLinks(slug: string, siteId: string): Promise
     where: { slug, siteId, published: true },
     select: { id: true, content_en: true, title_en: true },
   });
-  if (!post) return { success: false, fixId: "inject-internal-links", action: "inject_internal_links",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "inject-internal-links",
+      action: "inject_internal_links",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const existingLinks = new Set(
-    (post.content_en || "").match(/href="\/blog\/([^"]+)"/gi)?.map(m => m.match(/\/blog\/([^"]+)/)?.[1]) || []
+    (post.content_en || "").match(/href="\/blog\/([^"]+)"/gi)?.map((m) => m.match(/\/blog\/([^"]+)/)?.[1]) || [],
   );
 
   const relatedPosts = await p.blogPost.findMany({
-    where: { siteId, published: true, deletedAt: null, slug: { not: slug, notIn: Array.from(existingLinks).filter(Boolean) as string[] } },
+    where: {
+      siteId,
+      published: true,
+      deletedAt: null,
+      slug: { not: slug, notIn: Array.from(existingLinks).filter(Boolean) as string[] },
+    },
     select: { slug: true, title_en: true },
     take: 20,
     orderBy: { created_at: "desc" },
   });
 
   // Find best matches by word overlap with current article title
-  const titleWords = (post.title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);
-  const scored = relatedPosts.map(rp => {
-    const rpWords = (rp.title_en || "").toLowerCase().split(/\s+/);
-    const overlap = titleWords.filter(w => rpWords.includes(w)).length;
-    return { ...rp, score: overlap };
-  }).sort((a, b) => b.score - a.score);
+  const titleWords = (post.title_en || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
+  const scored = relatedPosts
+    .map((rp) => {
+      const rpWords = (rp.title_en || "").toLowerCase().split(/\s+/);
+      const overlap = titleWords.filter((w) => rpWords.includes(w)).length;
+      return { ...rp, score: overlap };
+    })
+    .sort((a, b) => b.score - a.score);
 
-  const linksToAdd = scored.slice(0, 3).filter(s => s.score > 0);
+  const linksToAdd = scored.slice(0, 3).filter((s) => s.score > 0);
   if (linksToAdd.length === 0) {
-    return { success: true, fixId: "inject-internal-links", action: "inject_internal_links",
-      result: { before: { internalLinks: existingLinks.size }, after: { internalLinks: existingLinks.size }, message: "No closely related articles found to link" } };
+    return {
+      success: true,
+      fixId: "inject-internal-links",
+      action: "inject_internal_links",
+      result: {
+        before: { internalLinks: existingLinks.size },
+        after: { internalLinks: existingLinks.size },
+        message: "No closely related articles found to link",
+      },
+    };
   }
 
   const linkHtml = `\n<section class="related-articles" style="margin-top:2rem;padding:1rem;border-left:3px solid #d4af37;">
 <h3>Related Reading</h3>
 <ul>
-${linksToAdd.map(l => `<li><a href="/blog/${l.slug}" class="internal-link">${l.title_en}</a></li>`).join("\n")}
+${linksToAdd.map((l) => `<li><a href="/blog/${l.slug}" class="internal-link">${l.title_en}</a></li>`).join("\n")}
 </ul>
 </section>`;
 
@@ -289,8 +416,16 @@ ${linksToAdd.map(l => `<li><a href="/blog/${l.slug}" class="internal-link">${l.t
     data: { content_en: (post.content_en || "") + linkHtml },
   });
 
-  return { success: true, fixId: "inject-internal-links", action: "inject_internal_links",
-    result: { before: { internalLinks: existingLinks.size }, after: { internalLinks: existingLinks.size + linksToAdd.length }, message: `Added ${linksToAdd.length} internal links` } };
+  return {
+    success: true,
+    fixId: "inject-internal-links",
+    action: "inject_internal_links",
+    result: {
+      before: { internalLinks: existingLinks.size },
+      after: { internalLinks: existingLinks.size + linksToAdd.length },
+      message: `Added ${linksToAdd.length} internal links`,
+    },
+  };
 }
 
 // ─── Expand Content ──────────────────────────────────────────────────────────
@@ -301,16 +436,33 @@ export async function expandContent(slug: string, siteId: string, targetWords: n
     where: { slug, siteId },
     select: { id: true, title_en: true, content_en: true },
   });
-  if (!post) return { success: false, fixId: "expand-content", action: "expand_content",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "expand-content",
+      action: "expand_content",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
-  const currentText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const currentText = (post.content_en || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const currentWords = currentText.split(" ").filter(Boolean).length;
   const wordsNeeded = targetWords - currentWords;
 
   if (wordsNeeded <= 0) {
-    return { success: true, fixId: "expand-content", action: "expand_content",
-      result: { before: { wordCount: currentWords }, after: { wordCount: currentWords }, message: "Already meets word count target" } };
+    return {
+      success: true,
+      fixId: "expand-content",
+      action: "expand_content",
+      result: {
+        before: { wordCount: currentWords },
+        after: { wordCount: currentWords },
+        message: "Already meets word count target",
+      },
+    };
   }
 
   const { generateCompletion } = await import("@/lib/ai/provider");
@@ -332,18 +484,36 @@ Write ${wordsNeeded}+ additional words that:
 5. Maintain the existing article's voice and topic
 
 Return ONLY the additional HTML content (H2 sections with paragraphs). No wrapper tags.`),
-    { maxTokens: 3000, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 45000 }
+    {
+      maxTokens: 3000,
+      temperature: 0.7,
+      taskType: "content-generation",
+      calledFrom: "discovery-fix-engine",
+      siteId,
+      timeoutMs: 45000,
+    },
   );
 
   const expansion = result.content.trim();
-  const expansionWords = expansion.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+  const expansionWords = expansion
+    .replace(/<[^>]*>/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
 
   // Inject before closing tag or at end
   const updatedContent = (post.content_en || "") + "\n\n" + expansion;
   await p.blogPost.update({ where: { id: post.id }, data: { content_en: updatedContent } });
 
-  return { success: true, fixId: "expand-content", action: "expand_content",
-    result: { before: { wordCount: currentWords }, after: { wordCount: currentWords + expansionWords }, message: `Added ${expansionWords} words (${currentWords} → ${currentWords + expansionWords})` } };
+  return {
+    success: true,
+    fixId: "expand-content",
+    action: "expand_content",
+    result: {
+      before: { wordCount: currentWords },
+      after: { wordCount: currentWords + expansionWords },
+      message: `Added ${expansionWords} words (${currentWords} → ${currentWords + expansionWords})`,
+    },
+  };
 }
 
 // ─── Optimize CTR (rewrite title + description) ─────────────────────────────
@@ -352,55 +522,206 @@ export async function optimizeCtr(slug: string, siteId: string): Promise<Discove
   const p = await db();
   const post = await p.blogPost.findFirst({
     where: { slug, siteId },
-    select: { id: true, title_en: true, meta_title_en: true, meta_description_en: true, content_en: true },
+    select: {
+      id: true,
+      slug: true,
+      title_en: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      content_en: true,
+      keywords_json: true,
+    },
   });
-  if (!post) return { success: false, fixId: "optimize-ctr", action: "optimize_ctr",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "optimize-ctr",
+      action: "optimize_ctr",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const { generateCompletion } = await import("@/lib/ai/provider");
-  const textPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 800);
+  const { scoreTitleClickability, scoreMetaDescriptionClickability } = await import("@/lib/seo/clickability");
 
-  const result = await generateCompletion(
-    aiMsg(`This article gets impressions but very few clicks. Rewrite both the meta title and description to maximize CTR.
+  // ── Pull the actual queries Google is matching THIS URL against ──────
+  // Massive upgrade vs. the previous blind rewrite: the AI now knows the
+  // search intent the page is competing for, not just generic clickability
+  // tactics. A "halal restaurants mayfair" search deserves a different
+  // rewrite than "best afternoon tea with kids" even on the same article.
+  let topQueries: Array<{ query: string; impressions: number; ctr: number; position: number }> = [];
+  try {
+    const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+    const { getSiteDomain } = await import("@/config/sites");
+    const gsc = new GoogleSearchConsole();
+    if (gsc.isConfigured()) {
+      gsc.setSiteUrl(getSiteDomain(siteId));
+      const today = new Date().toISOString().slice(0, 10);
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const pageUrl = `${getSiteDomain(siteId)}/blog/${post.slug}`;
+      const rows = await gsc.getQueriesForPage(pageUrl, ninetyDaysAgo, today, 5);
+      topQueries = rows
+        .map((r) => ({
+          query: (r.keys && r.keys[0]) || "",
+          impressions: r.impressions ?? 0,
+          ctr: r.ctr ?? 0,
+          position: r.position ?? 0,
+        }))
+        .filter((r) => r.query);
+    }
+  } catch (gscErr) {
+    console.warn("[optimizeCtr] GSC per-page query fetch failed:", gscErr instanceof Error ? gscErr.message : gscErr);
+  }
+
+  // Extract the focus keyword from keywords_json (best signal we have on
+  // what this article is "about" when GSC has no data yet).
+  let focusKeyword: string | null = null;
+  if (post.keywords_json && typeof post.keywords_json === "object") {
+    const kj = post.keywords_json as Record<string, unknown>;
+    if (typeof kj.primary === "string") focusKeyword = kj.primary;
+    else if (Array.isArray(kj.primary) && typeof kj.primary[0] === "string") focusKeyword = kj.primary[0];
+  }
+
+  const textPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 600);
+  const queryContextBlock =
+    topQueries.length > 0
+      ? `\n\nACTUAL SEARCH INTENT (from Google Search Console, last 90 days):\n${topQueries
+          .map(
+            (q, i) =>
+              `  ${i + 1}. "${q.query}" — ${q.impressions} imp, ${(q.ctr * 100).toFixed(1)}% CTR, position ${q.position.toFixed(1)}`,
+          )
+          .join("\n")}\n\nWrite a title that addresses these specific queries — the page is ALREADY ranking for them.`
+      : focusKeyword
+        ? `\n\nFOCUS KEYWORD: "${focusKeyword}" — the title should mention this naturally.`
+        : "";
+
+  // We'll allow up to 2 retries if the AI returns a low-clickability title.
+  // Most rewrites pass on the first try; the retry path catches model misses.
+  const MIN_TITLE_SCORE = 60;
+  const MAX_ATTEMPTS = 3;
+
+  let bestRewrite: { title: string; description: string; titleScore: number } | null = null;
+  let attempts = 0;
+  let lastAiContent = "";
+
+  while (attempts < MAX_ATTEMPTS) {
+    attempts++;
+    const retryHint =
+      attempts > 1
+        ? `\n\nPREVIOUS ATTEMPT WAS WEAK. Your last title scored ${bestRewrite?.titleScore ?? 0}/100. Add at least one specific number, year, OR a bracketed qualifier like [2026 Guide]. Use a power word from: Ultimate, Best, Top, Hidden, Insider, Essential, Complete, Secret.`
+        : "";
+
+    const result = await generateCompletion(
+      aiMsg(`This article gets impressions but few clicks. Rewrite the meta title and description to maximize CTR.
 
 Current title: ${post.meta_title_en || post.title_en}
-Current description: ${post.meta_description_en}
-Content preview: ${textPreview}
+Current description: ${post.meta_description_en || "(none)"}
+Content preview: ${textPreview}${queryContextBlock}${retryHint}
 
-CTR optimization tactics:
-- Use power words (Ultimate, Essential, Complete, Secret, Insider)
-- Include numbers or year (2026)
-- Create curiosity gap without clickbait
-- Address the searcher's intent directly
-- Include a benefit or value proposition
+REQUIRED CLICKABILITY SIGNALS in the new title (must include at least 3 of these):
+- A specific NUMBER (e.g. "7 Best", "Top 12") or YEAR ("2026")
+- A POWER WORD: Ultimate / Best / Top / Hidden / Insider / Essential / Complete / Secret / Definitive
+- A BRACKETED qualifier like [2026 Guide], [Updated], (Insider's Pick)
+- A QUESTION MARK if the title is a question
+- A specific BENEFIT or PROMISE the reader gets
 
-Return JSON format ONLY:
-{"title": "50-60 char title", "description": "120-155 char description"}`),
-    { maxTokens: 200, temperature: 0.8, taskType: "seo-optimization", calledFrom: "discovery-fix-engine", siteId }
-  );
+Title MUST be 50-60 characters. Description MUST be 120-155 characters and include the focus keyword + a CTA verb (book / discover / find / see / explore / compare).
 
-  try {
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in response");
-    const parsed = JSON.parse(jsonMatch[0]);
-    const newTitle = (parsed.title || "").slice(0, 60);
-    const newDesc = (parsed.description || "").slice(0, 160);
+Return JSON format ONLY (no prose, no markdown fences):
+{"title": "...", "description": "..."}`),
+      {
+        maxTokens: 250,
+        temperature: 0.8,
+        taskType: "seo-optimization",
+        calledFrom: "discovery-fix-engine:optimizeCtr",
+        siteId,
+      },
+    );
 
-    const oldTitle = post.meta_title_en || "(none)";
-    const oldDesc = post.meta_description_en || "(none)";
+    lastAiContent = result.content || "";
+    const jsonMatch = lastAiContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) continue;
+    let parsed: { title?: string; description?: string };
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      continue;
+    }
 
-    await p.blogPost.update({ where: { id: post.id }, data: { meta_title_en: newTitle, meta_description_en: newDesc } });
+    const newTitle = (parsed.title || "").slice(0, 60).trim();
+    const newDesc = (parsed.description || "").slice(0, 160).trim();
+    if (!newTitle || !newDesc) continue;
 
-    return { success: true, fixId: "optimize-ctr", action: "optimize_ctr",
-      result: {
-        before: { title: oldTitle, description: oldDesc },
-        after: { title: newTitle, description: newDesc },
-        message: `Title: "${newTitle}" | Description: "${newDesc.slice(0, 60)}..."` } };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, fixId: "optimize-ctr", action: "optimize_ctr",
-      result: { before: {}, after: {}, message: `Failed to parse AI response: ${msg}` }, error: msg };
+    const titleScore = scoreTitleClickability(newTitle);
+    if (!bestRewrite || titleScore.score > bestRewrite.titleScore) {
+      bestRewrite = { title: newTitle, description: newDesc, titleScore: titleScore.score };
+    }
+
+    if (titleScore.score >= MIN_TITLE_SCORE) break; // good enough — ship it
   }
+
+  if (!bestRewrite) {
+    return {
+      success: false,
+      fixId: "optimize-ctr",
+      action: "optimize_ctr",
+      result: { before: {}, after: {}, message: `Failed to parse AI response after ${attempts} attempts` },
+      error: `Could not extract title+description from: ${lastAiContent.slice(0, 200)}`,
+    };
+  }
+
+  // Final clickability gate — if even the best attempt is below threshold,
+  // keep the existing title (don't make it worse). This is the safety net.
+  const finalTitleScore = scoreTitleClickability(bestRewrite.title);
+  const finalDescScore = scoreMetaDescriptionClickability(bestRewrite.description, focusKeyword);
+  const currentTitleScore = scoreTitleClickability(post.meta_title_en || post.title_en);
+
+  if (finalTitleScore.score < currentTitleScore.score) {
+    return {
+      success: false,
+      fixId: "optimize-ctr",
+      action: "optimize_ctr",
+      result: {
+        before: {
+          title: post.meta_title_en || post.title_en,
+          titleScore: currentTitleScore.score,
+        },
+        after: {
+          attemptedTitle: bestRewrite.title,
+          attemptedScore: finalTitleScore.score,
+        },
+        message: `Kept existing title — AI rewrite scored ${finalTitleScore.score} vs current ${currentTitleScore.score}. Missing: ${finalTitleScore.missing.join(", ")}`,
+      },
+      error: "AI rewrite scored lower than existing — skipped to avoid regression",
+    };
+  }
+
+  const oldTitle = post.meta_title_en || "(none)";
+  const oldDesc = post.meta_description_en || "(none)";
+
+  await p.blogPost.update({
+    where: { id: post.id },
+    data: { meta_title_en: bestRewrite.title, meta_description_en: bestRewrite.description },
+  });
+
+  return {
+    success: true,
+    fixId: "optimize-ctr",
+    action: "optimize_ctr",
+    result: {
+      before: { title: oldTitle, description: oldDesc, titleScore: currentTitleScore.score },
+      after: {
+        title: bestRewrite.title,
+        description: bestRewrite.description,
+        titleScore: finalTitleScore.score,
+        descScore: finalDescScore.score,
+        signals: finalTitleScore.signals,
+        gscQueriesUsed: topQueries.length,
+        attempts,
+      },
+      message: `Title score ${currentTitleScore.score} → ${finalTitleScore.score} (${finalTitleScore.signals.join(", ")}) | GSC queries: ${topQueries.length} | Attempts: ${attempts}`,
+    },
+  };
 }
 
 // ─── Boost AIO Readiness ─────────────────────────────────────────────────────
@@ -411,8 +732,14 @@ export async function boostAio(slug: string, siteId: string): Promise<DiscoveryF
     where: { slug, siteId },
     select: { id: true, title_en: true, content_en: true },
   });
-  if (!post) return { success: false, fixId: "boost-aio", action: "boost_aio",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "boost-aio",
+      action: "boost_aio",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const { generateCompletion } = await import("@/lib/ai/provider");
   const contentPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 1200);
@@ -440,7 +767,14 @@ Return HTML format:
 
 <h2>[Question 2]?</h2>
 <p>[Definitive 2-3 sentence answer with specific data]</p>`),
-    { maxTokens: 1500, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 40000 }
+    {
+      maxTokens: 1500,
+      temperature: 0.7,
+      taskType: "content-generation",
+      calledFrom: "discovery-fix-engine",
+      siteId,
+      timeoutMs: 40000,
+    },
   );
 
   const aioContent = result.content.trim();
@@ -448,15 +782,24 @@ Return HTML format:
   const firstH2 = (post.content_en || "").indexOf("<h2");
   let updatedContent: string;
   if (firstH2 > 0) {
-    updatedContent = (post.content_en || "").slice(0, firstH2) + aioContent + "\n\n" + (post.content_en || "").slice(firstH2);
+    updatedContent =
+      (post.content_en || "").slice(0, firstH2) + aioContent + "\n\n" + (post.content_en || "").slice(firstH2);
   } else {
     updatedContent = aioContent + "\n\n" + (post.content_en || "");
   }
 
   await p.blogPost.update({ where: { id: post.id }, data: { content_en: updatedContent } });
 
-  return { success: true, fixId: "boost-aio", action: "boost_aio",
-    result: { before: { aioReady: false }, after: { aioReady: true }, message: "Added Quick Answer section + question H2s for AI citation" } };
+  return {
+    success: true,
+    fixId: "boost-aio",
+    action: "boost_aio",
+    result: {
+      before: { aioReady: false },
+      after: { aioReady: true },
+      message: "Added Quick Answer section + question H2s for AI citation",
+    },
+  };
 }
 
 // ─── Add Author Attribution ──────────────────────────────────────────────────
@@ -467,8 +810,14 @@ export async function addAuthor(slug: string, siteId: string): Promise<Discovery
     where: { slug, siteId },
     select: { id: true },
   });
-  if (!post) return { success: false, fixId: "add-author", action: "add_author",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "add-author",
+      action: "add_author",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   // Get author from rotation
   try {
@@ -479,15 +828,28 @@ export async function addAuthor(slug: string, siteId: string): Promise<Discovery
         where: { id: post.id },
         data: { author_id: author.id },
       });
-      return { success: true, fixId: "add-author", action: "add_author",
-        result: { before: { author: "none" }, after: { author: author.name }, message: `Assigned author: ${author.name}` } };
+      return {
+        success: true,
+        fixId: "add-author",
+        action: "add_author",
+        result: {
+          before: { author: "none" },
+          after: { author: author.name },
+          message: `Assigned author: ${author.name}`,
+        },
+      };
     }
   } catch {
     // Author rotation not available
   }
 
-  return { success: false, fixId: "add-author", action: "add_author",
-    result: { before: {}, after: {}, message: "No authors configured in TeamMember table" }, error: "No authors available" };
+  return {
+    success: false,
+    fixId: "add-author",
+    action: "add_author",
+    result: { before: {}, after: {}, message: "No authors configured in TeamMember table" },
+    error: "No authors available",
+  };
 }
 
 // ─── Diagnose & Fix Deindexed Page ───────────────────────────────────────────
@@ -496,12 +858,29 @@ export async function diagnoseDeindex(slug: string, siteId: string): Promise<Dis
   const p = await db();
   const post = await p.blogPost.findFirst({
     where: { slug, siteId },
-    select: { id: true, title_en: true, content_en: true, content_ar: true, meta_title_en: true, meta_description_en: true, seo_score: true },
+    select: {
+      id: true,
+      title_en: true,
+      content_en: true,
+      content_ar: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      seo_score: true,
+    },
   });
-  if (!post) return { success: false, fixId: "diagnose-deindex", action: "diagnose_deindex",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "diagnose-deindex",
+      action: "diagnose_deindex",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
-  const textEn = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const textEn = (post.content_en || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const wordCount = textEn.split(" ").filter(Boolean).length;
 
   // Diagnosis
@@ -559,14 +938,19 @@ export async function diagnoseDeindex(slug: string, siteId: string): Promise<Dis
     data: { status: "submitted", last_error: null },
   });
 
-  return { success: true, fixId: "diagnose-deindex", action: "diagnose_deindex",
+  return {
+    success: true,
+    fixId: "diagnose-deindex",
+    action: "diagnose_deindex",
     result: {
       before: { status: "deindexed", problems },
       after: { status: "resubmitted", fixesApplied: applied },
-      message: problems.length > 0
-        ? `Found ${problems.length} issues: ${problems.join(", ")}. Applied ${applied.length} fixes and resubmitted.`
-        : "No obvious issues found. Resubmitted to search engines — may take 2-7 days to re-index."
-    } };
+      message:
+        problems.length > 0
+          ? `Found ${problems.length} issues: ${problems.join(", ")}. Applied ${applied.length} fixes and resubmitted.`
+          : "No obvious issues found. Resubmitted to search engines — may take 2-7 days to re-index.",
+    },
+  };
 }
 
 // ─── Boost Authenticity Signals ──────────────────────────────────────────────
@@ -577,8 +961,14 @@ export async function boostAuthenticity(slug: string, siteId: string): Promise<D
     where: { slug, siteId },
     select: { id: true, title_en: true, content_en: true },
   });
-  if (!post) return { success: false, fixId: "boost-authenticity", action: "boost_authenticity",
-    result: { before: {}, after: {}, message: "Article not found" }, error: "Not found" };
+  if (!post)
+    return {
+      success: false,
+      fixId: "boost-authenticity",
+      action: "boost_authenticity",
+      result: { before: {}, after: {}, message: "Article not found" },
+      error: "Not found",
+    };
 
   const { generateCompletion } = await import("@/lib/ai/provider");
   const contentPreview = (post.content_en || "").replace(/<[^>]*>/g, " ").slice(0, 1500);
@@ -598,18 +988,30 @@ Format each as a standalone <p> tag with class="experience-note":
 <p class="experience-note"><strong>Insider tip:</strong> [experience detail]</p>
 
 Return 3-4 inserts, each on its own line. These will be distributed throughout the article.`),
-    { maxTokens: 800, temperature: 0.8, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 45000 }
+    {
+      maxTokens: 800,
+      temperature: 0.8,
+      taskType: "content-generation",
+      calledFrom: "discovery-fix-engine",
+      siteId,
+      timeoutMs: 45000,
+    },
   );
 
   const inserts = result.content.match(/<p class="experience-note">[\s\S]*?<\/p>/gi) || [];
   if (inserts.length === 0) {
-    return { success: false, fixId: "boost-authenticity", action: "boost_authenticity",
-      result: { before: {}, after: {}, message: "AI failed to generate experience inserts" }, error: "Parse failure" };
+    return {
+      success: false,
+      fixId: "boost-authenticity",
+      action: "boost_authenticity",
+      result: { before: {}, after: {}, message: "AI failed to generate experience inserts" },
+      error: "Parse failure",
+    };
   }
 
   // Distribute inserts across the article at H2 boundaries
   const content = post.content_en || "";
-  const h2Positions = [...content.matchAll(/<h2[\s>]/gi)].map(m => m.index!);
+  const h2Positions = [...content.matchAll(/<h2[\s>]/gi)].map((m) => m.index!);
 
   let updatedContent = content;
   let offset = 0;
@@ -621,8 +1023,16 @@ Return 3-4 inserts, each on its own line. These will be distributed throughout t
 
   await p.blogPost.update({ where: { id: post.id }, data: { content_en: updatedContent } });
 
-  return { success: true, fixId: "boost-authenticity", action: "boost_authenticity",
-    result: { before: { authenticityInserts: 0 }, after: { authenticityInserts: inserts.length }, message: `Added ${inserts.length} first-hand experience signals` } };
+  return {
+    success: true,
+    fixId: "boost-authenticity",
+    action: "boost_authenticity",
+    result: {
+      before: { authenticityInserts: 0 },
+      after: { authenticityInserts: inserts.length },
+      message: `Added ${inserts.length} first-hand experience signals`,
+    },
+  };
 }
 
 // ─── Fix All Auto-Fixable Issues ─────────────────────────────────────────────
@@ -634,20 +1044,53 @@ export async function fixAllForPage(slug: string, siteId: string, issueIds: stri
     try {
       let result: DiscoveryFixResponse;
       switch (id) {
-        case "submit-indexnow": result = await submitPage(slug, siteId); break;
-        case "refresh-sitemap": result = await refreshSitemap(siteId); break;
-        case "retry-indexing": result = await retrySubmission(slug, siteId); break;
-        case "fix-placeholder-links": result = await fixPlaceholders(slug, siteId); break;
-        case "fix-meta-title": result = await fixMetaTitle(slug, siteId); break;
-        case "fix-meta-desc": result = await fixMetaDescription(slug, siteId); break;
-        case "fix-headings": result = await fixHeadings(slug, siteId); break;
-        case "inject-internal-links": result = await injectInternalLinks(slug, siteId); break;
-        case "fix-alt-text": result = await fixMetaTitle(slug, siteId); break; // placeholder
-        case "optimize-ctr": result = await optimizeCtr(slug, siteId); break;
-        case "boost-aio": result = await boostAio(slug, siteId); break;
-        case "boost-authenticity": result = await boostAuthenticity(slug, siteId); break;
-        case "add-author": result = await addAuthor(slug, siteId); break;
-        default: result = { success: false, fixId: id, action: "unknown", result: { before: {}, after: {}, message: `Unknown fix: ${id}` } }; break;
+        case "submit-indexnow":
+          result = await submitPage(slug, siteId);
+          break;
+        case "refresh-sitemap":
+          result = await refreshSitemap(siteId);
+          break;
+        case "retry-indexing":
+          result = await retrySubmission(slug, siteId);
+          break;
+        case "fix-placeholder-links":
+          result = await fixPlaceholders(slug, siteId);
+          break;
+        case "fix-meta-title":
+          result = await fixMetaTitle(slug, siteId);
+          break;
+        case "fix-meta-desc":
+          result = await fixMetaDescription(slug, siteId);
+          break;
+        case "fix-headings":
+          result = await fixHeadings(slug, siteId);
+          break;
+        case "inject-internal-links":
+          result = await injectInternalLinks(slug, siteId);
+          break;
+        case "fix-alt-text":
+          result = await fixMetaTitle(slug, siteId);
+          break; // placeholder
+        case "optimize-ctr":
+          result = await optimizeCtr(slug, siteId);
+          break;
+        case "boost-aio":
+          result = await boostAio(slug, siteId);
+          break;
+        case "boost-authenticity":
+          result = await boostAuthenticity(slug, siteId);
+          break;
+        case "add-author":
+          result = await addAuthor(slug, siteId);
+          break;
+        default:
+          result = {
+            success: false,
+            fixId: id,
+            action: "unknown",
+            result: { before: {}, after: {}, message: `Unknown fix: ${id}` },
+          };
+          break;
       }
       results.push({ issueId: id, success: result.success, message: result.result.message });
     } catch (err) {
@@ -656,7 +1099,15 @@ export async function fixAllForPage(slug: string, siteId: string, issueIds: stri
     }
   }
 
-  const succeeded = results.filter(r => r.success).length;
-  return { success: succeeded > 0, fixId: "fix-all", action: "fix_all",
-    result: { before: { issues: issueIds.length }, after: { fixed: succeeded, failed: results.length - succeeded, details: results }, message: `Fixed ${succeeded}/${results.length} issues` } };
+  const succeeded = results.filter((r) => r.success).length;
+  return {
+    success: succeeded > 0,
+    fixId: "fix-all",
+    action: "fix_all",
+    result: {
+      before: { issues: issueIds.length },
+      after: { fixed: succeeded, failed: results.length - succeeded, details: results },
+      message: `Fixed ${succeeded}/${results.length} issues`,
+    },
+  };
 }

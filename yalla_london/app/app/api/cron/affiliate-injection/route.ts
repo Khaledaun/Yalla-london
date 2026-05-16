@@ -470,6 +470,29 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`,
             category: "tickets",
           },
+          // SportsEvents365 — live partner approved May 16, 2026.
+          // Deep-link format: append a_aid=<AID> with `?` or `&` as appropriate.
+          // We hand `?a_aid=...` here because the destination URL has no query string yet.
+          // Multiple URLs target different verticals (general London → events, football
+          // → Premier League, concerts → live music, theatre → West End shows).
+          {
+            name: "SportsEvents365",
+            url: "https://www.sportsevents365.com/london",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            category: "tickets",
+          },
+          {
+            name: "SportsEvents365 Football",
+            url: "https://www.sportsevents365.com/football/england/premier-league",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            category: "tickets",
+          },
+          {
+            name: "SportsEvents365 Concerts",
+            url: "https://www.sportsevents365.com/concerts/london",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            category: "tickets",
+          },
           {
             name: "StubHub",
             url: "https://www.stubhub.co.uk",

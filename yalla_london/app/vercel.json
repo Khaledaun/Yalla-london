@@ -224,7 +224,7 @@
     },
     {
       "path": "/api/cron/content-auto-fix",
-      "schedule": "0 11,18 * * *"
+      "schedule": "0 5,11,17,23 * * *"
     },
     {
       "path": "/api/cron/social",

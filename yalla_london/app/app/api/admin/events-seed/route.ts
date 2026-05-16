@@ -109,7 +109,10 @@ export async function GET(request: NextRequest) {
       description_en: `${e.name} at ${e.venue}, ${e.city}.`,
       description_ar: null as string | null,
       date: e.date,
-      time: e.time || "19:00",
+      // Strip Ticketmaster's HH:MM:SS to HH:MM so isEventStillVisible's
+      // regex matches cleanly (defense in depth — start-time.ts now also
+      // accepts seconds, but we normalize at write-time too).
+      time: (typeof e.time === "string" ? e.time.slice(0, 5) : null) || "19:00",
       venue: e.venue,
       category,
       price: formatEventPrice(e),
@@ -228,13 +231,26 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Fetch upcoming events from Ticketmaster
-  const tmEvents = await getUpcomingEvents(siteId, { limit: target });
+  const tmRaw = await getUpcomingEvents(siteId, { limit: target });
+  // Pre-filter: only write events whose actual start time is in the future.
+  // Ticketmaster's `startDateTime` query param filters by CALENDAR DAY, so
+  // events earlier-today (e.g. 15:00 BST when it's 23:30 BST) still come
+  // back. Writing past events means they immediately get auto-erased on
+  // the public page, wasting catalog slots and looking broken.
+  const { isEventStillVisible } = await import("@/lib/events/start-time");
+  const tmEvents = tmRaw.filter((e) => {
+    const eventDate = new Date(e.date);
+    if (isNaN(eventDate.getTime())) return false;
+    const time = typeof e.time === "string" ? e.time.slice(0, 5) : null;
+    return isEventStillVisible(eventDate, time);
+  });
   if (tmEvents.length === 0) {
     return NextResponse.json({
       success: false,
-      message: "Ticketmaster returned 0 events",
+      message: `Ticketmaster returned ${tmRaw.length} events but all are within 15 min of starting / past (filtered out before write)`,
       siteId,
       archived,
+      ticketmasterReturned: tmRaw.length,
     });
   }
 
@@ -273,7 +289,10 @@ export async function POST(request: NextRequest) {
             title_en: e.name,
             description_en: `${e.name} at ${e.venue}, ${e.city}.`,
             date: eventDate,
-            time: e.time || "19:00",
+            // Strip Ticketmaster's HH:MM:SS to HH:MM so isEventStillVisible's
+            // regex matches cleanly (defense in depth — start-time.ts now also
+            // accepts seconds, but we normalize at write-time too).
+            time: (typeof e.time === "string" ? e.time.slice(0, 5) : null) || "19:00",
             venue: e.venue,
             category,
             price: formatEventPrice(e),
@@ -290,7 +309,10 @@ export async function POST(request: NextRequest) {
             title_en: e.name,
             description_en: `${e.name} at ${e.venue}, ${e.city}.`,
             date: eventDate,
-            time: e.time || "19:00",
+            // Strip Ticketmaster's HH:MM:SS to HH:MM so isEventStillVisible's
+            // regex matches cleanly (defense in depth — start-time.ts now also
+            // accepts seconds, but we normalize at write-time too).
+            time: (typeof e.time === "string" ? e.time.slice(0, 5) : null) || "19:00",
             venue: e.venue,
             category,
             price: formatEventPrice(e),

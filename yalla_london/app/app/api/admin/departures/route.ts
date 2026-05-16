@@ -420,6 +420,17 @@ const CRON_DEFS: CronDef[] = [
     feedsInto: "Published content",
   },
   {
+    path: "/api/cron/weekly-rescue-campaign",
+    schedule: "0 9 * * 1",
+    label: "Weekly Rescue Campaign",
+    icon: "🚨",
+    type: "cron",
+    category: "content",
+    description:
+      "Mondays 09:00 UTC. Calls /api/admin/rescue-plan, buckets actionable items by failureMode, and creates a single Campaign with the right operations. campaign-executor then grinds through it over the week. Skips destructive modes (cannibalization) and re-submission modes (handled elsewhere).",
+    feedsInto: "Campaign Agent",
+  },
+  {
     path: "/api/cron/pipeline-health",
     schedule: "30 1,7,13,19 * * *",
     label: "Pipeline Health Monitor",

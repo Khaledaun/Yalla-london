@@ -267,6 +267,10 @@
       "schedule": "12,42 * * * *"
     },
     {
+      "path": "/api/cron/weekly-rescue-campaign",
+      "schedule": "0 9 * * 1"
+    },
+    {
       "path": "/api/affiliate/cron/sync-advertisers",
       "schedule": "30 0,6,12,18 * * *"
     },

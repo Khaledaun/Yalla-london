@@ -83,6 +83,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "perplexity-executor": "CRON_PERPLEXITY_EXECUTOR",
   "ceo-intelligence": "CRON_CEO_INTELLIGENCE",
   "campaign-executor": "CRON_CAMPAIGN_EXECUTOR",
+  "weekly-rescue-campaign": "CRON_WEEKLY_RESCUE_CAMPAIGN",
   "daily-seo-audit": "CRON_DAILY_SEO_AUDIT",
   "data-refresh": "CRON_DATA_REFRESH",
   "discovery-monitor": "CRON_DISCOVERY_MONITOR",

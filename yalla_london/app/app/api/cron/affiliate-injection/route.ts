@@ -411,12 +411,11 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`,
             category: "restaurant",
           },
-          {
-            name: "TripAdvisor Restaurants",
-            url: "https://www.tripadvisor.co.uk/Restaurants-g186338-London_England.html",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
-            category: "restaurant",
-          },
+          // TripAdvisor Restaurants intentionally REMOVED (May 17 audit).
+          // utm_source is NOT a TripAdvisor affiliate param (their program runs
+          // through Awin with partnerid=). The link dropped readers on a 7,000-
+          // restaurant London index with no intent match — pure leakage with no
+          // commission. Re-add only when proper Awin tracking is wired.
         ],
       },
       {
@@ -434,12 +433,7 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`,
             category: "activity",
           },
-          {
-            name: "TripAdvisor Experiences",
-            url: "https://www.tripadvisor.co.uk/Attractions-g186338-London_England.html",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
-            category: "activity",
-          },
+          // TripAdvisor Experiences removed for the same reason — see comment above.
         ],
       },
       {

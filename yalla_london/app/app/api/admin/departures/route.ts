@@ -431,6 +431,39 @@ const CRON_DEFS: CronDef[] = [
     feedsInto: "Campaign Agent",
   },
   {
+    path: "/api/cron/daily-events-topics",
+    schedule: "0 10 * * *",
+    label: "Daily Events Topics",
+    icon: "🎟️",
+    type: "cron",
+    category: "content",
+    description:
+      "Daily 10:00 UTC. Generates 2 event-focused topic proposals per eligible site (live sports, concerts, theatre, festivals). Tagged with _targetPartner=sportsevents365 so the affiliate-injection cron knows to prefer SportsEvents365 + Tiqets + TicketNetwork deep links. Skipped for zenitha-yachts-med.",
+    feedsInto: "Content Builder",
+  },
+  {
+    path: "/api/cron/events-refresh",
+    schedule: "0 6 * * *",
+    label: "Events Refresh",
+    icon: "🔄",
+    type: "cron",
+    category: "content",
+    description:
+      "Daily 06:00 UTC. Pulls upcoming events from Ticketmaster for yalla-london + istanbul (50/site target) and writes them as Event rows with SportsEvents365 affiliate URLs assigned by category (football → /football/england/premier-league, concerts → /concerts/london, etc). Idempotent — dedups by Ticketmaster id stored in affiliateTag.",
+    feedsInto: "Events page",
+  },
+  {
+    path: "/api/cron/weekly-events-validator",
+    schedule: "0 8 * * 1",
+    label: "Weekly Events Validator",
+    icon: "✅",
+    type: "cron",
+    category: "maintenance",
+    description:
+      "Mondays 08:00 UTC. The 'weekly swipe' — archives events whose start time is in the past, HEAD-checks affiliate booking URLs (caps at 60/run), counts events >30d stale. Fires a single CEO Inbox notice summarizing all three counts. Combines with the 15-min-before auto-erase enforced by /api/events GET.",
+    feedsInto: "CEO Inbox",
+  },
+  {
     path: "/api/cron/pipeline-health",
     schedule: "30 1,7,13,19 * * *",
     label: "Pipeline Health Monitor",

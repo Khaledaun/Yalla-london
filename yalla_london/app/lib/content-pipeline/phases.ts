@@ -251,9 +251,47 @@ export async function phaseOutline(
         }${contentAngle ? `\n- Content angle: ${contentAngle}` : ""}`
       : "";
 
+  // Detect comparison page type — either from TopicProposal._suggestedPageType OR
+  // from keyword pattern ("X vs Y", "compared", "which is better"). Comparison
+  // articles need a distinct structure (side-by-side specs, verdicts per entity,
+  // affiliate CTA mapped to each compared brand) so the AI gets explicit
+  // table-structured guidance instead of generic prose sections.
+  const researchSignal = (draft.research_data || {}) as Record<string, unknown>;
+  const suggestedPageType =
+    typeof researchSignal._suggestedPageType === "string"
+      ? (researchSignal._suggestedPageType as string).toLowerCase()
+      : null;
+  const isComparison =
+    suggestedPageType === "comparison" || /\b(vs|versus|compared|comparison|which is better)\b/i.test(draft.keyword);
+
+  // Comparison-specific structural guidance — appended to the base prompt when
+  // isComparison. Drives the AI to emit comparison-table sections (which render
+  // correctly post-eaf6259 markdown table fix), per-entity verdict sections,
+  // and explicit affiliate placement mapped to each compared brand.
+  const comparisonAddendum = isComparison
+    ? `
+
+CRITICAL — THIS IS A COMPARISON ARTICLE. Use this section structure (not generic prose sections):
+  1. "Quick Verdict at a Glance" — 100-150 words, names the winner overall + best-for-each-use-case (luxury / value / families / business)
+  2. "Side-by-Side Comparison" — MUST include a markdown comparison table:
+       | Feature | Entity A | Entity B |
+       |---------|----------|----------|
+       | Price | ... | ... |
+       | Cookie window | ... | ... |
+       | Best for | ... | ... |
+       Cover 6-8 features (price, location, amenities, cancellation, cookie, EPC, audience, deal frequency).
+  3-N. Per-entity deep-dive sections — one H2 per compared entity ("About Entity A", "About Entity B"). Each includes price details (£/€/$), best-for use case, 1 insider tip, 1 honest caveat, 1 affiliate placement.
+  N+1. "Pros and Cons" — bulleted list per entity.
+  N+2. "Final Recommendation" — explicit "Choose X if... Choose Y if..." verdicts. Conclude with a CTA to the recommended winner.
+
+AFFILIATE PLACEMENTS for comparison articles MUST map 1:1 to each compared entity (one CTA per brand mentioned in the side-by-side table). Total: 2-4 affiliate placements depending on entity count.
+
+The compared entities will likely come from: ${longTails.slice(0, 3).join(", ") || draft.keyword}.`
+    : "";
+
   const prompt = `You are a content architect for "${site.name}" (${site.destination} travel blog for all visitors).
 
-Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".${enrichment}
+Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".${enrichment}${comparisonAddendum}
 
 Research: ${JSON.stringify(research).substring(0, 2000)}
 

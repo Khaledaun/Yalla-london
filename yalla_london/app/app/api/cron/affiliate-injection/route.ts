@@ -155,42 +155,70 @@ export async function getAffiliateRulesFromCjLinks(siteId: string): Promise<Affi
     // Always add broad catch-all rules when we have a publisherCid.
     // Even when category-specific CJ rules exist (e.g., 1 hotel rule from Vrbo),
     // articles about restaurants, shopping, transport, general guides would get
-    // ZERO affiliates without these broad rules. Vrbo is relevant for ANY travel
-    // content — vacation rentals aren't just for "hotel" articles.
+    // ZERO affiliates without these broad rules.
+    //
+    // FIXED (May 16): the previous version hardcoded ONLY Vrbo + Expedia
+    // into every catch-all category. But Khaled's CJ dashboard had 4 JOINED
+    // advertisers (Vrbo, Expedia, lastminute.com INT, The Excellence
+    // Collection) — the other two were never injected anywhere. Now we
+    // pull EVERY JOINED CJ advertiser and use them across all catch-all
+    // categories, so an article can match any of the 4+ programs Khaled
+    // is approved for, not just the 2 we hardcoded.
     if (publisherCid) {
-      const vrboDeepLink = buildCjDeepLink(publisherCid, VRBO_ADVERTISER_ID, "https://www.vrbo.com/", `${siteId}_cj`);
-      const vrboEntry = { name: "Vrbo", url: vrboDeepLink, param: "", category: "hotel" };
-
-      // Look up Expedia from DB — external ID varies, so query by name
-      let expediaEntry = { name: "Expedia", url: "", param: "", category: "hotel" };
+      // Pull every JOINED advertiser so the catch-all uses the full approved
+      // roster, not just hand-picked names. Take cap = 20 (plenty of headroom).
+      let joinedAdvertisers: Array<{
+        externalId: string;
+        name: string;
+        programUrl: string;
+        category: string | null;
+      }> = [];
       try {
-        const expediaAdv = await prisma.cjAdvertiser.findFirst({
-          where: { name: { contains: "Expedia" }, status: "JOINED" },
-          select: { externalId: true, programUrl: true },
-        });
-        if (expediaAdv) {
-          const expediaUrl = expediaAdv.programUrl || "https://www.expedia.com/";
-          expediaEntry.url = buildCjDeepLink(publisherCid, expediaAdv.externalId, expediaUrl, `${siteId}_cj`);
-          console.log(
-            `[affiliate-injection] Expedia deep link generated from DB (externalId: ${expediaAdv.externalId})`,
-          );
-        }
-      } catch (e) {
-        console.warn("[affiliate-injection] Failed to look up Expedia:", e instanceof Error ? e.message : e);
+        joinedAdvertisers = (await prisma.cjAdvertiser.findMany({
+          where: {
+            networkId: CJ_NETWORK_ID,
+            status: "JOINED",
+            programUrl: { not: "" },
+          },
+          select: { externalId: true, name: true, programUrl: true, category: true },
+          take: 20,
+        })) as typeof joinedAdvertisers;
+      } catch (advErr) {
+        console.warn(
+          "[affiliate-injection] Failed to query JOINED advertisers for catch-all:",
+          advErr instanceof Error ? advErr.message : advErr,
+        );
       }
-      const hasExpedia = expediaEntry.url.length > 0;
 
-      // Only add categories that don't already have CJ rules
-      const existingCategories = new Set(
-        rules.map((r) => {
-          // Infer category from the first affiliate's category
-          return r.affiliates[0]?.category || "unknown";
-        }),
-      );
+      // Build base deep-link entries (category gets reassigned per catch-all rule below)
+      const buildEntry = (adv: { externalId: string; name: string; programUrl: string }) => ({
+        name: adv.name,
+        url: buildCjDeepLink(publisherCid, adv.externalId, adv.programUrl, `${siteId}_cj`),
+        param: "",
+      });
 
-      if (!existingCategories.has("travel")) {
-        rules.push({
-          // Broad travel keywords — matches most London travel articles
+      const baseEntries: Array<{ name: string; url: string; param: string }> = joinedAdvertisers.map(buildEntry);
+
+      // Last-resort fallback: hardcoded Vrbo so SOMETHING injects even if the
+      // DB sync hasn't populated yet (e.g., first deploy on a fresh DB).
+      if (baseEntries.length === 0) {
+        baseEntries.push({
+          name: "Vrbo",
+          url: buildCjDeepLink(publisherCid, VRBO_ADVERTISER_ID, "https://www.vrbo.com/", `${siteId}_cj`),
+          param: "",
+        });
+        console.warn(
+          "[affiliate-injection] No JOINED advertisers in DB — using Vrbo hardcoded fallback. Run sync-advertisers to populate.",
+        );
+      }
+
+      // The catch-all rules: for each major category, attach UP TO 5 deep links
+      // from the joined roster. Same advertisers reused across categories — that's
+      // fine, the findMatches dedup machinery picks per-article best match without
+      // double-injecting the same brand into one article.
+      const CATCHALL_CATEGORIES: Array<{ category: string; keywords: string[] }> = [
+        {
+          category: "travel",
           keywords: [
             "london",
             "travel",
@@ -216,14 +244,9 @@ export async function getAffiliateRulesFromCjLinks(siteId: string): Promise<Affi
             "زيارة",
             "دليل",
           ],
-          affiliates: [
-            ...(hasExpedia ? [{ ...expediaEntry, category: "travel" }] : []),
-            { ...vrboEntry, category: "travel" },
-          ],
-        });
-      }
-      if (!existingCategories.has("restaurant")) {
-        rules.push({
+        },
+        {
+          category: "restaurant",
           keywords: [
             ...(CATEGORY_KEYWORDS["restaurant"] || ["restaurant"]),
             "halal",
@@ -233,14 +256,9 @@ export async function getAffiliateRulesFromCjLinks(siteId: string): Promise<Affi
             "dinner",
             "eat",
           ],
-          affiliates: [
-            ...(hasExpedia ? [{ ...expediaEntry, category: "restaurant" }] : []),
-            { ...vrboEntry, category: "restaurant" },
-          ],
-        });
-      }
-      if (!existingCategories.has("activity")) {
-        rules.push({
+        },
+        {
+          category: "activity",
           keywords: [
             ...(CATEGORY_KEYWORDS["activity"] || ["tour"]),
             "attraction",
@@ -250,31 +268,32 @@ export async function getAffiliateRulesFromCjLinks(siteId: string): Promise<Affi
             "walk",
             "kids",
           ],
-          affiliates: [
-            ...(hasExpedia ? [{ ...expediaEntry, category: "activity" }] : []),
-            { ...vrboEntry, category: "activity" },
-          ],
-        });
-      }
-      if (!existingCategories.has("shopping")) {
-        rules.push({
+        },
+        {
+          category: "shopping",
           keywords: CATEGORY_KEYWORDS["shopping"] || ["shopping"],
-          affiliates: [
-            ...(hasExpedia ? [{ ...expediaEntry, category: "shopping" }] : []),
-            { ...vrboEntry, category: "shopping" },
-          ],
-        });
-      }
-      if (!existingCategories.has("transport")) {
-        rules.push({
+        },
+        {
+          category: "transport",
           keywords: CATEGORY_KEYWORDS["transport"] || ["transport"],
-          affiliates: [
-            ...(hasExpedia ? [{ ...expediaEntry, category: "transport" }] : []),
-            { ...vrboEntry, category: "transport" },
-          ],
+        },
+      ];
+
+      // Existing categories already covered by per-advertiser CjLink rules above.
+      // Skip catch-all for those so we don't duplicate.
+      const existingCategories = new Set(rules.map((r) => r.affiliates[0]?.category || "unknown"));
+
+      for (const { category, keywords } of CATCHALL_CATEGORIES) {
+        if (existingCategories.has(category)) continue;
+        rules.push({
+          keywords,
+          affiliates: baseEntries.slice(0, 5).map((entry) => ({ ...entry, category })),
         });
       }
-      console.log(`[affiliate-injection] After broad rules: ${rules.length} total CJ rules`);
+
+      console.log(
+        `[affiliate-injection] After broad rules: ${rules.length} total CJ rules (${baseEntries.length} distinct advertisers in catch-all)`,
+      );
     }
 
     return rules;
@@ -449,6 +468,29 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             name: "TicketNetwork",
             url: "https://www.ticketnetwork.com/london-events",
             param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`,
+            category: "tickets",
+          },
+          // SportsEvents365 — live partner approved May 16, 2026.
+          // Deep-link format: append a_aid=<AID> with `?` or `&` as appropriate.
+          // We hand `?a_aid=...` here because the destination URL has no query string yet.
+          // Multiple URLs target different verticals (general London → events, football
+          // → Premier League, concerts → live music, theatre → West End shows).
+          {
+            name: "SportsEvents365",
+            url: "https://www.sportsevents365.com/london",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            category: "tickets",
+          },
+          {
+            name: "SportsEvents365 Football",
+            url: "https://www.sportsevents365.com/football/england/premier-league",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            category: "tickets",
+          },
+          {
+            name: "SportsEvents365 Concerts",
+            url: "https://www.sportsevents365.com/concerts/london",
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
             category: "tickets",
           },
           {
@@ -1665,6 +1707,38 @@ async function handleAffiliateInjection(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
+    // Tally distinct partner names actually injected this run + per-partner count
+    // so Khaled can verify on the cockpit which advertisers are reaching readers.
+    // Answers: "did the CJ catch-all fix surface lastminute + Excellence Collection?"
+    const partnerInjectionCount = new Map<string, number>();
+    for (const r of results) {
+      for (const p of r.partners) {
+        partnerInjectionCount.set(p, (partnerInjectionCount.get(p) || 0) + 1);
+      }
+    }
+    const advertisersUsed = [...partnerInjectionCount.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, articles: count }));
+
+    // Pull the JOINED roster the catch-all built from so we can compare
+    // "what's available" vs "what actually got injected this run". Exposes
+    // partners that ARE in the candidate pool but didn't match any keyword.
+    let cjJoinedRoster: string[] = [];
+    try {
+      const { CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+      const roster = (await prisma.cjAdvertiser.findMany({
+        where: { networkId: CJ_NETWORK_ID, status: "JOINED", programUrl: { not: "" } },
+        select: { name: true },
+        take: 20,
+      })) as Array<{ name: string }>;
+      cjJoinedRoster = roster.map((r) => r.name).sort();
+    } catch (rosterErr) {
+      console.warn(
+        "[affiliate-injection] Failed to fetch JOINED roster for resultSummary:",
+        rosterErr instanceof Error ? rosterErr.message : rosterErr,
+      );
+    }
+
     await logCronExecution("affiliate-injection", "completed", {
       durationMs: duration,
       itemsProcessed: injected,
@@ -1677,6 +1751,11 @@ async function handleAffiliateInjection(request: NextRequest) {
         skippedSuppressed,
         skippedNoMatch,
         diagnosticSamples,
+        // New: visibility into WHICH partners got injected + which JOINED CJ
+        // advertisers were available as candidates this run.
+        advertisersUsed,
+        cjJoinedRoster,
+        cjJoinedUnused: cjJoinedRoster.filter((name) => !partnerInjectionCount.has(name)),
         cronRunId,
       },
     }).catch((logErr) =>

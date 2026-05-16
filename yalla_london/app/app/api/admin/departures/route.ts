@@ -431,6 +431,17 @@ const CRON_DEFS: CronDef[] = [
     feedsInto: "Campaign Agent",
   },
   {
+    path: "/api/cron/daily-events-topics",
+    schedule: "0 10 * * *",
+    label: "Daily Events Topics",
+    icon: "🎟️",
+    type: "cron",
+    category: "content",
+    description:
+      "Daily 10:00 UTC. Generates 2 event-focused topic proposals per eligible site (live sports, concerts, theatre, festivals). Tagged with _targetPartner=sportsevents365 so the affiliate-injection cron knows to prefer SportsEvents365 + Tiqets + TicketNetwork deep links. Skipped for zenitha-yachts-med.",
+    feedsInto: "Content Builder",
+  },
+  {
     path: "/api/cron/pipeline-health",
     schedule: "30 1,7,13,19 * * *",
     label: "Pipeline Health Monitor",

@@ -84,6 +84,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "ceo-intelligence": "CRON_CEO_INTELLIGENCE",
   "campaign-executor": "CRON_CAMPAIGN_EXECUTOR",
   "weekly-rescue-campaign": "CRON_WEEKLY_RESCUE_CAMPAIGN",
+  "daily-events-topics": "CRON_DAILY_EVENTS_TOPICS",
   "daily-seo-audit": "CRON_DAILY_SEO_AUDIT",
   "data-refresh": "CRON_DATA_REFRESH",
   "discovery-monitor": "CRON_DISCOVERY_MONITOR",

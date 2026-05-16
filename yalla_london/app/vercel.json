@@ -271,6 +271,10 @@
       "schedule": "0 9 * * 1"
     },
     {
+      "path": "/api/cron/daily-events-topics",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/affiliate/cron/sync-advertisers",
       "schedule": "30 0,6,12,18 * * *"
     },

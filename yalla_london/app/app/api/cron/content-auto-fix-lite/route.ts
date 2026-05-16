@@ -814,15 +814,40 @@ async function handleAutoFixLite(request: NextRequest) {
   // Sets BlogPost.canonical_slug on losers so the blog page can issue 301
   // redirects (preserves accumulated SEO equity instead of returning 404).
   // Runs every 4h via this cron — Khaled doesn't have to touch anything.
+  //
+  // FIXES (May 16 verification): live sitemap contained CASCADING artifacts
+  // the previous regex/normalize couldn't fully strip:
+  //   best-halal-afternoon-tea-london-v6-v8       → 2 stacked -vN
+  //   best-halal-afternoon-tea-london-v7-v4-v6    → 3 stacked -vN
+  //   best-halal-afternoon-tea-london-v7-v28py    → -v + 5 alnum chars
+  //
+  // Two bugs fixed:
+  //   (a) Old `-v[a-z0-9]{4}$` only matched EXACTLY 4 chars after -v. Now
+  //       `{4,}` (4 or more) catches longer suffixes like -v28py.
+  //   (b) normalize() ran a SINGLE pass, so -v6-v8 → -v6 (still bad).
+  //       Now loops up to 5x until the slug stops changing — strips all
+  //       cascaded artifacts so cascading versions all collapse to the
+  //       same canonical group key.
   if (Date.now() - cronStart < BUDGET_MS - 8_000) {
     try {
-      const SLUG_ARTIFACT_PATTERN = /-v\d{1,3}$|-v[a-z0-9]{4}$|-[0-9a-f]{4,}$|-\d+-chars$/i;
-      const normalizeSlug = (slug: string) =>
+      const SLUG_ARTIFACT_PATTERN = /-v\d{1,3}$|-v[a-z0-9]{4,}$|-[0-9a-f]{4,}$|-\d+-chars$/i;
+      const stripOnce = (slug: string) =>
         slug
           .replace(SLUG_ARTIFACT_PATTERN, "")
           .replace(/-20\d{2}(-\d{2}(-\d{2})?)?/g, "")
           .replace(/-+/g, "-")
           .replace(/^-|-$/g, "");
+      const normalizeSlug = (slug: string): string => {
+        // Iterate until stable — cascading -v6-v8 collapses to base form.
+        // Hard cap at 5 iterations to bound runtime on pathological inputs.
+        let prev = slug;
+        for (let i = 0; i < 5; i++) {
+          const next = stripOnce(prev);
+          if (next === prev) break;
+          prev = next;
+        }
+        return prev;
+      };
 
       for (const sid of activeSiteIds) {
         if (Date.now() - cronStart > BUDGET_MS - 5_000) break;

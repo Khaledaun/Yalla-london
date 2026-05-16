@@ -74,6 +74,8 @@ export default function RescuePlanPage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -164,6 +166,97 @@ export default function RescuePlanPage() {
       setToast({ text: `Failed: ${err instanceof Error ? err.message : String(err)}`, ok: false });
     } finally {
       setBusyKey(null);
+    }
+  }
+
+  /**
+   * Single-item AI fix — calls the discovery fix-engine via the rescue-plan
+   * action endpoint. Skips the manual editor entirely. For near-miss items
+   * this rewrites title + meta; for thin-content it expands the body; for
+   * stale-indexing it re-fires IndexNow.
+   */
+  async function runAiFix(item: RescueItem) {
+    if (!item.action.endpoint || !item.action.executable) return;
+    // Use the same key shape as runAction so per-row `isBusy` covers both.
+    const itemKey = `${item.failureMode}:${item.slug}`;
+    setBusyKey(itemKey);
+    try {
+      const res = await fetch(item.action.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item.action.payload || {}),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        setToast({ text: `AI Fix failed: HTTP ${res.status} ${detail.slice(0, 60)}`, ok: false });
+      } else {
+        let msg = "AI fix applied";
+        try {
+          const j = await res.json();
+          msg = j.result?.message || j.summary || j.message || "AI fix applied";
+        } catch {
+          /* non-JSON ok */
+        }
+        setToast({ text: `✨ ${item.title.slice(0, 40)} — ${String(msg).slice(0, 100)}`, ok: true });
+        setTimeout(() => load(), 1500);
+      }
+    } catch (err) {
+      setToast({ text: `AI Fix failed: ${err instanceof Error ? err.message : String(err)}`, ok: false });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  /**
+   * Bulk AI fix — POST to /api/admin/rescue-plan/bulk-fix which iterates the
+   * top-N items server-side and runs the AI fix for each non-destructive
+   * mode (near_miss, thin_content, stale_indexing, dead_cj_link). Returns
+   * an aggregated result we render as a toast + reload.
+   */
+  async function runBulkFix(opts: { limit: number; modeFilter?: FailureMode }) {
+    const okConfirm = await confirm({
+      title: "AI Fix — bulk run",
+      message: opts.modeFilter
+        ? `Run AI fixes on the top ${opts.limit} ${MODE_META[opts.modeFilter].label} items? Each item ~5-25s of AI work. Total budget 280s.`
+        : `Run AI fixes on the top ${opts.limit} items (excluding destructive Cannibal actions)? Each item ~5-25s of AI work. Total budget 280s.`,
+      confirmLabel: `Run ${opts.limit} fixes`,
+    });
+    if (!okConfirm) return;
+
+    setBulkBusy(true);
+    setBulkProgress({ done: 0, total: opts.limit });
+    try {
+      const res = await fetch("/api/admin/rescue-plan/bulk-fix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          limit: opts.limit,
+          modes: opts.modeFilter ? [opts.modeFilter] : ["near_miss", "thin_content", "stale_indexing", "dead_cj_link"],
+          onlyExecutable: true,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        setToast({ text: `Bulk AI Fix failed: HTTP ${res.status} ${detail.slice(0, 60)}`, ok: false });
+      } else {
+        const j = (await res.json()) as {
+          summary?: string;
+          succeeded?: number;
+          failed?: number;
+          processed?: number;
+        };
+        setToast({
+          text: `✨ ${j.summary || `Bulk fix complete: ${j.succeeded}/${j.processed}`}`,
+          ok: (j.succeeded || 0) > 0,
+        });
+        setTimeout(() => load(), 2000);
+      }
+    } catch (err) {
+      setToast({ text: `Bulk AI Fix failed: ${err instanceof Error ? err.message : String(err)}`, ok: false });
+    } finally {
+      setBulkBusy(false);
+      setBulkProgress(null);
     }
   }
 
@@ -265,6 +358,41 @@ export default function RescuePlanPage() {
                 ))}
               </div>
 
+              {/* Bulk AI Fix bar — runs the top N items server-side */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => runBulkFix({ limit: 10 })}
+                  disabled={bulkBusy || data.totalItems === 0}
+                  className="flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded bg-violet-700 hover:bg-violet-600 text-violet-50 border border-violet-500 disabled:opacity-60"
+                >
+                  {bulkBusy
+                    ? bulkProgress
+                      ? `Running… ${bulkProgress.done}/${bulkProgress.total}`
+                      : "Running…"
+                    : `✨ AI Fix Top 10`}
+                </button>
+                <button
+                  onClick={() =>
+                    runBulkFix({
+                      limit: 5,
+                      modeFilter:
+                        filter !== "all" && filter !== "cannibalization" ? (filter as FailureMode) : "near_miss",
+                    })
+                  }
+                  disabled={bulkBusy || data.totalItems === 0}
+                  className="flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded bg-violet-900/60 hover:bg-violet-900 text-violet-200 border border-violet-700/60 disabled:opacity-60"
+                >
+                  ✨ Fix Top 5{" "}
+                  {filter !== "all" && filter !== "cannibalization"
+                    ? MODE_META[filter as FailureMode].label
+                    : "Near-Miss"}
+                </button>
+              </div>
+              <div className="mt-2 text-[10px] text-zinc-500 leading-snug">
+                Bulk fix skips Cannibal (destructive — needs your confirm per item). Each AI fix takes 5-25s. Up to 30
+                items per call; budget 280s.
+              </div>
+
               {/* Per-mode mini bars */}
               <div className="mt-3 grid grid-cols-5 gap-1 text-[10px]">
                 {(["near_miss", "cannibalization", "thin_content", "stale_indexing", "dead_cj_link"] as const).map(
@@ -347,22 +475,43 @@ export default function RescuePlanPage() {
                         )}
 
                         {/* Action row */}
+                        {/* Three button states:                                                */}
+                        {/*   1. Executable + non-destructive → primary "✨ AI Fix" (one-tap)   */}
+                        {/*      Near-miss also gets a secondary "✏️ Edit" to open the editor. */}
+                        {/*   2. Destructive (cannibal, thin unpublish) → existing runAction    */}
+                        {/*      which goes through useConfirm before mutating.                 */}
+                        {/*   3. Non-executable → italic note explaining manual action needed.  */}
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {item.failureMode === "near_miss" ? (
-                            <button
-                              onClick={() => openEditor(item.slug)}
-                              className="flex-1 px-3 py-2 text-xs font-medium rounded bg-emerald-700 hover:bg-emerald-600 text-emerald-50 border border-emerald-600"
-                            >
-                              ✏️ Rewrite Title + Meta
-                            </button>
-                          ) : item.action.executable && item.action.endpoint ? (
-                            <button
-                              onClick={() => runAction(item)}
-                              disabled={isBusy}
-                              className="flex-1 px-3 py-2 text-xs font-medium rounded bg-blue-700 hover:bg-blue-600 text-blue-50 border border-blue-600 disabled:opacity-60"
-                            >
-                              {isBusy ? "Running…" : item.action.label}
-                            </button>
+                          {item.action.executable && item.action.endpoint ? (
+                            <>
+                              <button
+                                onClick={() => runAiFix(item)}
+                                disabled={isBusy || bulkBusy}
+                                className="flex-1 min-w-[140px] px-3 py-2 text-xs font-semibold rounded bg-violet-700 hover:bg-violet-600 text-violet-50 border border-violet-500 disabled:opacity-60"
+                              >
+                                {isBusy
+                                  ? "Running…"
+                                  : `✨ AI Fix${item.failureMode === "near_miss" ? " (title + meta)" : ""}`}
+                              </button>
+                              {item.failureMode === "near_miss" && (
+                                <button
+                                  onClick={() => openEditor(item.slug)}
+                                  disabled={isBusy || bulkBusy}
+                                  className="px-3 py-2 text-xs font-medium rounded bg-emerald-900/60 hover:bg-emerald-900 text-emerald-200 border border-emerald-700/60 disabled:opacity-60"
+                                >
+                                  ✏️ Edit Manually
+                                </button>
+                              )}
+                              {item.failureMode === "cannibalization" && (
+                                <button
+                                  onClick={() => runAction(item)}
+                                  disabled={isBusy || bulkBusy}
+                                  className="px-3 py-2 text-xs font-medium rounded bg-red-900/60 hover:bg-red-900 text-red-200 border border-red-700/60 disabled:opacity-60"
+                                >
+                                  {isBusy ? "Running…" : "Canonicalize ↦"}
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <div className="flex-1 px-3 py-2 text-xs text-zinc-500 italic">
                               Manual action needed: {item.action.label}

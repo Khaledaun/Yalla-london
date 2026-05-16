@@ -1160,6 +1160,154 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 16b. ARABIC TITLE + META BACKFILL ──────────────────────────────────────
+  // The May 15 iPhone screenshot showed the Arabic homepage rendering article
+  // titles in ENGLISH ("Novikov Michelin Guide: Luxury Dining in Mayfair London")
+  // because title_ar fell back to title_en when the article was force-published
+  // without an AR draft pair.
+  //
+  // Section 16 above only translates content_ar (heavy, max 2/run). This
+  // section is LIGHT — a 1-call structured-JSON request that fills title_ar,
+  // meta_title_ar, meta_description_ar in one shot. Up to 12 articles/run.
+  // No content_ar work here — Section 16 owns body translation.
+  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
+    try {
+      // Find articles where title_ar IS the English title (or empty). We can't
+      // use a column-to-column comparison in Prisma, so raw SQL.
+      const dupeTitlePosts: Array<{
+        id: string;
+        slug: string;
+        title_en: string;
+        title_ar: string;
+        meta_title_ar: string | null;
+        meta_description_ar: string | null;
+      }> = await prisma.$queryRawUnsafe(
+        `SELECT id, slug, title_en, title_ar, meta_title_ar, meta_description_ar
+           FROM "BlogPost"
+          WHERE published = true
+            AND "deletedAt" IS NULL
+            AND "siteId" = ANY($1)
+            AND title_en != ''
+            AND (
+                  title_ar = '' OR title_ar IS NULL
+                  OR title_ar = title_en
+                )
+          ORDER BY created_at DESC
+          LIMIT 12`,
+        activeSiteIds,
+      );
+
+      if (dupeTitlePosts.length > 0) {
+        console.log(`[content-auto-fix] Section 16b: ${dupeTitlePosts.length} articles need Arabic title translation`);
+        const { generateCompletion } = await import("@/lib/ai/provider");
+        let titlesFilled = 0;
+
+        for (const post of dupeTitlePosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+          if (titlesFilled >= 12) break;
+
+          try {
+            const messages = [
+              {
+                role: "system" as const,
+                content:
+                  "You translate luxury travel article titles from English to Modern Standard Arabic (الفصحى). You return ONLY a minified JSON object with the requested keys — no prose, no markdown fences, no explanation.",
+              },
+              {
+                role: "user" as const,
+                content: `Translate this article's English title + meta into natural Arabic for a Gulf luxury travel audience. Keep brand/restaurant/hotel names in their original form (do NOT translate "Novikov", "Mayfair", "Harrods", etc.). Keep numbers and prices as digits.
+
+English title: ${post.title_en}
+
+Return ONLY this JSON shape (no other text):
+{"title_ar":"...","meta_title_ar":"...","meta_description_ar":"..."}
+
+Constraints:
+- title_ar: under 60 chars
+- meta_title_ar: under 60 chars (can mirror title_ar)
+- meta_description_ar: 120–160 chars, compelling, includes the destination`,
+              },
+            ];
+
+            const result = await generateCompletion(messages, {
+              maxTokens: 600,
+              taskType: "arabic-title-backfill",
+              calledFrom: "content-auto-fix-s16b",
+              phaseBudgetHint: "light",
+              timeoutMs: 12_000,
+            });
+
+            const raw = (result.content || "").trim();
+            if (!raw) continue;
+
+            // Strip possible code fences and find the first {...} block
+            const cleaned = raw
+              .replace(/^```(?:json)?\s*/i, "")
+              .replace(/```\s*$/i, "")
+              .trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+            if (!match) {
+              console.warn(`[content-auto-fix:s16b] no JSON found in response for ${post.slug}`);
+              continue;
+            }
+
+            let parsed: { title_ar?: string; meta_title_ar?: string; meta_description_ar?: string };
+            try {
+              parsed = JSON.parse(match[0]);
+            } catch (jsonErr) {
+              console.warn(
+                `[content-auto-fix:s16b] JSON parse failed for ${post.slug}:`,
+                jsonErr instanceof Error ? jsonErr.message : jsonErr,
+              );
+              continue;
+            }
+
+            const newTitleAr = (parsed.title_ar || "").trim();
+            const newMetaTitleAr = (parsed.meta_title_ar || newTitleAr).trim();
+            const newMetaDescAr = (parsed.meta_description_ar || "").trim();
+
+            // Defensive: don't write empty / suspiciously short Arabic
+            if (newTitleAr.length < 4) continue;
+            // Sanity: Arabic should contain Arabic-range characters
+            if (!/[؀-ۿ]/.test(newTitleAr)) {
+              console.warn(`[content-auto-fix:s16b] response not Arabic for ${post.slug}, skipping`);
+              continue;
+            }
+
+            const updates: Record<string, string> = { title_ar: newTitleAr };
+            if (newMetaTitleAr.length >= 4 && /[؀-ۿ]/.test(newMetaTitleAr)) {
+              updates.meta_title_ar = newMetaTitleAr.slice(0, 60);
+            }
+            if (newMetaDescAr.length >= 40 && /[؀-ۿ]/.test(newMetaDescAr)) {
+              updates.meta_description_ar = newMetaDescAr.slice(0, 160);
+            }
+
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: updates,
+            });
+            titlesFilled++;
+            console.log(
+              `[content-auto-fix:s16b] ${post.slug} → title_ar="${newTitleAr.slice(0, 40)}..." (${Object.keys(updates).length} fields)`,
+            );
+          } catch (postErr) {
+            const msg = postErr instanceof Error ? postErr.message : String(postErr);
+            console.warn(`[content-auto-fix:s16b] failed for ${post.slug}:`, msg);
+          }
+        }
+
+        if (titlesFilled > 0) {
+          (results as Record<string, unknown>).arabicTitlesBackfilled = titlesFilled;
+          console.log(`[content-auto-fix:s16b] Backfilled Arabic title+meta for ${titlesFilled} articles`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`arabic-title-backfill: ${msg}`);
+      console.warn("[content-auto-fix:s16b] Section 16b failed:", msg);
+    }
+  }
+
   // ── 17. DEAD AFFILIATE LINK REMOVAL ─────────────────────────────────────────
   // HTTP HEAD check on affiliate links in published articles. Strip links returning 404/403/410.
   if (Date.now() - cronStart < BUDGET_MS - 15_000) {

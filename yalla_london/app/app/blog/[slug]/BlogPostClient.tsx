@@ -152,40 +152,100 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
       : post.content_en
     : "";
 
+  // Convert GFM-style pipe tables (| col | col | with |---|---| separator)
+  // into HTML <table>. Walks lines, identifies contiguous table blocks, and
+  // emits semantic <thead>/<tbody>. Plays well with mixed markdown+HTML
+  // documents: lines outside table blocks are returned unchanged.
+  const convertPipeTables = (input: string): string => {
+    const lines = input.split(/\r?\n/);
+    const isRow = (s: string) => /^\s*\|.*\|\s*$/.test(s) && s.includes("|", s.indexOf("|") + 1);
+    const isSep = (s: string) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(s);
+    const cellsFrom = (s: string) =>
+      s
+        .replace(/^\s*\|/, "")
+        .replace(/\|\s*$/, "")
+        .split("|")
+        .map((c) => c.trim());
+
+    const out: string[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const header = lines[i];
+      const sep = lines[i + 1] || "";
+      if (isRow(header) && isSep(sep)) {
+        const headerCells = cellsFrom(header);
+        const rows: string[][] = [];
+        let j = i + 2;
+        while (j < lines.length && isRow(lines[j])) {
+          rows.push(cellsFrom(lines[j]));
+          j++;
+        }
+        const thead = `<thead><tr>${headerCells.map((c) => `<th>${c}</th>`).join("")}</tr></thead>`;
+        const tbody = rows.length
+          ? `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>`
+          : "";
+        out.push(`<table class="md-table">${thead}${tbody}</table>`);
+        i = j;
+      } else {
+        out.push(header);
+        i++;
+      }
+    }
+    return out.join("\n");
+  };
+
   // Safety net: convert markdown syntax to HTML if content was stored as
   // markdown instead of HTML (some older or failed pipeline runs). This
-  // prevents raw `# Heading` and `**bold**` from showing as plain text.
+  // prevents raw `# Heading`, `**bold**`, `| table |`, `---` from showing
+  // as plain text.
+  //
+  // IMPORTANT: stage-1 conversions (tables, HR, bold, italic, links) ALWAYS
+  // run because their regex patterns are unique to markdown — they cannot
+  // false-match valid HTML. Stage-2 (headings/lists/paragraph wrapping)
+  // only runs when the input is pure markdown; otherwise it would
+  // double-wrap inline text inside HTML paragraphs.
   const markdownToHtml = (text: string): string => {
-    // Skip if content is already HTML (has at least one HTML tag)
-    if (/<[a-z][\s\S]*?>/i.test(text) && !text.startsWith("# ")) return text;
-    // Only convert if content looks like markdown (starts with # or has markdown patterns)
-    const hasMarkdown = /^#{1,6}\s|^\*\*|^\-\s|^\d+\.\s|\*\*[^*]+\*\*|\[.+\]\(.+\)/m.test(text);
-    if (!hasMarkdown) return text;
-
+    if (!text) return text;
     let html = text;
-    // Headings: # H1 → <h2> (demoted), ## H2 → <h2>, ### H3 → <h3>, etc.
-    html = html.replace(/^######\s+(.+)$/gm, "<h6>$1</h6>");
-    html = html.replace(/^#####\s+(.+)$/gm, "<h5>$1</h5>");
-    html = html.replace(/^####\s+(.+)$/gm, "<h4>$1</h4>");
-    html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
-    html = html.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
-    html = html.replace(/^#\s+(.+)$/gm, "<h2>$1</h2>"); // H1 → H2 (page template has H1)
-    // Bold and italic
-    html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
-    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-    // Links: [text](url) → <a href="url">text</a>
+
+    // ── Stage 1: idempotent transforms (always safe to run on mixed content) ──
+
+    // Tables: `| col | col |` blocks with `|---|---|` header separator → <table>
+    html = convertPipeTables(html);
+
+    // Horizontal rules: --- (or longer) on its own line → <hr />
+    // Use \r?\n boundaries instead of ^/$ because multiline anchors interact
+    // poorly with mixed CR/LF endings from AI-generated content.
+    html = html.replace(/(^|\r?\n)\s*-{3,}\s*(?=\r?\n|$)/g, "$1<hr />");
+
+    // Bold + italic + bold-italic. Lazy quantifiers prevent runaway matches
+    // across paragraphs.
+    html = html.replace(/\*\*\*([^*\n]+)\*\*\*/g, "<strong><em>$1</em></strong>");
+    html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/(^|[\s(>])\*([^*\n]+)\*(?=[\s),.!?]|$)/g, "$1<em>$2</em>");
+
+    // Inline links — markdown-only, won't match HTML <a> tags
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-    // Unordered lists
-    html = html.replace(/^[\-\*]\s+(.+)$/gm, "<li>$1</li>");
-    // Ordered lists
-    html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
-    // Wrap consecutive <li> blocks in <ul>
-    html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul>$1</ul>");
-    // Paragraphs: wrap non-tag lines in <p>
-    html = html.replace(/^(?!<[a-z/])((?!$).+)$/gm, "<p>$1</p>");
-    // Clean up empty paragraphs
-    html = html.replace(/<p>\s*<\/p>/g, "");
+
+    // ── Stage 2: only when input is pure markdown (no HTML structural tags) ──
+    const hasStructuralHtml = /<(p|div|article|section|h[1-6]|ul|ol|table|figure|blockquote)\b/i.test(text);
+    if (!hasStructuralHtml) {
+      // Headings: # H1 → <h2> (demoted), ## H2 → <h2>, ### H3 → <h3>, etc.
+      html = html.replace(/^######\s+(.+)$/gm, "<h6>$1</h6>");
+      html = html.replace(/^#####\s+(.+)$/gm, "<h5>$1</h5>");
+      html = html.replace(/^####\s+(.+)$/gm, "<h4>$1</h4>");
+      html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/^#\s+(.+)$/gm, "<h2>$1</h2>");
+      // Unordered + ordered lists → <li>, then wrap consecutive <li> in <ul>
+      html = html.replace(/^[\-\*]\s+(.+)$/gm, "<li>$1</li>");
+      html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+      html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul>$1</ul>");
+      // Paragraphs: wrap non-tag lines in <p>
+      html = html.replace(/^(?!<[a-z/])((?!$).+)$/gm, "<p>$1</p>");
+      html = html.replace(/<p>\s*<\/p>/g, "");
+    }
+
     return html;
   };
 

@@ -1204,7 +1204,19 @@ export function injectAffiliates(
   title?: string,
   slug?: string,
 ): { content: string; count: number; partners: string[] } {
-  const matches = findMatches(html, siteId, 4, dbRules, title);
+  // Extract partner names already present in the HTML so we don't double-
+  // inject the same partner when growing an article from 1-2 links toward
+  // the TARGET_PARTNER_COUNT. The needsInjection filter (route handler)
+  // now allows re-touching articles with existing affiliates; this dedupe
+  // is what makes that safe.
+  const existingPartners = new Set<string>();
+  for (const m of html.matchAll(/data-affiliate-partner="([^"]+)"/g)) {
+    existingPartners.add(m[1]);
+  }
+
+  const allMatches = findMatches(html, siteId, 8, dbRules, title);
+  // Filter out any partner that's already present in the article.
+  const matches = allMatches.filter((m) => !existingPartners.has(m.name));
   if (matches.length === 0) return { content: html, count: 0, partners: [] };
 
   let result = html;
@@ -1245,12 +1257,11 @@ export function injectAffiliates(
     const pv = m.param.split("=").pop() || "";
     return pv && !m.param.endsWith("=") && isValidAffiliateUrl(m.url + m.param);
   });
+
   if (trackedMatches.length > 0) {
-    result += `
-<div class="affiliate-partners-section" style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-  <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Recommended Partners</h3>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-    ${trackedMatches
+    // Render the partner cards (used either to extend an existing grid or to
+    // build a brand-new section).
+    const cardHtml = trackedMatches
       .map(
         (m) =>
           `<a href="${buildTrackedUrl(m.url + m.param, articleSlug, siteId)}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${escapeHtml(m.name)}" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit;">
@@ -1258,9 +1269,28 @@ export function injectAffiliates(
       <span style="display: block; font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem;">${escapeHtml(m.category)}</span>
     </a>`,
       )
-      .join("")}
+      .join("");
+
+    // If an existing partners-section is present (article previously had 1-2
+    // partners — see TARGET_PARTNER_COUNT logic above), inject the new cards
+    // into the existing grid instead of appending a duplicate section. This
+    // prevents the "two Recommended Partners blocks at the end" anti-pattern.
+    const existingGridRe =
+      /(<div class="affiliate-partners-section"[\s\S]*?<div style="display: grid[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>)/i;
+    if (existingGridRe.test(result)) {
+      result = result.replace(existingGridRe, (_full, openTags: string, innerCards: string, closeTags: string) => {
+        return `${openTags}${innerCards}${cardHtml}${closeTags}`;
+      });
+    } else {
+      // No existing section — create a fresh one at the article end.
+      result += `
+<div class="affiliate-partners-section" style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Recommended Partners</h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    ${cardHtml}
   </div>
 </div>`;
+    }
     partners.push(...trackedMatches.filter((m) => !partners.includes(m.name)).map((m) => m.name));
   }
 
@@ -1313,27 +1343,28 @@ async function handleAffiliateInjection(request: NextRequest) {
     });
 
     // Filter to posts that need injection — no affiliate links from ANY injection pathway
+    // TARGET_PARTNER_COUNT: a fully-monetized article should expose 4 distinct
+    // affiliate partners. Live verification on May 16 found articles plateaued
+    // at 1-2 partners because the previous filter SKIPPED any article that
+    // already had ANY affiliate marker — so articles with 1 link never grew.
+    // Removing that early-return is the single biggest revenue unlock per the
+    // density audit. injectAffiliates() now dedupes against existing partners,
+    // so re-running on an already-partially-covered article is idempotent and
+    // safe — it only adds NEW partner names that aren't already in the HTML.
+    const TARGET_PARTNER_COUNT = 4;
+    const COUNT_PARTNER_RE = /data-affiliate-partner="[^"]+"/g;
     const needsInjection = posts.filter((p) => {
       const c = p.content_en || "";
-      // Check ALL known affiliate markers from both injection systems
-      const hasAffiliateRecommendation = c.includes('class="affiliate-recommendation"');
-      const hasAffiliateCta = c.includes('class="affiliate-cta-block"');
-      const hasAffiliatePartners = c.includes('class="affiliate-partners-section"');
-      const hasSponsoredRel = c.includes('rel="sponsored"') || c.includes('rel="noopener sponsored"');
-      const hasClickTracker = c.includes("/api/affiliate/click");
-      const hasDataAffiliate =
-        c.includes("data-affiliate-id") || c.includes("data-affiliate=") || c.includes("data-affiliate-partner=");
       const hasPlaceholder = c.includes('class="affiliate-placeholder"');
-      // Inject if: has placeholder OR has no affiliate markers at all
-      return (
-        hasPlaceholder ||
-        (!hasAffiliateRecommendation &&
-          !hasAffiliateCta &&
-          !hasAffiliatePartners &&
-          !hasSponsoredRel &&
-          !hasClickTracker &&
-          !hasDataAffiliate)
-      );
+      // Count existing distinct partner attributes. Same partner appearing in
+      // both the inline CTA AND the partners-section is counted twice; that
+      // overestimates coverage but errs on the side of NOT re-touching
+      // articles that are already at-or-above target.
+      const existingPartnerCount = (c.match(COUNT_PARTNER_RE) || []).length;
+      // Inject if: has a placeholder author left for us, OR existing partner
+      // count is below the target. This replaces the old "skip if any marker
+      // exists" plateau that capped articles at 1-2 links forever.
+      return hasPlaceholder || existingPartnerCount < TARGET_PARTNER_COUNT;
     });
 
     let injected = 0;

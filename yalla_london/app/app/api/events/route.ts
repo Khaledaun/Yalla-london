@@ -53,7 +53,24 @@ export async function GET(request: NextRequest) {
         take: 50,
       });
     } catch (dbErr) {
-      console.warn("[events] DB query failed, falling back to Ticketmaster:", dbErr instanceof Error ? dbErr.message : String(dbErr));
+      console.warn(
+        "[events] DB query failed, falling back to Ticketmaster:",
+        dbErr instanceof Error ? dbErr.message : String(dbErr),
+      );
+    }
+
+    // Auto-erase: drop events whose actual UK-local start time is less than
+    // 15 min away. Per Khaled's May 16 ask — readers shouldn't see an event
+    // that's about to start (likely sold out / past purchase window).
+    // The filter uses lib/events/start-time.ts which combines Event.date +
+    // Event.time + BST/GMT offset for an accurate UTC start instant.
+    if (dbEvents.length > 0) {
+      const { isEventStillVisible } = await import("@/lib/events/start-time");
+      dbEvents = dbEvents.filter((e) => {
+        const eventDate = e.date instanceof Date ? e.date : new Date(String(e.date));
+        const eventTime = typeof e.time === "string" ? e.time : null;
+        return isEventStillVisible(eventDate, eventTime);
+      });
     }
 
     // If DB has events, return them
@@ -129,9 +146,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Events API]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch events" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });
   }
 }

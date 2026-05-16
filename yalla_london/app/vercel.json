@@ -275,6 +275,14 @@
       "schedule": "0 10 * * *"
     },
     {
+      "path": "/api/cron/events-refresh",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-events-validator",
+      "schedule": "0 8 * * 1"
+    },
+    {
       "path": "/api/affiliate/cron/sync-advertisers",
       "schedule": "30 0,6,12,18 * * *"
     },

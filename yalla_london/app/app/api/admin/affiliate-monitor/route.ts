@@ -92,16 +92,13 @@ export async function GET(request: NextRequest) {
     });
 
     const withoutAffiliates = totalPublished - withAffiliates;
-    const coveragePercent = totalPublished > 0
-      ? Math.round((withAffiliates / totalPublished) * 100)
-      : 0;
+    const coveragePercent = totalPublished > 0 ? Math.round((withAffiliates / totalPublished) * 100) : 0;
 
     // -----------------------------------------------------------------------
     // 4. Top articles by clicks (last 30d) — unified CJ + direct URL clicks
     // -----------------------------------------------------------------------
-    const { getClicksByArticle, getClicksByPartner, getRecentClickFeed } = await import(
-      "@/lib/affiliate/click-aggregator"
-    );
+    const { getClicksByArticle, getClicksByPartner, getRecentClickFeed } =
+      await import("@/lib/affiliate/click-aggregator");
     const articleClickMap = await getClicksByArticle({ siteId, since: d30 });
     const topArticles = [...articleClickMap.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -117,13 +114,18 @@ export async function GET(request: NextRequest) {
       .map(([partner, clicks]) => ({ partner, clicks }));
 
     // -----------------------------------------------------------------------
-    // 6. Recent click feed (last 20) — unified CJ + direct
+    // 6. Recent click feed — unified CJ + direct
+    // Accepts ?feedLimit=N (default 20, max 500) so the cockpit clicks page
+    // can request deeper history than the 20-row default used elsewhere.
     // -----------------------------------------------------------------------
-    const feedItems = await getRecentClickFeed({ siteId }, 20);
+    const feedLimitParam = parseInt(request.nextUrl.searchParams.get("feedLimit") || "20", 10);
+    const feedLimit = Math.min(Math.max(feedLimitParam, 1), 500);
+    const feedItems = await getRecentClickFeed({ siteId }, feedLimit);
     const clickFeed = feedItems.map((c) => ({
       id: c.id,
       partner: c.partner,
       article: c.articleSlug,
+      pageUrl: c.pageUrl,
       device: c.device,
       country: c.country,
       timestamp: c.timestamp.toISOString(),
@@ -184,7 +186,7 @@ export async function GET(request: NextRequest) {
       "VIATOR_AFFILIATE_ID",
       "HALALBOOKING_AFFILIATE_ID",
     ];
-    const missingEnvVars = staticEnvVars.filter(v => !process.env[v]);
+    const missingEnvVars = staticEnvVars.filter((v) => !process.env[v]);
     if (missingEnvVars.length > 0) {
       diagnostics.push({
         issue: `${missingEnvVars.length}/${staticEnvVars.length} direct affiliate partner IDs not set — fallback injection limited to CJ deep links only`,
@@ -226,7 +228,8 @@ export async function GET(request: NextRequest) {
     // Check if site has any traffic at all
     if (clicks30d === 0 && totalPublished > 5) {
       diagnostics.push({
-        issue: "Zero affiliate clicks in 30 days — this could mean: (a) articles have no affiliate links injected, (b) no traffic yet, or (c) links use direct partner URLs instead of /api/affiliate/click tracking redirect",
+        issue:
+          "Zero affiliate clicks in 30 days — this could mean: (a) articles have no affiliate links injected, (b) no traffic yet, or (c) links use direct partner URLs instead of /api/affiliate/click tracking redirect",
         severity: "info",
         fix: "Verify by visiting a published article and inspecting the affiliate link href. It should start with /api/affiliate/click to be tracked.",
       });
@@ -282,9 +285,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     console.error("[affiliate-monitor] Error:", err instanceof Error ? err.message : String(err));
-    return NextResponse.json(
-      { error: "Failed to load affiliate monitor data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load affiliate monitor data" }, { status: 500 });
   }
 }

@@ -180,6 +180,36 @@ export async function POST(request: NextRequest) {
 
   const { prisma } = await import("@/lib/db");
   const { getUpcomingEvents, formatEventPrice } = await import("@/lib/apis/events");
+  const { getSiteConfig, getSiteDomain } = await import("@/config/sites");
+
+  // ── 0. Ensure the Site row exists for the FK constraint ──
+  // Event.siteId is a nullable FK to Site.id. If the Site table doesn't
+  // have a row with this id, every event create fails with
+  // `Foreign key constraint violated on the constraint: Event_siteId_fkey`.
+  // Verified May 16 from a failed seed run (50/50 errors, all FK).
+  // We upsert here so the seed is self-healing — no need to manually
+  // bootstrap the Site row before first use.
+  try {
+    const siteCfg = getSiteConfig(siteId);
+    await prisma.site.upsert({
+      where: { id: siteId },
+      update: {}, // no-op if exists
+      create: {
+        id: siteId,
+        name: siteCfg?.name || siteId,
+        slug: siteId,
+        domain: getSiteDomain(siteId).replace(/^https?:\/\//, ""),
+        settings_json: {},
+        default_locale: "en",
+        direction: "ltr",
+      },
+    });
+  } catch (siteErr) {
+    // If upsert itself failed (e.g. permission, schema mismatch), still
+    // try the seed — Prisma will surface the FK error per-event which the
+    // errorSamples array now exposes to the cockpit.
+    console.warn("[events-seed] Site upsert failed:", siteErr instanceof Error ? siteErr.message : siteErr);
+  }
 
   // 1. If `replace`, mark existing TM-seeded events as unpublished. We don't
   // hard-delete because the Event.id may be referenced elsewhere (audit logs,

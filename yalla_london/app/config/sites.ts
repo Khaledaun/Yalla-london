@@ -1847,7 +1847,10 @@ const SITE_META: Record<
 };
 
 /** Get site tagline for metadata. Falls back to generic luxury guide. */
-export function getSiteTagline(siteId: string): string {
+export function getSiteTagline(siteId: string, lang: "en" | "ar" = "en"): string {
+  if (lang === "ar") {
+    return SITE_META[siteId]?.taglineAr || "دليل سفر فاخر";
+  }
   return SITE_META[siteId]?.tagline || "Luxury Travel Guide";
 }
 

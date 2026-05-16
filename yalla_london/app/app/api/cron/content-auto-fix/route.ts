@@ -68,6 +68,7 @@ async function handleAutoFix(request: NextRequest) {
     notIndexedEnhanced: 0,
     seoBoostEnhanced: 0,
     affiliateDisclosuresInjected: 0,
+    emptyParamAffiliatesStripped: 0,
     errors: [] as string[],
   };
 
@@ -2144,6 +2145,188 @@ Constraints:
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`affiliate-disclosure-inject: ${msg}`);
       console.warn("[content-auto-fix] Section 25 failed:", msg);
+    }
+  }
+
+  // ── Section 26: Empty-Param Affiliate Link Cleanup ────────────────────────
+  // Live verification (May 16) found articles like /blog/novikov-michelin-guide-mayfair-london
+  // still contain affiliate links with EMPTY tracking params:
+  //   /api/affiliate/click?url=https%3A%2F%2Fwww.thefork.co.uk%2Flondon%3Fref%3D&sid=...
+  //   /api/affiliate/click?url=...getyourguide.com%2F%3Fpartner_id%3D&sid=...
+  //   /api/affiliate/click?url=...stubhub.co.uk%2F%3Fgcid%3D&sid=...
+  //
+  // These predate the affiliate-injection cron's empty-param skip (line 661).
+  // Old injections from when env vars were unset still ship traffic to partners
+  // WITHOUT commission attribution — pure leakage. Worse than no link because
+  // the user leaves yalla-london and we earn $0 from the click.
+  //
+  // Strategy: scan each published article's HTML; for every <a> whose href is
+  // /api/affiliate/click?url=ENCODED&sid=..., decode the partner URL and check
+  // its query string. If ANY recognized tracking key (ref/partner_id/pid/aid/
+  // cid/gcid/aff/utm_source) is present with an empty value, REMOVE the entire
+  // <a> tag and keep its inner text as plain text. Anchor text is preserved so
+  // context still reads naturally; the broken link just stops driving traffic.
+  //
+  // Owner of "affiliate_links" enhancement type per ENHANCEMENT_OWNERS.
+  // Idempotent: after the strip, the link won't be detected as needing fix
+  // again, so the same article isn't re-touched on subsequent runs.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const { isEnhancementOwner, buildEnhancementLogEntry } = await import("@/lib/db/enhancement-log");
+      const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+
+      if (!isEnhancementOwner("content-auto-fix", "affiliate_links")) {
+        console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_links");
+      } else {
+        // Tracking-param keys we recognize. Empty value = broken attribution.
+        const TRACKING_KEYS = [
+          "ref",
+          "partner_id",
+          "pid",
+          "aid",
+          "cid",
+          "gcid",
+          "aff",
+          "affid",
+          "subid",
+          "utm_source",
+          "marker",
+        ];
+
+        // Match <a href="/api/affiliate/click?url=ENCODED[&sid=...]">...</a>
+        // The href value may be HTML-attribute-escaped, so the inner & is &amp;
+        // in some renders. We match both literal & and &amp;.
+        const TRACKED_LINK_RE = /<a\b[^>]*\bhref="(\/api\/affiliate\/click\?url=[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+        function hasEmptyTrackingParam(decodedUrl: string): boolean {
+          // Use a try/catch — malformed URLs from old/buggy injections shouldn't crash
+          try {
+            // The decoded URL is the partner destination (e.g. https://www.thefork.co.uk/london?ref=)
+            const u = new URL(decodedUrl);
+            for (const key of TRACKING_KEYS) {
+              if (u.searchParams.has(key) && (u.searchParams.get(key) || "").trim() === "") {
+                return true;
+              }
+            }
+            return false;
+          } catch {
+            // Couldn't parse → treat as broken so we strip it
+            return true;
+          }
+        }
+
+        function stripBrokenAffiliates(html: string): { html: string; stripped: number } {
+          if (!html) return { html, stripped: 0 };
+          let stripped = 0;
+          const cleaned = html.replace(TRACKED_LINK_RE, (full, hrefAttr: string, inner: string) => {
+            // Parse the click-tracker URL to extract the partner URL
+            // hrefAttr looks like: /api/affiliate/click?url=ENCODED&sid=...
+            // The url param is the encoded partner destination.
+            let partnerUrl: string | null = null;
+            try {
+              const trackerQuery = hrefAttr.split("?")[1] || "";
+              // Decode &amp; first (HTML-attribute escape), then parse query
+              const normalized = trackerQuery.replace(/&amp;/g, "&");
+              const params = new URLSearchParams(normalized);
+              const raw = params.get("url");
+              if (raw) partnerUrl = decodeURIComponent(raw);
+            } catch {
+              partnerUrl = null;
+            }
+
+            if (!partnerUrl) {
+              // Couldn't decode — leave the link alone (don't accidentally strip working ones)
+              return full;
+            }
+
+            if (hasEmptyTrackingParam(partnerUrl)) {
+              stripped++;
+              // Replace the <a>...</a> with just the inner text. Preserves
+              // the prose so readers still see the venue/hotel name in context.
+              return inner;
+            }
+
+            return full;
+          });
+          return { html: cleaned, stripped };
+        }
+
+        // Limit scope: scan up to 50 posts per run, max 10 mutations per run.
+        // Older articles first so the backlog drains chronologically.
+        const candidates = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            // Fast pre-filter: only posts that have at least one tracked link.
+            // We can't filter on regex in Prisma, but we can require
+            // /api/affiliate/click to be present using `contains`.
+            content_en: { contains: "/api/affiliate/click" },
+          },
+          select: { id: true, slug: true, content_en: true, content_ar: true },
+          orderBy: { updated_at: "asc" },
+          take: 50,
+        });
+
+        const MAX_MUTATIONS = 10;
+        let mutations = 0;
+        let totalStripped = 0;
+
+        for (const post of candidates) {
+          if (mutations >= MAX_MUTATIONS) break;
+          if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+          const enResult = stripBrokenAffiliates(post.content_en || "");
+          const arResult = stripBrokenAffiliates(post.content_ar || "");
+          if (enResult.stripped === 0 && arResult.stripped === 0) continue;
+
+          try {
+            await optimisticBlogPostUpdate(
+              post.id,
+              (current) => {
+                const curEn = (current.content_en as string) || "";
+                const curAr = (current.content_ar as string) || "";
+                const curEnResult = stripBrokenAffiliates(curEn);
+                const curArResult = stripBrokenAffiliates(curAr);
+                if (curEnResult.stripped === 0 && curArResult.stripped === 0) return null;
+
+                const updates: Record<string, unknown> = {};
+                if (curEnResult.stripped > 0) updates.content_en = curEnResult.html;
+                if (curArResult.stripped > 0) updates.content_ar = curArResult.html;
+                updates.enhancement_log = buildEnhancementLogEntry(
+                  current.enhancement_log,
+                  "affiliate_links",
+                  "content-auto-fix",
+                  `Stripped ${curEnResult.stripped + curArResult.stripped} affiliate link(s) with empty tracking params`,
+                );
+                return updates;
+              },
+              { tag: "[content-auto-fix:section-26]" },
+            );
+            mutations++;
+            totalStripped += enResult.stripped + arResult.stripped;
+            console.log(
+              `[content-auto-fix:s26] ${post.slug}: stripped ${enResult.stripped + arResult.stripped} broken affiliate(s)`,
+            );
+          } catch (err) {
+            console.warn(
+              `[content-auto-fix:s26] ${post.slug} update failed:`,
+              err instanceof Error ? err.message : err,
+            );
+          }
+        }
+
+        results.emptyParamAffiliatesStripped = totalStripped;
+        if (totalStripped > 0) {
+          console.log(
+            `[content-auto-fix:s26] Stripped ${totalStripped} broken affiliate link(s) across ${mutations} article(s)`,
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`empty-param-affiliate-strip: ${msg}`);
+      console.warn("[content-auto-fix:s26] Section 26 failed:", msg);
     }
   }
 

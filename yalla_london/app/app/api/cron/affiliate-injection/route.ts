@@ -1684,6 +1684,38 @@ async function handleAffiliateInjection(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
+    // Tally distinct partner names actually injected this run + per-partner count
+    // so Khaled can verify on the cockpit which advertisers are reaching readers.
+    // Answers: "did the CJ catch-all fix surface lastminute + Excellence Collection?"
+    const partnerInjectionCount = new Map<string, number>();
+    for (const r of results) {
+      for (const p of r.partners) {
+        partnerInjectionCount.set(p, (partnerInjectionCount.get(p) || 0) + 1);
+      }
+    }
+    const advertisersUsed = [...partnerInjectionCount.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, articles: count }));
+
+    // Pull the JOINED roster the catch-all built from so we can compare
+    // "what's available" vs "what actually got injected this run". Exposes
+    // partners that ARE in the candidate pool but didn't match any keyword.
+    let cjJoinedRoster: string[] = [];
+    try {
+      const { CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+      const roster = (await prisma.cjAdvertiser.findMany({
+        where: { networkId: CJ_NETWORK_ID, status: "JOINED", programUrl: { not: "" } },
+        select: { name: true },
+        take: 20,
+      })) as Array<{ name: string }>;
+      cjJoinedRoster = roster.map((r) => r.name).sort();
+    } catch (rosterErr) {
+      console.warn(
+        "[affiliate-injection] Failed to fetch JOINED roster for resultSummary:",
+        rosterErr instanceof Error ? rosterErr.message : rosterErr,
+      );
+    }
+
     await logCronExecution("affiliate-injection", "completed", {
       durationMs: duration,
       itemsProcessed: injected,
@@ -1696,6 +1728,11 @@ async function handleAffiliateInjection(request: NextRequest) {
         skippedSuppressed,
         skippedNoMatch,
         diagnosticSamples,
+        // New: visibility into WHICH partners got injected + which JOINED CJ
+        // advertisers were available as candidates this run.
+        advertisersUsed,
+        cjJoinedRoster,
+        cjJoinedUnused: cjJoinedRoster.filter((name) => !partnerInjectionCount.has(name)),
         cronRunId,
       },
     }).catch((logErr) =>

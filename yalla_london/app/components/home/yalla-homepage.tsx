@@ -810,8 +810,20 @@ export function YallaHomepage({ locale = "en" }: YallaHomepageProps) {
 
   // Build article list: DB articles first, then fallback
   // Filter to only show articles with content in the current locale
+  // May 17 2026 re-audit: AR homepage was showing English titles because the AR filter
+  // only checked truthiness \u2014 articles with title_ar holding English content passed
+  // through. Strict filter rejects English contamination and bracket placeholder leaks.
+  const isArabicTitleEligible = (titleAr: string | null | undefined): boolean => {
+    if (!titleAr || titleAr.trim().length < 10) return false;
+    if (/\[[a-zA-Z_]{1,20}\]/.test(titleAr)) return false; // bracket placeholder leak
+    const stripped = titleAr.replace(/\s/g, "");
+    if (stripped.length === 0) return false;
+    const arabicChars = (stripped.match(/[\u0600-\u06FF]/g) || []).length;
+    return arabicChars / stripped.length >= 0.6;
+  };
+
   const localeArticles = dbArticles.filter((a) => {
-    if (locale === "ar") return a.title_ar && a.title_ar.length > 5;
+    if (locale === "ar") return isArabicTitleEligible(a.title_ar);
     return a.title_en && a.title_en.length > 5 && !/^[\u0600-\u06FF]/.test(a.title_en); // Exclude Arabic-only titles from EN page
   });
   const articles =
@@ -820,25 +832,34 @@ export function YallaHomepage({ locale = "en" }: YallaHomepageProps) {
           id: a.id || String(i),
           slug: a.slug || "#",
           category: a.category?.name || (locale === "ar" ? "مقال" : "Article"),
-          title: (locale === "ar" ? a.title_ar : a.title_en) || a.title_en || "",
-          excerpt: (locale === "ar" ? a.meta_description_ar : a.meta_description_en) || a.meta_description_en || "",
+          // AR locale: NO fallback to title_en — strict filter above already gated.
+          title: locale === "ar" ? (a.title_ar || "") : (a.title_en || a.title_ar || ""),
+          excerpt: locale === "ar"
+            ? (a.meta_description_ar || "")
+            : (a.meta_description_en || a.meta_description_ar || ""),
           image: `https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80`,
           date: formatRelativeDate(a.created_at, locale),
           readTime: locale === "ar" ? "5 دقائق" : "5 min read",
         }))
       : fallbackArticles[locale];
 
-  // Use first DB article as featured if available
+  // Use first eligible DB article as featured (must pass locale filter).
+  // For AR: featured must have proper Arabic title — no English leak in hero card.
+  const featuredCandidate = dbArticles.find((a) =>
+    locale === "ar" ? isArabicTitleEligible(a.title_ar) : !!a.title_en,
+  );
   const effectiveFeatured =
-    dbArticles.length > 0
+    featuredCandidate
       ? {
           ...featured,
-          slug: dbArticles[0].slug || featured.slug,
-          title: (locale === "ar" ? dbArticles[0].title_ar : dbArticles[0].title_en) || featured.title,
+          slug: featuredCandidate.slug || featured.slug,
+          title: locale === "ar"
+            ? (featuredCandidate.title_ar || featured.title)
+            : (featuredCandidate.title_en || featured.title),
           excerpt:
-            (locale === "ar" ? dbArticles[0].meta_description_ar : dbArticles[0].meta_description_en) ||
+            (locale === "ar" ? featuredCandidate.meta_description_ar : featuredCandidate.meta_description_en) ||
             featured.excerpt,
-          date: formatRelativeDate(dbArticles[0].created_at, locale),
+          date: formatRelativeDate(featuredCandidate.created_at, locale),
         }
       : featured;
 

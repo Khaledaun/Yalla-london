@@ -593,6 +593,30 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
       });
   }, []);
 
+  // Curated luxury London hotel placeholder photos from Unsplash (legal hotlink,
+  // free, no attribution required for editorial display — see unsplash ToS).
+  // Per May 17 2026 audit: Hotellook URLs returned 0×0 on several hotels; gradient
+  // placeholders converted poorly. These are deterministic per hotel slug so each
+  // card gets a stable, visually-appropriate fallback while real photos are
+  // backfilled by the image-pipeline cron.
+  const UNSPLASH_FALLBACK_PHOTOS = [
+    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", // luxury hotel lobby
+    "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", // hotel exterior dusk
+    "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", // luxury hotel room
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", // grand hotel facade
+    "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80", // luxury room w view
+    "https://images.unsplash.com/photo-1455587734955-081b22074882?w=800&q=80", // boutique hotel
+  ];
+
+  // Deterministic photo by hotel name hash — same hotel always gets same photo.
+  const getFallbackPhoto = (hotelName: string): string => {
+    let hash = 0;
+    for (let i = 0; i < hotelName.length; i++) {
+      hash = (hash * 31 + hotelName.charCodeAt(i)) & 0xfffffff;
+    }
+    return UNSPLASH_FALLBACK_PHOTOS[hash % UNSPLASH_FALLBACK_PHOTOS.length];
+  };
+
   const handlePhotoError = (hotelName: string) => {
     setFailedPhotos((prev) => {
       if (prev.has(hotelName)) return prev;
@@ -750,38 +774,60 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
           {filteredHotels.map((hotel) => (
             <BrandCardLight key={hotel.id} className="overflow-hidden group">
               <div className="relative h-56">
-                {realPhotos[hotel.name] && !failedPhotos.has(hotel.name) ? (
-                  <Image
-                    src={realPhotos[hotel.name]}
-                    alt={hotel.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
-                    onError={() => handlePhotoError(hotel.name)}
-                    unoptimized
-                  />
-                ) : (
-                  // No verified property photo — render a branded gradient placeholder
-                  // instead of a generic/wrong stock photo. Real photos are fetched
-                  // client-side via /api/integrations/hotel-photos; this shows while
-                  // we wait OR permanently for hotels without licensed photos.
-                  <div
-                    className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
-                    style={{
-                      background: "linear-gradient(135deg, #0f1621 0%, #1a2234 40%, #C49A2A 100%)",
-                    }}
-                  >
-                    <span className="font-mono text-[10px] text-white/50 uppercase tracking-[0.2em] mb-2">
-                      {hotel.badge}
-                    </span>
-                    <h4 className={`text-white font-heading font-bold text-lg ${isRTL ? "font-arabic" : ""}`}>
-                      {hotel.name}
-                    </h4>
-                    <p className="font-mono text-[9px] text-white/40 uppercase tracking-[0.15em] mt-3">
-                      {hotel.location}
-                    </p>
-                  </div>
-                )}
+                {/* Gradient placeholder as deepest layer — visible only if the image
+                    above fails to load (Unsplash CDN block, very rare). Branded text
+                    keeps the card scannable even in that worst-case scenario. */}
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
+                  style={{
+                    background: "linear-gradient(135deg, #0f1621 0%, #1a2234 40%, #C49A2A 100%)",
+                  }}
+                >
+                  <span className="font-mono text-[10px] text-white/50 uppercase tracking-[0.2em] mb-2">
+                    {hotel.badge}
+                  </span>
+                  <h4 className={`text-white font-heading font-bold text-lg ${isRTL ? "font-arabic" : ""}`}>
+                    {hotel.name}
+                  </h4>
+                  <p className="font-mono text-[9px] text-white/40 uppercase tracking-[0.15em] mt-3">
+                    {hotel.location}
+                  </p>
+                </div>
+
+                {/* Photo overlay: real property photo when available (Hotellook via
+                    /api/integrations/hotel-photos), Unsplash curated fallback when
+                    not. May 17 2026 audit: card gradients converted poorly at £650+
+                    nightly rates — replaced with deterministic Unsplash photos so
+                    every card shows a luxury-hotel visual.
+                    onError on Image hides itself so the gradient below shows through. */}
+                <Image
+                  src={
+                    realPhotos[hotel.name] && !failedPhotos.has(hotel.name)
+                      ? realPhotos[hotel.name]
+                      : getFallbackPhoto(hotel.name)
+                  }
+                  alt={
+                    realPhotos[hotel.name] && !failedPhotos.has(hotel.name)
+                      ? hotel.name
+                      : `${hotel.name} (representative photo)`
+                  }
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl"
+                  onError={(e) => {
+                    handlePhotoError(hotel.name);
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                  onLoad={(e) => {
+                    // Detect 0×0 broken-but-200 responses (Hotellook server-side block).
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                      handlePhotoError(hotel.name);
+                      img.style.display = "none";
+                    }
+                  }}
+                  unoptimized
+                />
                 <span className={`absolute top-3 ${isRTL ? "right-3" : "left-3"}`}>
                   <BrandTag color="blue">{hotel.badge}</BrandTag>
                 </span>

@@ -76,6 +76,9 @@ async function handleAutoFixLite(request: NextRequest) {
     titleArtifactsCleaned: 0,
     duplicatesUnpublished: 0,
     imageAltsFixed: 0,
+    // May 17 2026 re-audit additions
+    titlesResanitized: 0,
+    duplicateEventsUnpublished: 0,
     errors: [] as string[],
   };
 
@@ -1038,6 +1041,157 @@ async function handleAutoFixLite(request: NextRequest) {
     } catch (e) {
       results.errors.push(`image-alt-autofill: ${e instanceof Error ? e.message : String(e)}`);
       console.warn("[content-auto-fix-lite] Section 17 failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // ── Section 18: Re-run title sanitization with new patterns ──────────
+  // May 17 2026 re-audit added trailing-comma/semicolon, V2/V3 versioning,
+  // and bracket-placeholder detection to sanitizeTitle. Older posts may have
+  // titles like "Marathon Guide 2025: Training," or "Best Tea V2: Ultimate"
+  // that pre-date the sanitizer changes — re-run on candidates that match
+  // these patterns. 24h cooldown so we don't fight fresh AI runs.
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const { sanitizeTitle, sanitizeMetaDescription } = await import(
+        "@/lib/content-pipeline/title-sanitizer"
+      );
+      const TITLE_CAP = 50;
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const candidates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          updated_at: { lt: cutoff },
+          OR: [
+            { title_en: { endsWith: "," } },
+            { title_en: { endsWith: ";" } },
+            { title_en: { contains: " V2" } },
+            { title_en: { contains: " V3" } },
+            { title_en: { contains: " v2" } },
+            { title_en: { contains: " v3" } },
+            { title_en: { contains: "[" } },
+            { title_ar: { endsWith: "،" } },
+            { title_ar: { contains: " V2" } },
+            { title_ar: { contains: "[" } },
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          title_en: true,
+          title_ar: true,
+          meta_title_en: true,
+          meta_title_ar: true,
+          meta_description_en: true,
+          meta_description_ar: true,
+        },
+        orderBy: { updated_at: "asc" },
+        take: TITLE_CAP,
+      });
+
+      let titlesResanitized = 0;
+      for (const post of candidates) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+
+        const newTitleEn = sanitizeTitle(post.title_en || "");
+        const newTitleAr = sanitizeTitle(post.title_ar || "");
+        const newMetaTitleEn = sanitizeTitle(post.meta_title_en || "");
+        const newMetaTitleAr = sanitizeTitle(post.meta_title_ar || "");
+        const newMetaDescEn = sanitizeMetaDescription(post.meta_description_en || "");
+        const newMetaDescAr = sanitizeMetaDescription(post.meta_description_ar || "");
+
+        const noChange =
+          newTitleEn === (post.title_en || "") &&
+          newTitleAr === (post.title_ar || "") &&
+          newMetaTitleEn === (post.meta_title_en || "") &&
+          newMetaTitleAr === (post.meta_title_ar || "") &&
+          newMetaDescEn === (post.meta_description_en || "") &&
+          newMetaDescAr === (post.meta_description_ar || "");
+        if (noChange) continue;
+
+        try {
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const updates: Record<string, unknown> = {};
+              const ten = sanitizeTitle((current.title_en as string) || "");
+              const tar = sanitizeTitle((current.title_ar as string) || "");
+              const mten = sanitizeTitle((current.meta_title_en as string) || "");
+              const mtar = sanitizeTitle((current.meta_title_ar as string) || "");
+              const mden = sanitizeMetaDescription((current.meta_description_en as string) || "");
+              const mdar = sanitizeMetaDescription((current.meta_description_ar as string) || "");
+              if (ten !== (current.title_en || "")) updates.title_en = ten;
+              if (tar !== (current.title_ar || "")) updates.title_ar = tar;
+              if (mten !== (current.meta_title_en || "")) updates.meta_title_en = mten;
+              if (mtar !== (current.meta_title_ar || "")) updates.meta_title_ar = mtar;
+              if (mden !== (current.meta_description_en || "")) updates.meta_description_en = mden;
+              if (mdar !== (current.meta_description_ar || "")) updates.meta_description_ar = mdar;
+              if (Object.keys(updates).length === 0) return null;
+              return updates;
+            },
+            { tag: "[content-auto-fix-lite:section-18]" },
+          );
+          titlesResanitized++;
+          console.log(`[content-auto-fix-lite:s18] ${post.slug}: re-sanitized title/meta`);
+        } catch (err) {
+          console.warn(
+            `[content-auto-fix-lite:s18] ${post.slug} update failed:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+      results.titlesResanitized = titlesResanitized;
+      if (titlesResanitized > 0) {
+        console.log(`[content-auto-fix-lite:s18] Re-sanitized ${titlesResanitized} title(s)/meta(s)`);
+      }
+    } catch (e) {
+      results.errors.push(`title-resanitization: ${e instanceof Error ? e.message : e}`);
+      console.warn("[content-auto-fix-lite:s18] Section 18 failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // ── Section 19: Duplicate event de-dup ────────────────────────────────
+  // May 17 re-audit: "Twist Museum" appeared 7× in 11 /events listings. Same
+  // physical event re-listed per category by upstream Ticketmaster IDs. Dedup
+  // by (title_en, venue, date) — unpublish duplicates (keep oldest).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const allEvents = await prisma.event.findMany({
+        where: { siteId: { in: activeSiteIds }, published: true, date: { gte: new Date() } },
+        select: { id: true, title_en: true, venue: true, date: true, created_at: true },
+        orderBy: { created_at: "asc" },
+        take: 500,
+      });
+
+      const seen = new Map<string, string>();
+      const dupes: string[] = [];
+      for (const ev of allEvents) {
+        const titleKey = (ev.title_en || "").trim().toLowerCase();
+        const venueKey = (ev.venue || "").trim().toLowerCase();
+        const dateKey = ev.date.toISOString().slice(0, 10);
+        const key = `${titleKey}|${venueKey}|${dateKey}`;
+        if (seen.has(key)) {
+          dupes.push(ev.id);
+        } else {
+          seen.set(key, ev.id);
+        }
+      }
+
+      let duplicateEventsUnpublished = 0;
+      if (dupes.length > 0) {
+        const toUnpublish = dupes.slice(0, 30); // cap per run
+        const updateResult = await prisma.event.updateMany({
+          where: { id: { in: toUnpublish } },
+          data: { published: false },
+        });
+        duplicateEventsUnpublished = updateResult.count;
+        console.log(
+          `[content-auto-fix-lite:s19] Unpublished ${duplicateEventsUnpublished} duplicate event(s)`,
+        );
+      }
+      results.duplicateEventsUnpublished = duplicateEventsUnpublished;
+    } catch (e) {
+      results.errors.push(`event-dedup: ${e instanceof Error ? e.message : e}`);
+      console.warn("[content-auto-fix-lite:s19] Section 19 failed:", e instanceof Error ? e.message : e);
     }
   }
 

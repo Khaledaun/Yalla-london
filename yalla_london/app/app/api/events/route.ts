@@ -47,11 +47,21 @@ export async function GET(request: NextRequest) {
         ];
       }
 
-      dbEvents = await prisma.event.findMany({
+      // May 17 2026 re-audit: dedup by (title_en, venue, date) — Ticketmaster
+      // sometimes emits the same physical event under multiple category IDs,
+      // causing "Twist Museum" to appear 7× in 11 listings. Take 200 rows to
+      // leave headroom for dedup, then slice to 50 after.
+      const rawEvents = await prisma.event.findMany({
         where,
         orderBy: { date: "asc" },
-        take: 50,
+        take: 200,
       });
+      const seenKeys = new Map<string, (typeof rawEvents)[number]>();
+      for (const e of rawEvents) {
+        const key = `${(e.title_en ?? "").trim().toLowerCase()}|${(e.venue ?? "").trim().toLowerCase()}|${e.date.toISOString().slice(0, 10)}`;
+        if (!seenKeys.has(key)) seenKeys.set(key, e);
+      }
+      dbEvents = Array.from(seenKeys.values()).slice(0, 50);
     } catch (dbErr) {
       console.warn(
         "[events] DB query failed, falling back to Ticketmaster:",

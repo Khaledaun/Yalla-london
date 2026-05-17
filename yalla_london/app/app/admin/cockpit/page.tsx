@@ -4534,6 +4534,12 @@ function SitesTab({
                 ♻️ Canonicalize
               </button>
               <button
+                onClick={() => (window.location.href = `/admin/monday-audit?siteId=${encodeURIComponent(site.id)}`)}
+                className="px-2 py-1 rounded text-xs bg-[rgba(26,34,56,0.08)] hover:bg-[rgba(26,34,56,0.14)] text-[#1A2238] border border-[rgba(26,34,56,0.25)] font-semibold"
+              >
+                📋 Monday Audit
+              </button>
+              <button
                 onClick={() => loadLatestPublished(site.id)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id

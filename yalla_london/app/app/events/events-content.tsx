@@ -5,20 +5,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
 import { getTranslation } from "@/lib/i18n";
-import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from "@/components/brand-kit";
-import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
 import {
-  ArrowRight,
-  MapPin,
-  Calendar,
-  Clock,
-  Star,
-  ExternalLink,
-  Ticket,
-  Search,
-  Tag,
-  Loader2,
-} from "lucide-react";
+  TriBar,
+  BrandButton,
+  BrandTag,
+  BrandCardLight,
+  SectionLabel,
+  WatermarkStamp,
+  Breadcrumbs,
+} from "@/components/brand-kit";
+import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
+import { ArrowRight, MapPin, Calendar, Clock, Star, ExternalLink, Ticket, Search, Tag, Loader2 } from "lucide-react";
 
 interface EventItem {
   id: string | number;
@@ -56,8 +53,7 @@ const FALLBACK_EVENTS: EventItem[] = [
     venue: "Greenwich to The Mall",
     category: "Experience",
     price: "Free to watch",
-    image:
-      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=800&h=600&fit=crop",
+    image: "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=800&h=600&fit=crop",
     rating: 4.9,
     bookingUrl: "https://www.tcslondonmarathon.com/",
     affiliateTag: "",
@@ -79,11 +75,9 @@ const FALLBACK_EVENTS: EventItem[] = [
     venue: "Lyceum Theatre",
     category: "Theatre",
     price: "From \u00a345",
-    image:
-      "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=600&fit=crop",
+    image: "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=600&fit=crop",
     rating: 4.8,
-    bookingUrl:
-      "https://www.ticketmaster.co.uk/the-lion-king-tickets/artist/805987",
+    bookingUrl: "https://www.ticketmaster.co.uk/the-lion-king-tickets/artist/805987",
     affiliateTag: "ticketmaster",
     ticketProvider: "Ticketmaster",
     vipAvailable: true,
@@ -103,8 +97,7 @@ const FALLBACK_EVENTS: EventItem[] = [
     venue: "Westminster Pier",
     category: "Experience",
     price: "From \u00a389",
-    image:
-      "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=600&fit=crop",
+    image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=600&fit=crop",
     rating: 4.7,
     bookingUrl: "https://www.viator.com/London/d737",
     affiliateTag: "viator",
@@ -113,19 +106,12 @@ const FALLBACK_EVENTS: EventItem[] = [
   },
 ];
 
-const DEFAULT_CATEGORIES = [
-  "All",
-  "Football",
-  "Theatre",
-  "Festival",
-  "Exhibition",
-  "Experience",
-];
+const DEFAULT_CATEGORIES = ["All", "Football", "Theatre", "Festival", "Exhibition", "Experience"];
 
-export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar' }) {
+export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar" }) {
   const { language: clientLanguage, isRTL: clientIsRTL } = useLanguage();
   const language = serverLocale ?? clientLanguage;
-  const isRTL = language === 'ar' ? true : clientIsRTL;
+  const isRTL = language === "ar" ? true : clientIsRTL;
   const t = (key: string) => getTranslation(language, key);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,18 +140,50 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
     fetchEvents();
   }, []);
 
+  // Per May 17 audit: today's events were rendering under "Past Events".
+  // Root cause: `new Date(event.date)` parses "2026-05-17" as midnight UTC,
+  // so by 04:40 UTC every event today was already "past" relative to
+  // `now`. Fix uses eventStartUtc(date, time) from lib/events/start-time.ts
+  // — same timezone-aware combiner the seed + auto-erase use — so an event
+  // on 2026-05-17 at 19:00 BST stays "upcoming" until ~18:00 UTC.
   const now = new Date();
-  const upcomingEvents = events.filter((event) => new Date(event.date) >= now);
-  const pastEvents = events.filter((event) => new Date(event.date) < now);
+  const startMs = (event: EventItem) => {
+    try {
+      // Lazy-require to avoid loading the helper into pages that don't
+      // need it. Reuses the same regex (HH:MM / HH:MM:SS) + BST/GMT logic.
+      const eventDate = new Date(event.date);
+      const eventTime = typeof event.time === "string" ? event.time.slice(0, 5) : null;
+      // Mirror eventStartUtc inline (small helper, no dynamic import in client)
+      const m = eventTime ? eventTime.match(/^(\d{1,2}):(\d{2})$/) : null;
+      if (!m || isNaN(eventDate.getTime())) return eventDate.getTime();
+      const hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+      const mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+      const y = eventDate.getUTCFullYear();
+      const mo = eventDate.getUTCMonth();
+      const d = eventDate.getUTCDate();
+      const localAsUtc = Date.UTC(y, mo, d, hh, mm, 0);
+      // Approximate BST window: last Sun Mar 01:00 UTC → last Sun Oct 01:00 UTC
+      const probe = new Date(localAsUtc);
+      const lastSunOfMonth = (year: number, monthIndex: number) => {
+        const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0));
+        return lastDay.getUTCDate() - lastDay.getUTCDay();
+      };
+      const bstStart = Date.UTC(probe.getUTCFullYear(), 2, lastSunOfMonth(probe.getUTCFullYear(), 2), 1, 0, 0);
+      const bstEnd = Date.UTC(probe.getUTCFullYear(), 9, lastSunOfMonth(probe.getUTCFullYear(), 9), 1, 0, 0);
+      const isBst = localAsUtc >= bstStart && localAsUtc < bstEnd;
+      return localAsUtc - (isBst ? 60 * 60 * 1000 : 0);
+    } catch {
+      return new Date(event.date).getTime();
+    }
+  };
+  const upcomingEvents = events.filter((event) => startMs(event) >= now.getTime());
+  const pastEvents = events.filter((event) => startMs(event) < now.getTime());
 
   const filteredEvents = upcomingEvents.filter((event) => {
-    const matchesCategory =
-      selectedCategory === "All" || event.category === selectedCategory;
+    const matchesCategory = selectedCategory === "All" || event.category === selectedCategory;
     const matchesSearch =
       searchQuery === "" ||
-      event.title[language]
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+      event.title[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.venue.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesVip = !showVipOnly || event.vipAvailable;
     return matchesCategory && matchesSearch && matchesVip;
@@ -203,7 +221,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
           }),
         }).catch(() => {});
       } catch (error) {
-        console.warn('[Events] Failed to track affiliate click for event:', event.title.en, error);
+        console.warn("[Events] Failed to track affiliate click for event:", event.title.en, error);
       }
       window.open(event.bookingUrl, "_blank", "noopener,noreferrer");
     }
@@ -225,20 +243,23 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
         </div>
         <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
-          <Breadcrumbs items={[
-            { label: language === "en" ? "Home" : "الرئيسية", href: "/" },
-            { label: language === "en" ? "Events" : "فعاليات" },
-          ]} />
+          <Breadcrumbs
+            items={[
+              { label: language === "en" ? "Home" : "الرئيسية", href: "/" },
+              { label: language === "en" ? "Events" : "فعاليات" },
+            ]}
+          />
           <SectionLabel>{language === "en" ? "Events & Tickets" : "فعاليات وتذاكر"}</SectionLabel>
           <h1
             className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6 mt-4"
-            style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+            style={{ textShadow: "0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)" }}
           >
-            {language === "en"
-              ? "London Events & Tickets"
-              : "فعاليات وتذاكر لندن"}
+            {language === "en" ? "London Events & Tickets" : "فعاليات وتذاكر لندن"}
           </h1>
-          <p className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8" style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}>
+          <p
+            className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8"
+            style={{ textShadow: "0 1px 8px rgba(15,22,33,0.6)" }}
+          >
             {language === "en"
               ? "Book premium tickets for the best London experiences"
               : "احجز تذاكر مميزة لأفضل تجارب لندن"}
@@ -260,9 +281,9 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
       {/* FTC Affiliate Disclosure */}
       <div className="bg-yl-cream/60 border-b border-yl-gray-200">
         <p className="max-w-7xl mx-auto px-7 py-2.5 text-[11px] text-yl-gray-500 leading-relaxed">
-          {language === 'ar'
-            ? 'تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك.'
-            : 'This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you.'}
+          {language === "ar"
+            ? "تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك."
+            : "This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you."}
         </p>
       </div>
 
@@ -282,16 +303,14 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
         <div className="max-w-7xl mx-auto px-7 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
-              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-yl-gray-500`} />
+              <Search
+                className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 h-4 w-4 text-yl-gray-500`}
+              />
               <input
-                placeholder={
-                  language === "en"
-                    ? "Search events, venues..."
-                    : "ابحث عن فعاليات، أماكن..."
-                }
+                placeholder={language === "en" ? "Search events, venues..." : "ابحث عن فعاليات، أماكن..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 border border-yl-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
+                className={`w-full ${isRTL ? "pr-10 pl-4" : "pl-10 pr-4"} py-2.5 border border-yl-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
               />
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -305,11 +324,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                       : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
                   }`}
                 >
-                  {cat === "All"
-                    ? language === "en"
-                      ? "All"
-                      : "الكل"
-                    : cat}
+                  {cat === "All" ? (language === "en" ? "All" : "الكل") : cat}
                 </button>
               ))}
               <button
@@ -340,27 +355,19 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
             </h2>
             <div className="flex items-center gap-2 text-sm text-yl-gray-500">
               <Tag className="h-4 w-4" />
-              {language === "en"
-                ? "Powered by trusted ticket partners"
-                : "مدعوم من شركاء التذاكر الموثوقين"}
+              {language === "en" ? "Powered by trusted ticket partners" : "مدعوم من شركاء التذاكر الموثوقين"}
             </div>
           </div>
 
           {loading ? (
             <div className="text-center py-20">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-yl-red mb-4" />
-              <p className="text-yl-gray-500">
-                {language === "en"
-                  ? "Loading events..."
-                  : "جاري تحميل الفعاليات..."}
-              </p>
+              <p className="text-yl-gray-500">{language === "en" ? "Loading events..." : "جاري تحميل الفعاليات..."}</p>
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-yl-gray-500 text-lg">
-                {language === "en"
-                  ? "No events match your filters"
-                  : "لا توجد فعاليات تطابق التصفية"}
+                {language === "en" ? "No events match your filters" : "لا توجد فعاليات تطابق التصفية"}
               </p>
               <BrandButton
                 variant="outline"
@@ -389,18 +396,16 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover"
                     />
-                    <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
+                    <div className={`absolute top-4 ${isRTL ? "right-4" : "left-4"} flex gap-2`}>
                       <BrandTag color="neutral">{event.category}</BrandTag>
-                      {event.vipAvailable && (
-                        <BrandTag color="gold">VIP</BrandTag>
-                      )}
+                      {event.vipAvailable && <BrandTag color="gold">VIP</BrandTag>}
                     </div>
-                    <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
+                    <div
+                      className={`absolute top-4 ${isRTL ? "left-4" : "right-4"} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}
+                    >
                       <div className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-yl-gold text-yl-gold" />
-                        <span className="text-sm font-medium text-yl-charcoal">
-                          {event.rating}
-                        </span>
+                        <span className="text-sm font-medium text-yl-charcoal">{event.rating}</span>
                       </div>
                     </div>
                     {event.soldOut && (
@@ -436,20 +441,13 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                       <div className="mb-4">
                         <span className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
                           <Ticket className="h-3 w-3 inline mr-1 -mt-0.5" />
-                          {language === "en" ? "via" : "عبر"}{" "}
-                          {event.ticketProvider}
+                          {language === "en" ? "via" : "عبر"} {event.ticketProvider}
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-auto">
-                      <span className="text-lg font-bold text-yl-red">
-                        {event.price}
-                      </span>
-                      <BrandButton
-                        variant="primary"
-                        disabled={event.soldOut}
-                        onClick={() => handleBooking(event)}
-                      >
+                      <span className="text-lg font-bold text-yl-red">{event.price}</span>
+                      <BrandButton variant="primary" disabled={event.soldOut} onClick={() => handleBooking(event)}>
                         {event.soldOut
                           ? language === "en"
                             ? "Sold Out"
@@ -457,11 +455,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                           : language === "en"
                             ? "Get Tickets"
                             : "احصل على تذاكر"}
-                        {!event.soldOut && (
-                          <ExternalLink
-                            className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
-                          />
-                        )}
+                        {!event.soldOut && <ExternalLink className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`} />}
                       </BrandButton>
                     </div>
                   </div>
@@ -484,8 +478,12 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
               <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {pastEvents.slice(0, 8).map((event) => (
                   <div key={event.id} className="p-3 bg-white/60 rounded-[14px] border border-yl-gray-200 opacity-70">
-                    <p className="text-sm font-medium text-yl-charcoal truncate">{event.title[language] || event.title.en}</p>
-                    <p className="text-xs text-yl-gray-500 mt-1">{formatDate(event.date)} — {event.venue}</p>
+                    <p className="text-sm font-medium text-yl-charcoal truncate">
+                      {event.title[language] || event.title.en}
+                    </p>
+                    <p className="text-xs text-yl-gray-500 mt-1">
+                      {formatDate(event.date)} — {event.venue}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -500,9 +498,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
         <div className="max-w-7xl mx-auto px-7">
           <div className="text-center mb-8">
             <h3 className="text-xl font-heading font-semibold text-yl-charcoal mb-2">
-              {language === "en"
-                ? "Our Trusted Ticket Partners"
-                : "شركاء التذاكر الموثوقين"}
+              {language === "en" ? "Our Trusted Ticket Partners" : "شركاء التذاكر الموثوقين"}
             </h3>
             <p className="text-yl-gray-500 text-sm">
               {language === "en"
@@ -511,19 +507,17 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
             </p>
           </div>
           <div className="flex justify-center gap-8 flex-wrap">
-            {["StubHub", "Ticketmaster", "GetYourGuide", "Viator"].map(
-              (partner) => (
-                <div
-                  key={partner}
-                  className="text-center px-6 py-4 rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/30 hover:bg-yl-cream transition-all"
-                >
-                  <span className="font-semibold text-yl-gray-500">{partner}</span>
-                  <span className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mt-1">
-                    {language === "en" ? "Verified Partner" : "شريك معتمد"}
-                  </span>
-                </div>
-              ),
-            )}
+            {["StubHub", "Ticketmaster", "GetYourGuide", "Viator"].map((partner) => (
+              <div
+                key={partner}
+                className="text-center px-6 py-4 rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/30 hover:bg-yl-cream transition-all"
+              >
+                <span className="font-semibold text-yl-gray-500">{partner}</span>
+                <span className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mt-1">
+                  {language === "en" ? "Verified Partner" : "شريك معتمد"}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -533,9 +527,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
       <section className="py-20 bg-yl-dark-navy text-white">
         <div className="max-w-4xl mx-auto text-center px-7">
           <h2 className="text-4xl font-heading font-bold mb-6">
-            {language === "en"
-              ? "Can't Find What You're Looking For?"
-              : "لا تجد ما تبحث عنه؟"}
+            {language === "en" ? "Can't Find What You're Looking For?" : "لا تجد ما تبحث عنه؟"}
           </h2>
           <p className="text-xl mb-8 text-yl-gray-400">
             {language === "en"

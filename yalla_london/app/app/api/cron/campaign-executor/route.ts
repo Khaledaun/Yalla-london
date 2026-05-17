@@ -92,16 +92,35 @@ async function handler(request: Request) {
       return sum + (res.itemsSucceeded || 0);
     }, 0);
 
+    // Collect per-campaign error messages so the CronJobLog error_message field is
+    // populated (rather than silent "(no error message captured)" in the dashboard).
+    // May 17 audit caught campaign-executor logging failures with no diagnostic text.
+    const failureMessages: string[] = [];
+    for (const r of results) {
+      const res = r.result as { itemsFailed?: number; errors?: string[]; error?: string };
+      if (res.error) failureMessages.push(`${r.name}: ${res.error}`);
+      if (res.errors && res.errors.length > 0) {
+        failureMessages.push(`${r.name}: ${res.errors.slice(0, 3).join(" | ")}`);
+      }
+    }
+    const status = totalSucceeded > 0 ? "completed" : totalProcessed > 0 ? "failed" : "completed";
+    const errorMessage = status === "failed"
+      ? failureMessages.length > 0
+        ? failureMessages.slice(0, 5).join(" || ").substring(0, 1500)
+        : `No items succeeded out of ${totalProcessed} processed across ${results.length} campaign(s)`
+      : null;
+
     try {
       await prisma.cronJobLog.create({
         data: {
           job_name: 'campaign-executor',
           job_type: 'scheduled',
-          status: totalSucceeded > 0 ? 'completed' : (totalProcessed > 0 ? 'failed' : 'completed'),
+          status,
           duration_ms: Date.now() - cronStart,
           items_processed: totalProcessed,
           items_succeeded: totalSucceeded,
           items_failed: totalProcessed - totalSucceeded,
+          error_message: errorMessage,
           result_summary: { campaigns: results.length, results } as unknown as Record<string, unknown>,
           completed_at: new Date(),
         },

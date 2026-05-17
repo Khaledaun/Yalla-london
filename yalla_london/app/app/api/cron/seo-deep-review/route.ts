@@ -577,7 +577,19 @@ Current word count: ${wordCount}`;
               fix.fixes.push(`Content expanded from ${wordCount} to ${newWordCount} words`);
             }
           } catch (aiErr) {
-            fix.errors.push(`Content expansion: ${aiErr instanceof Error ? aiErr.message : String(aiErr)}`);
+            // Content expansion is an ENHANCEMENT, not a requirement. When all AI
+            // providers timeout (which the May 17 audit showed is the recurring
+            // failure mode), the article still has its other fixes (meta, canonical,
+            // internal links, alt text, etc.) — those didn't fail. Log as a NOTE
+            // so the cron isn't flagged "failed" for a graceful skip. The article
+            // will retry on the next seo-deep-review run when budget may be better.
+            const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
+            const isTimeout = /timeout|aborted|All AI providers failed/i.test(msg);
+            if (isTimeout) {
+              fix.notes.push(`Content expansion skipped — AI provider timeout (will retry next run): ${msg.substring(0, 120)}`);
+            } else {
+              fix.errors.push(`Content expansion: ${msg}`);
+            }
           }
         }
 

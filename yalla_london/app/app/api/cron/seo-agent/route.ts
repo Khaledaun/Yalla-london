@@ -292,14 +292,30 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     // 12c. AUTO-INJECT INTERNAL LINKS FOR POSTS WITH < 3 INTERNAL LINKS
     if (hasBudget(5_000)) {
       try {
-        const postsWithFewLinks = await prisma.blogPost.findMany({
-          where: {
-            published: true,
-            ...siteFilter,
-          },
-          select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
-          take: 100,
-          orderBy: { created_at: "desc" },
+        // May 17 audit found 13 published articles with ZERO inbound internal
+        // links — all from Feb 2026 (old). Newest-first scan never reaches them
+        // because there are 100+ newer articles. Run TWO passes: newest 60
+        // (catches fresh content) + oldest 60 (drains the long tail). Combined
+        // 120 candidates with dedup so the cap stays effective.
+        const [newestPosts, oldestPosts] = await Promise.all([
+          prisma.blogPost.findMany({
+            where: { published: true, ...siteFilter },
+            select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
+            take: 60,
+            orderBy: { created_at: "desc" },
+          }),
+          prisma.blogPost.findMany({
+            where: { published: true, ...siteFilter },
+            select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
+            take: 60,
+            orderBy: { created_at: "asc" },
+          }),
+        ]);
+        const seenIds = new Set<string>();
+        const postsWithFewLinks = [...newestPosts, ...oldestPosts].filter((p) => {
+          if (seenIds.has(p.id)) return false;
+          seenIds.add(p.id);
+          return true;
         });
 
         // Count internal links in each post (check both EN and AR)

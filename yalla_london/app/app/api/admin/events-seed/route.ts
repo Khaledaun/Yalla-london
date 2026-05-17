@@ -32,7 +32,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-middleware";
+import { requireAdmin, requireAdminOrCron } from "@/lib/admin-middleware";
 
 const DEFAULT_TARGET = 50;
 const BUDGET_MS = 100_000;
@@ -154,7 +154,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  // Accept EITHER an admin session OR a valid CRON_SECRET Bearer token.
+  // events-refresh cron calls this internally with Bearer auth; the cockpit
+  // calls it with admin session. May 17 report flagged events-refresh failing
+  // HTTP 401 because requireAdmin rejected cron-originated calls.
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   const startTime = Date.now();

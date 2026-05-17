@@ -444,6 +444,38 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
     return facts;
   }, [sanitizedContent]);
 
+  // ═══ Primary affiliate CTA (for mobile sticky Book Now bar) ═══
+  // Per May 17 audit (both GPT + Perplexity): article pages lacked a
+  // visible above-the-fold booking CTA on mobile — the first affiliate
+  // link sat 1900px+ down. Sticky bottom bar gives a persistent CTA so
+  // a reader can book anytime without scrolling back up.
+  //
+  // Extracts the FIRST affiliate link from sanitized content:
+  //   • href routed through /api/affiliate/click (so the bar's CTA is
+  //     tracked exactly like in-content clicks — same SID, same partner)
+  //   • partner name from data-affiliate-partner="X" attr on the <a>
+  // If no affiliate present, returns null → bar doesn't render.
+  const primaryCta = useMemo<{ url: string; partner: string } | null>(() => {
+    if (!sanitizedContent) return null;
+    // Match <a href="/api/affiliate/click?..." ... data-affiliate-partner="X">
+    // OR <a data-affiliate-partner="X" href="/api/affiliate/click?...">.
+    // Tag order in HTML is unpredictable, so we capture href + partner
+    // separately and pair them by matching the SAME anchor opening tag.
+    const tagRegex = /<a\b([^>]*)>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = tagRegex.exec(sanitizedContent)) !== null) {
+      const attrs = m[1];
+      const hrefMatch = attrs.match(/\bhref="([^"]*\/api\/affiliate\/click[^"]*)"/i);
+      const partnerMatch = attrs.match(/\bdata-affiliate-partner="([^"]+)"/i);
+      if (hrefMatch && partnerMatch) {
+        // Decode &amp; back to & so the link works
+        const url = hrefMatch[1].replace(/&amp;/g, "&");
+        return { url, partner: partnerMatch[1] };
+      }
+    }
+    return null;
+  }, [sanitizedContent]);
+
   // ═══ FAQ extraction (question-mark H2 headings) ═══
   const faqItems = useMemo<FaqItem[]>(() => {
     if (!sanitizedContent) return [];
@@ -1214,11 +1246,38 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
         </div>
       </section>
 
-      {/* ═══ Sticky Mobile Share Bar ═══ */}
-      {showStickyShare && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-yl-gray-200 py-3 px-6 lg:hidden">
-          <ShareButtons title={title} excerpt={excerpt} variant="bar" />
+      {/* ═══ Sticky Mobile CTA / Share Bar ═══ */}
+      {/* Prioritises affiliate "Book Now" CTA over share buttons when an */}
+      {/* affiliate link exists in the article — revenue beats sharing for an */}
+      {/* iPhone reader scrolling commercial intent content. Falls back to */}
+      {/* share bar on editorial pages without affiliates. */}
+      {primaryCta && !isThinContent ? (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yl-gold/40 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] py-2.5 px-4 lg:hidden"
+          dir={isRTL ? "rtl" : "ltr"}
+        >
+          <a
+            href={primaryCta.url}
+            target="_blank"
+            rel="noopener sponsored"
+            data-affiliate-partner={primaryCta.partner}
+            className={`flex items-center justify-between gap-2 w-full min-h-[48px] px-4 rounded-lg bg-yl-gold hover:bg-yl-gold/90 active:bg-yl-gold/80 text-white font-semibold transition-colors ${isRTL ? "font-arabic" : "font-heading"}`}
+          >
+            <span className="text-xs uppercase tracking-wider opacity-90">
+              {language === "en" ? "Book Now" : "احجز الآن"}
+            </span>
+            <span className="flex items-center gap-1.5 text-sm">
+              <span>{primaryCta.partner}</span>
+              <span aria-hidden="true">{isRTL ? "←" : "→"}</span>
+            </span>
+          </a>
         </div>
+      ) : (
+        showStickyShare && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-yl-gray-200 py-3 px-6 lg:hidden">
+            <ShareButtons title={title} excerpt={excerpt} variant="bar" />
+          </div>
+        )
       )}
     </div>
   );

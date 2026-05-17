@@ -41,11 +41,21 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (isParentBrandSite(siteId)) {
     const title = "Zenitha.Luxury — Luxury Travel Brands & Destination Expertise";
-    const description = "Zenitha.Luxury LLC builds and operates a portfolio of luxury travel brands spanning London, the Mediterranean, Maldives, French Riviera, Istanbul, and Thailand. Six destinations, six brands, one uncompromising standard.";
+    const description =
+      "Zenitha.Luxury LLC builds and operates a portfolio of luxury travel brands spanning London, the Mediterranean, Maldives, French Riviera, Istanbul, and Thailand. Six destinations, six brands, one uncompromising standard.";
     return {
       title,
       description,
-      keywords: ["luxury travel", "travel brands", "Zenitha", "destination expertise", "luxury travel portfolio", "Mediterranean yachts", "London travel", "Maldives resorts"],
+      keywords: [
+        "luxury travel",
+        "travel brands",
+        "Zenitha",
+        "destination expertise",
+        "luxury travel portfolio",
+        "Mediterranean yachts",
+        "London travel",
+        "Maldives resorts",
+      ],
       alternates: { canonical: baseUrl },
       openGraph: {
         title,
@@ -60,7 +70,13 @@ export async function generateMetadata(): Promise<Metadata> {
       robots: {
         index: true,
         follow: true,
-        googleBot: { index: true, follow: true, "max-video-preview": -1, "max-image-preview": "large", "max-snippet": -1 },
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-video-preview": -1,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+        },
       },
     };
   }
@@ -114,34 +130,47 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   // Default: Yalla London and other travel blog sites
-  const siteTagline = getSiteTagline(siteId);
-  const siteDescription = getSiteDescription(siteId);
+  // Locale-aware metadata: middleware sets x-locale="ar" for /ar/ routes.
+  // Previous behaviour emitted English title+description on the AR homepage
+  // (Perplexity audit May 17), guaranteeing click-skip on Arabic SERPs.
+  let pageLocale: "en" | "ar" = "en";
+  try {
+    const headersList = await headers();
+    pageLocale = headersList.get("x-locale") === "ar" ? "ar" : "en";
+  } catch {
+    /* unavailable during static generation */
+  }
+  const siteTagline = getSiteTagline(siteId, pageLocale);
+  const siteDescription = getSiteDescription(siteId, pageLocale);
+  const titleString =
+    pageLocale === "ar" ? `${siteNameAr} — ${siteTagline}` : `${siteName} — ${siteTagline} | ${siteNameAr}`;
+  const ogTitleString = pageLocale === "ar" ? `${siteNameAr} — ${siteTagline}` : `${siteName} — ${siteTagline}`;
 
   return {
-    title: `${siteName} — ${siteTagline} | ${siteNameAr}`,
+    title: titleString,
     description: siteDescription,
     alternates: rootAlternates,
     openGraph: {
-      title: `${siteName} — ${siteTagline}`,
+      title: ogTitleString,
       description: siteDescription,
-      url: baseUrl,
-      siteName,
-      locale: "en_GB",
-      alternateLocale: "ar_SA",
+      url: pageLocale === "ar" ? `${baseUrl}/ar` : baseUrl,
+      siteName: pageLocale === "ar" ? siteNameAr : siteName,
+      locale: pageLocale === "ar" ? "ar_SA" : "en_GB",
+      alternateLocale: pageLocale === "ar" ? "en_GB" : "ar_SA",
       type: "website",
       images: [
         {
-          url: `${baseUrl}/api/og?siteId=${siteId}`,
+          url: `${baseUrl}/api/og?siteId=${siteId}${pageLocale === "ar" ? "&lang=ar" : ""}`,
           width: 1200,
           height: 630,
-          alt: `${siteName} — ${siteTagline}`,
+          alt: ogTitleString,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
       site: `@${siteSlug}`,
-      title: `${siteName} — ${siteTagline}`,
+      title: ogTitleString,
       description: siteDescription,
     },
     robots: {

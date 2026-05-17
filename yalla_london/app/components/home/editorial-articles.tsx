@@ -26,8 +26,18 @@ interface Props {
 }
 
 /* ── Section Header (editorial style) ── */
-function SectionHead({ title, href, linkText, icon: Icon, isRTL }: {
-  title: string; href: string; linkText: string; icon?: React.ElementType; isRTL?: boolean;
+function SectionHead({
+  title,
+  href,
+  linkText,
+  icon: Icon,
+  isRTL,
+}: {
+  title: string;
+  href: string;
+  linkText: string;
+  icon?: React.ElementType;
+  isRTL?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between mb-8">
@@ -38,9 +48,14 @@ function SectionHead({ title, href, linkText, icon: Icon, isRTL }: {
           {title}
         </h2>
       </div>
-      <Link href={href} className="group flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors">
+      <Link
+        href={href}
+        className="group flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors"
+      >
         {linkText}
-        <ArrowRight className={`w-4 h-4 group-hover:translate-x-0.5 transition-transform ${isRTL ? "rotate-180" : ""}`} />
+        <ArrowRight
+          className={`w-4 h-4 group-hover:translate-x-0.5 transition-transform ${isRTL ? "rotate-180" : ""}`}
+        />
       </Link>
     </div>
   );
@@ -58,7 +73,9 @@ export function EditorialArticles({ locale, featured, articles }: Props) {
       {/* Watermark */}
       <div
         className="absolute -right-20 top-10 w-[250px] h-[250px] opacity-[0.03] rotate-[8deg] pointer-events-none bg-contain bg-no-repeat bg-center"
-        style={{ backgroundImage: "url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')" }}
+        style={{
+          backgroundImage: "url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')",
+        }}
         aria-hidden="true"
       />
       <div className="relative z-10 max-w-7xl mx-auto px-5 py-14">
@@ -68,20 +85,33 @@ export function EditorialArticles({ locale, featured, articles }: Props) {
           {/* Featured — large card */}
           <Link href={`/blog/${featured.slug}`} className="lg:col-span-7 group">
             <article className="relative h-full min-h-[360px] rounded-2xl overflow-hidden">
-              <Image src={featured.image} alt={featured.title} fill className="object-cover group-hover:scale-[1.03] transition-transform duration-500" sizes="(max-width: 1024px) 100vw, 58vw" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <Image
+                src={featured.image}
+                alt={featured.title}
+                fill
+                className="object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                sizes="(max-width: 1024px) 100vw, 58vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                <BrandTag color="red" className="mb-3">{featured.category}</BrandTag>
-                <h3 className={`text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-yl-gold transition-colors leading-snug ${isRTL ? "font-arabic" : "font-display"}`}>
+                <BrandTag color="red" className="mb-3">
+                  {featured.category}
+                </BrandTag>
+                <h3
+                  className={`text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-yl-gold transition-colors leading-snug ${isRTL ? "font-arabic" : "font-display"}`}
+                >
                   {featured.title}
                 </h3>
-                <p className="text-white/50 text-sm line-clamp-2 max-w-lg font-body">{featured.excerpt}</p>
-                <div className="flex items-center gap-3 mt-3 font-mono text-[10px] tracking-wider uppercase text-white/40">
+                <p className="text-white/85 text-sm line-clamp-2 max-w-lg font-body">{featured.excerpt}</p>
+                <div className="flex items-center gap-3 mt-3 font-mono text-[10px] tracking-wider uppercase text-white/75">
                   {featured.author && <span>{featured.author}</span>}
-                  <span className="w-1 h-1 bg-white/30 rounded-full" />
+                  <span className="w-1 h-1 bg-white/60 rounded-full" />
                   <span>{featured.date}</span>
-                  <span className="w-1 h-1 bg-white/30 rounded-full" />
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{featured.readTime}</span>
+                  <span className="w-1 h-1 bg-white/60 rounded-full" />
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {featured.readTime}
+                  </span>
                 </div>
               </div>
             </article>
@@ -97,8 +127,12 @@ export function EditorialArticles({ locale, featured, articles }: Props) {
                       <Image src={a.image} alt={a.title} fill className="object-cover" sizes="80px" />
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
-                      <span className="font-mono text-[10px] font-semibold text-yl-red uppercase tracking-wider">{a.category}</span>
-                      <h4 className={`text-sm font-bold text-yl-charcoal mt-0.5 line-clamp-2 group-hover:text-yl-red transition-colors leading-snug ${isRTL ? "font-arabic" : "font-display"}`}>
+                      <span className="font-mono text-[10px] font-semibold text-yl-red uppercase tracking-wider">
+                        {a.category}
+                      </span>
+                      <h4
+                        className={`text-sm font-bold text-yl-charcoal mt-0.5 line-clamp-2 group-hover:text-yl-red transition-colors leading-snug ${isRTL ? "font-arabic" : "font-display"}`}
+                      >
                         {a.title}
                       </h4>
                       <div className="flex items-center gap-2 mt-1 font-mono text-[10px] text-yl-gray-400 tracking-wider">
@@ -116,7 +150,9 @@ export function EditorialArticles({ locale, featured, articles }: Props) {
             <BrandCard hoverable={false} className="p-5 flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-yl-gold" />
-                <h3 className={`text-sm font-bold text-white ${isRTL ? "font-arabic" : "font-display"}`}>{t.newsletter}</h3>
+                <h3 className={`text-sm font-bold text-white ${isRTL ? "font-arabic" : "font-display"}`}>
+                  {t.newsletter}
+                </h3>
               </div>
               <p className="text-xs text-white/40 mb-3 font-body line-clamp-2">{t.newsletterDesc}</p>
               <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>

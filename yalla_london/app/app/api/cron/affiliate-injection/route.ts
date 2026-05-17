@@ -411,12 +411,11 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`,
             category: "restaurant",
           },
-          {
-            name: "TripAdvisor Restaurants",
-            url: "https://www.tripadvisor.co.uk/Restaurants-g186338-London_England.html",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
-            category: "restaurant",
-          },
+          // TripAdvisor Restaurants intentionally REMOVED (May 17 audit).
+          // utm_source is NOT a TripAdvisor affiliate param (their program runs
+          // through Awin with partnerid=). The link dropped readers on a 7,000-
+          // restaurant London index with no intent match — pure leakage with no
+          // commission. Re-add only when proper Awin tracking is wired.
         ],
       },
       {
@@ -434,12 +433,7 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`,
             category: "activity",
           },
-          {
-            name: "TripAdvisor Experiences",
-            url: "https://www.tripadvisor.co.uk/Attractions-g186338-London_England.html",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
-            category: "activity",
-          },
+          // TripAdvisor Experiences removed for the same reason — see comment above.
         ],
       },
       {
@@ -1282,7 +1276,10 @@ function injectMidContentCtas(
   articleSlug: string,
   siteId: string,
   alreadyPlacedPartners: string[],
+  locale: "en" | "ar" = "en",
 ): { html: string; partnersAdded: string[] } {
+  const cta = getCtaCopy(locale);
+  const dirAttr = locale === "ar" ? ' dir="rtl"' : "";
   // Don't inject in short articles — count distinct H2 tags first.
   const allH2s = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];
   if (allH2s.length < 4) return { html, partnersAdded: [] };
@@ -1328,9 +1325,9 @@ function injectMidContentCtas(
     const safeName = escapeHtml(partner.name);
     const trackedUrl = buildTrackedUrl(partner.url + partner.param, articleSlug, siteId);
     const ctaHtml = `
-<div class="affiliate-mid-cta" data-affiliate-partner="${safeName}" data-category="${escapeHtml(partner.category)}" style="margin: 1rem 0 1.5rem; padding: 0.75rem 1rem; background: #fffbeb; border-left: 3px solid #c49a2a; border-radius: 6px; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-  <span style="font-size: 0.875rem; color: #6b7280; flex: 1; min-width: 200px;">Recommended for this section:</span>
-  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 1rem; background: #c49a2a; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 0.875rem; white-space: nowrap;">Book on ${safeName} →</a>
+<div class="affiliate-mid-cta" data-affiliate-partner="${safeName}" data-category="${escapeHtml(partner.category)}"${dirAttr} style="margin: 1rem 0 1.5rem; padding: 0.75rem 1rem; background: #fffbeb; border-left: 3px solid #c49a2a; border-radius: 6px; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+  <span style="font-size: 0.875rem; color: #6b7280; flex: 1; min-width: 200px;">${cta.midContentLabel}</span>
+  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 1rem; background: #c49a2a; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 0.875rem; white-space: nowrap;">${cta.viewOnPrefix} ${safeName} ${cta.arrowChar}</a>
 </div>`;
 
     // h2.index is the start of the <h2> match; we want to insert after </h2>.
@@ -1353,12 +1350,48 @@ function injectMidContentCtas(
   return { html: out, partnersAdded };
 }
 
+// Localized CTA copy. AR strings keep brand names in Latin script (Google
+// recognizes "Expedia" / "Tiqets" as proper nouns even in Arabic context).
+// Per the May 17 audit (GPT + Perplexity): AR pages were shipping English
+// "Browse on Expedia →" / "Recommended Partners" labels, breaking trust
+// for Gulf readers.
+type CtaCopy = {
+  recommendedPrefix: string; // "Recommended:" / "نوصي بـ:"
+  bookCta: string; // "Book through our trusted partner for exclusive rates"
+  viewOnPrefix: string; // "View on" / "احجز عبر"
+  arrowChar: string; // → for LTR, ← for RTL
+  midContentLabel: string; // "Recommended for this section:"
+  partnersHeading: string; // "Recommended Partners"
+};
+
+function getCtaCopy(locale: "en" | "ar"): CtaCopy {
+  if (locale === "ar") {
+    return {
+      recommendedPrefix: "نوصي بـ",
+      bookCta: "احجز عبر شريكنا الموثوق للحصول على أسعار حصرية",
+      viewOnPrefix: "احجز عبر",
+      arrowChar: "←", // RTL arrow
+      midContentLabel: "موصى به لهذا القسم:",
+      partnersHeading: "شركاء موصى بهم",
+    };
+  }
+  return {
+    recommendedPrefix: "Recommended",
+    bookCta: "Book through our trusted partner for exclusive rates",
+    viewOnPrefix: "View on",
+    arrowChar: "→",
+    midContentLabel: "Recommended for this section:",
+    partnersHeading: "Recommended Partners",
+  };
+}
+
 export function injectAffiliates(
   html: string,
   siteId: string,
   dbRules?: AffiliateRule[] | null,
   title?: string,
   slug?: string,
+  locale: "en" | "ar" = "en",
 ): { content: string; count: number; partners: string[] } {
   // Extract partner names already present in the HTML so we don't double-
   // inject the same partner when growing an article from 1-2 links toward
@@ -1378,6 +1411,8 @@ export function injectAffiliates(
   let result = html;
   const partners: string[] = [];
   const articleSlug = slug || "unknown";
+  const cta = getCtaCopy(locale);
+  const dirAttr = locale === "ar" ? ' dir="rtl"' : "";
 
   // Replace placeholder divs with actual CTAs
   for (const match of matches.slice(0, 2)) {
@@ -1390,17 +1425,17 @@ export function injectAffiliates(
     const safeName = escapeHtml(match.name);
     // Route through click tracker for revenue attribution + GA4 events
     const trackedUrl = buildTrackedUrl(fullUrl, articleSlug, siteId);
-    const cta = `
-<div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${escapeHtml(match.category)}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
-  <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${safeName}</p>
-  <p style="margin: 0 0 0.75rem 0; color: #6b7280; font-size: 0.9rem;">Book through our trusted partner for exclusive rates</p>
-  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">View on ${safeName} &rarr;</a>
+    const ctaHtml = `
+<div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${escapeHtml(match.category)}"${dirAttr} style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
+  <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">${cta.recommendedPrefix}: ${safeName}</p>
+  <p style="margin: 0 0 0.75rem 0; color: #6b7280; font-size: 0.9rem;">${cta.bookCta}</p>
+  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">${cta.viewOnPrefix} ${safeName} ${cta.arrowChar}</a>
 </div>`;
 
     // Replace first placeholder with this CTA
     const placeholderRegex = /<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/i;
     if (placeholderRegex.test(result)) {
-      result = result.replace(placeholderRegex, cta);
+      result = result.replace(placeholderRegex, ctaHtml);
       partners.push(match.name);
     }
   }
@@ -1426,7 +1461,7 @@ export function injectAffiliates(
   //    (no duplicate partner in the same article body).
   //  - Each CTA inherits the existing buildTrackedUrl/data-affiliate-partner
   //    so click tracking and dedup still work end-to-end.
-  const midContentResult = injectMidContentCtas(result, matches, articleSlug, siteId, partners);
+  const midContentResult = injectMidContentCtas(result, matches, articleSlug, siteId, partners, locale);
   result = midContentResult.html;
   // Track partners injected mid-content so the end-of-article partners
   // section doesn't render duplicate cards for the same brand.
@@ -1464,8 +1499,8 @@ export function injectAffiliates(
     } else {
       // No existing section — create a fresh one at the article end.
       result += `
-<div class="affiliate-partners-section" style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-  <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Recommended Partners</h3>
+<div class="affiliate-partners-section"${dirAttr} style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h3 style="margin: 0 0 1rem 0; color: #1f2937;">${cta.partnersHeading}</h3>
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
     ${cardHtml}
   </div>
@@ -1608,6 +1643,7 @@ async function handleAffiliateInjection(request: NextRequest) {
         mergedRules.length > 0 ? mergedRules : null,
         post.title_en,
         post.slug,
+        "en",
       );
       const arResult = post.content_ar
         ? injectAffiliates(
@@ -1616,6 +1652,7 @@ async function handleAffiliateInjection(request: NextRequest) {
             mergedRules.length > 0 ? mergedRules : null,
             post.title_en,
             post.slug,
+            "ar", // emits Arabic CTA copy: نوصي بـ / احجز عبر / ← / شركاء موصى بهم
           )
         : { content: post.content_ar || "", count: 0, partners: [] };
 

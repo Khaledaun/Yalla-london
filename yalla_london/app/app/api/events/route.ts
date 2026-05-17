@@ -103,9 +103,21 @@ export async function GET(request: NextRequest) {
     // Fallback: Live Ticketmaster API
     try {
       const { getUpcomingEvents, formatEventPrice } = await import("@/lib/apis/events");
-      const tmEvents = await getUpcomingEvents(siteId, {
+      const tmRaw = await getUpcomingEvents(siteId, {
         limit: 20,
         category: category && category !== "All" ? category : undefined,
+      });
+
+      // Apply the same 15-min auto-erase to the TM fallback path so users
+      // never see an event within 15 min of starting, regardless of source.
+      // TM's startDateTime filter is calendar-day granular — it still returns
+      // earlier-today events that have already passed.
+      const { isEventStillVisible } = await import("@/lib/events/start-time");
+      const tmEvents = tmRaw.filter((e) => {
+        const eventDate = new Date(e.date);
+        if (isNaN(eventDate.getTime())) return false;
+        const eventTime = typeof e.time === "string" ? e.time.slice(0, 5) : null;
+        return isEventStillVisible(eventDate, eventTime);
       });
 
       if (tmEvents.length > 0) {

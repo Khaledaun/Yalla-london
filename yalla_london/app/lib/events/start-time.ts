@@ -47,7 +47,11 @@ function lastSundayOfMonth(year: number, monthIndex: number): number {
  * have legacy rows).
  */
 export function eventStartUtc(date: Date, time: string | null | undefined): Date {
-  const match = typeof time === "string" ? time.match(/^(\d{1,2}):(\d{2})$/) : null;
+  // Accept HH:MM and HH:MM:SS — Ticketmaster returns the latter
+  // (e.g. "20:00:00"). The previous strict ^(\d{1,2}):(\d{2})$ silently
+  // rejected TM-seeded times, causing every event to fall back to
+  // midnight UTC and look "past" by midday — auto-erase nuked them all.
+  const match = typeof time === "string" ? time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/) : null;
   if (!match) {
     return new Date(date.getTime()); // best effort — use stored date as-is
   }

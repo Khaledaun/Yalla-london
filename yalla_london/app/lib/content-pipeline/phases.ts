@@ -105,6 +105,27 @@ Use these mandatory Arabic content directives:
 IMPORTANT: Use SINGLE QUOTES for ALL HTML attributes (e.g., <a href='https://...'> NOT <a href="https://...">). Double quotes inside HTML will break JSON output.`;
 }
 
+/**
+ * Template hygiene rules — universal across every AI generation prompt.
+ * Catches recurring bugs from the May 17 2026 re-audit:
+ *   - "high hotel prices with [x] unexpected add-on costs" (unfilled bracket placeholder)
+ *   - "Best Halal Afternoon Tea London V2: Ultimate" (content-versioning slug leak)
+ *   - "London Marathon Guide 2025: Training," (trailing punctuation)
+ *   - "high hotel prices with [x]" rendering as Arabic hero (English-on-AR-locale leak)
+ *
+ * Appended to EVERY system prompt in the content pipeline so the model can't
+ * forget the rules between phases.
+ */
+function getTemplateHygieneDirectives(locale: string): string {
+  return `
+
+TITLE & CONTENT HYGIENE RULES — STRICT, NO EXCEPTIONS:
+- NEVER use bracket placeholders like [x], [X], [TBD], [TODO], [insert ...], [topic], [destination], [keyword], [number], [hotel], [restaurant]. Fill with the actual value or omit the sentence entirely.
+- NEVER append versioning suffixes like "V2", "V3", "v2", "(v2)", "-v3", "Version 2". These are internal tracking; never publish-visible.
+- NEVER end titles with trailing comma, semicolon, colon, pipe, or dash. Titles must end in a meaningful word.
+${isArabic(locale) ? "- Arabic titles MUST be in Arabic script only. NO mixed English+Arabic in the title field. Place names (e.g., Mayfair) inside the title are OK but the structural words must be Arabic." : ""}`;
+}
+
 function getLocaleLabel(locale: string): string {
   return isArabic(locale) ? "Arabic (original, not translated)" : "English";
 }
@@ -183,7 +204,7 @@ Return JSON:
   try {
     const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a travel SEO researcher for the ${site.destination} market targeting all international visitors and tourists. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a travel SEO researcher for the ${site.destination} market targeting all international visitors and tourists. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 3500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
@@ -335,7 +356,7 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
 
 AUTHENTICITY: Include 1 sensory/experiential detail per section, 1 insider tip per section, 1 honest caveat, price details (£/€/$) in 3+ sections.${isArabic(draft.locale) ? " Arabic: use نصيحة/نصيحتنا for tips, رائحة/مذاق/أجواء for sensory." : ""}
 GEO CITABILITY: 1+ statistic per section, 2+ source attributions, 40-80 word self-contained opening paragraphs, 1+ comparison table.
-Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 3500 : 1200,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
@@ -545,7 +566,7 @@ CRITICAL JSON RULES:
         const timeoutCap = isArabic(draft.locale) ? 80_000 : 65_000;
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
-          systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
+          systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
           maxTokens: useMinimalPrompt ? 1000 : isArabic(draft.locale) ? 3500 : 1500,
           temperature: 0.7,
           timeoutMs: sectionTimeout,
@@ -693,7 +714,18 @@ export async function phaseAssembly(
       fallbackHtml += `<h2>${isArabic(draft.locale) ? "الخلاصة" : "Conclusion"}</h2>\n<p>${conclusion.callToAction}</p>\n`;
     fallbackHtml += `</article>`;
 
-    const fallbackWords = fallbackHtml
+    // Convert any pipe tables that came through the raw drafting output.
+    // Same logic as the AI assembly path below — ensures raw-fallback content
+    // also gets proper <table> semantics.
+    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
+      "@/lib/markdown/pipe-tables"
+    );
+    const fallbackUnwrapped = unwrapPipeParagraphs(fallbackHtml);
+    const fallbackNormalized = hasPipeTable(fallbackUnwrapped)
+      ? convertPipeTables(fallbackUnwrapped)
+      : fallbackHtml;
+
+    const fallbackWords = fallbackNormalized
       .replace(/<[^>]+>/g, " ")
       .trim()
       .split(/\s+/)
@@ -701,7 +733,7 @@ export async function phaseAssembly(
     return {
       success: true,
       nextPhase: "images",
-      data: { assembled_html: fallbackHtml, word_count: fallbackWords },
+      data: { assembled_html: fallbackNormalized, word_count: fallbackWords },
       aiModelUsed: "fallback-raw",
     };
   }
@@ -768,7 +800,7 @@ Return JSON:
     const bufferMs = isArabic(draft.locale) ? 3_000 : 5_000;
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 1500 : 1000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
@@ -779,7 +811,16 @@ Return JSON:
     });
 
     const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
-    const assembledHtml = sanitizeContentBody((result.html as string) || rawHtml);
+    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
+      "@/lib/markdown/pipe-tables"
+    );
+    // Sanitize first (strips bracket placeholders + word counts), then convert pipe tables.
+    // AI sometimes emits "<p>| Col | Col |</p>" — unwrapPipeParagraphs makes those detectable.
+    const sanitizedHtml = sanitizeContentBody((result.html as string) || rawHtml);
+    const unwrappedHtml = unwrapPipeParagraphs(sanitizedHtml);
+    const assembledHtml = hasPipeTable(unwrappedHtml)
+      ? convertPipeTables(unwrappedHtml)
+      : sanitizedHtml;
     let assembledWordCount = (result.wordCount as number) || totalWords;
 
     // Verify actual word count (AI sometimes lies about wordCount in JSON)
@@ -820,7 +861,7 @@ Return JSON:
 
         const expansionTimeout = freshBudgetMs !== undefined ? Math.max(freshBudgetMs - 5_000, 10_000) : 25_000;
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
-          systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
+          systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
           maxTokens: isArabic(draft.locale) ? 3500 : 2000,
           temperature: 0.5,
           timeoutMs: expansionTimeout,
@@ -1185,7 +1226,7 @@ Return JSON:
   try {
     const seoTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const seoResult = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}`,
+      systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
       timeoutMs: seoTimeout,

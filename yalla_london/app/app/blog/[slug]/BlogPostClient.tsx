@@ -24,6 +24,7 @@ import { FollowUs } from "@/components/follow-us";
 import { Stay22Map } from "@/components/integrations/stay22-map";
 import { WeatherWidget } from "@/components/integrations/weather-widget";
 import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
+import { convertPipeTables, unwrapPipeParagraphs } from "@/lib/markdown/pipe-tables";
 
 interface AuthorData {
   name_en: string;
@@ -152,47 +153,8 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
       : post.content_en
     : "";
 
-  // Convert GFM-style pipe tables (| col | col | with |---|---| separator)
-  // into HTML <table>. Walks lines, identifies contiguous table blocks, and
-  // emits semantic <thead>/<tbody>. Plays well with mixed markdown+HTML
-  // documents: lines outside table blocks are returned unchanged.
-  const convertPipeTables = (input: string): string => {
-    const lines = input.split(/\r?\n/);
-    const isRow = (s: string) => /^\s*\|.*\|\s*$/.test(s) && s.includes("|", s.indexOf("|") + 1);
-    const isSep = (s: string) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(s);
-    const cellsFrom = (s: string) =>
-      s
-        .replace(/^\s*\|/, "")
-        .replace(/\|\s*$/, "")
-        .split("|")
-        .map((c) => c.trim());
-
-    const out: string[] = [];
-    let i = 0;
-    while (i < lines.length) {
-      const header = lines[i];
-      const sep = lines[i + 1] || "";
-      if (isRow(header) && isSep(sep)) {
-        const headerCells = cellsFrom(header);
-        const rows: string[][] = [];
-        let j = i + 2;
-        while (j < lines.length && isRow(lines[j])) {
-          rows.push(cellsFrom(lines[j]));
-          j++;
-        }
-        const thead = `<thead><tr>${headerCells.map((c) => `<th>${c}</th>`).join("")}</tr></thead>`;
-        const tbody = rows.length
-          ? `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>`
-          : "";
-        out.push(`<table class="md-table">${thead}${tbody}</table>`);
-        i = j;
-      } else {
-        out.push(header);
-        i++;
-      }
-    }
-    return out.join("\n");
-  };
+  // convertPipeTables + unwrapPipeParagraphs imported from @/lib/markdown/pipe-tables
+  // (shared with assembly phase so pipe tables are converted at write time too).
 
   // Safety net: convert markdown syntax to HTML if content was stored as
   // markdown instead of HTML (some older or failed pipeline runs). This
@@ -267,7 +229,11 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
     });
   };
 
-  const rawContentMd = markdownToHtml(rawContentPreH1);
+  // Unconditional pipe-table conversion BEFORE markdownToHtml, including <p>-wrapped
+  // pipe rows (May 17 re-audit found tables shipped as <p>| Col | Col |</p> which
+  // markdownToHtml stage-2 would skip because the HTML detector sees structural tags).
+  const rawContentTablesFixed = convertPipeTables(unwrapPipeParagraphs(rawContentPreH1));
+  const rawContentMd = markdownToHtml(rawContentTablesFixed);
   const rawContent = transformRestaurantFacts(
     rawContentMd
       .replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>")

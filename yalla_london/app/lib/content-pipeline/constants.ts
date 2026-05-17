@@ -212,6 +212,12 @@ export const ENHANCEMENT_OWNERS: Record<string, string> = {
   cannibalization_resolution: "seo-agent",
   affiliate_disclosure: "content-auto-fix",
   image_alt_text: "content-auto-fix-lite",
+  // May 17 2026 re-audit additions
+  markdown_tables: "content-auto-fix",
+  bracket_placeholders: "content-auto-fix",
+  mojibake_repair: "content-auto-fix",
+  title_resanitization: "content-auto-fix-lite",
+  event_dedup: "content-auto-fix-lite",
 };
 
 // ─── Escalation Policy ──────────────────────────────────────────────────────

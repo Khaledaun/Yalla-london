@@ -16,6 +16,20 @@ import { getSiteConfig, getSiteDomain, getDefaultSiteId } from '@/config/sites';
 
 const TAG = '[content-engine:scripter]';
 
+// Template hygiene rules appended to every AI system prompt in this module.
+// Mirrors getTemplateHygieneDirectives() in lib/content-pipeline/phases.ts.
+// Catches: bracket placeholders ([x], [TBD]), versioning slugs (V2, V3),
+// trailing punctuation in titles, English contamination in Arabic content.
+const HYGIENE_RULES = `
+
+TITLE & CONTENT HYGIENE — STRICT, NO EXCEPTIONS:
+- NEVER use bracket placeholders like [x], [TBD], [TODO], [insert ...], [topic], [destination], [keyword]. Fill with real values or omit.
+- NEVER append versioning suffixes like "V2", "V3", "v2", "Version 2". These are internal-only.
+- NEVER end titles with trailing comma, semicolon, colon, pipe, or dash.`;
+
+const HYGIENE_AR = HYGIENE_RULES + `
+- Arabic titles MUST be Arabic script only — no mixed English+Arabic in the title.`;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -676,7 +690,7 @@ async function generateSocialPost(
     designType?: string;
     slideCount?: number;
   }>(prompt, {
-    systemPrompt: siteConfig?.systemPromptEN || `You are a luxury travel social media writer.`,
+    systemPrompt: (siteConfig?.systemPromptEN || `You are a luxury travel social media writer.`) + HYGIENE_RULES,
     temperature: 0.8,
     maxTokens: 1024,
     taskType: "copywriting",
@@ -732,8 +746,8 @@ async function generateBlogArticle(
     featuredImageBrief: string;
     socialDerivatives?: { platform: string; snippet: string; cta: string }[];
   }>(prompt, {
-    systemPrompt: (language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
-      || `You are a senior travel content writer specializing in luxury destinations.`,
+    systemPrompt: ((language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
+      || `You are a senior travel content writer specializing in luxury destinations.`) + (language === 'ar' ? HYGIENE_AR : HYGIENE_RULES),
     temperature: 0.7,
     maxTokens: 8192,
     taskType: "content_generation",
@@ -768,8 +782,8 @@ async function generateEmailCampaign(
     preheader: string;
     blocks: any[];
   }>(prompt, {
-    systemPrompt: (language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
-      || `You are an email marketing specialist for luxury travel.`,
+    systemPrompt: ((language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
+      || `You are an email marketing specialist for luxury travel.`) + (language === 'ar' ? HYGIENE_AR : HYGIENE_RULES),
     temperature: 0.7,
     maxTokens: 4096,
     taskType: "copywriting",
@@ -802,8 +816,8 @@ async function generateVideoScript(
       transition: string;
     }[];
   }>(prompt, {
-    systemPrompt: (language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
-      || `You are a video content creator for luxury travel.`,
+    systemPrompt: ((language === 'ar' ? siteConfig?.systemPromptAR : siteConfig?.systemPromptEN)
+      || `You are a video content creator for luxury travel.`) + (language === 'ar' ? HYGIENE_AR : HYGIENE_RULES),
     temperature: 0.8,
     maxTokens: 2048,
     taskType: "video_generation",

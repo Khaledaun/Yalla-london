@@ -349,11 +349,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
-      languages:
-        sitePrimaryLocale === "ar"
-          ? // AR-primary: skip en-GB — /en/blog/X does not yet exist.
-            { "ar-SA": arUrl, "x-default": arUrl }
-          : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
+      // Only emit ar-SA hreflang when there's REAL Arabic content. Per
+      // Perplexity audit (May 17): 227 of 230 EN articles had hreflangs
+      // pointing to /ar/blog/<slug> URLs that served the English body in
+      // an RTL shell. Google indexed those as Arabic → duplicate-content
+      // signal + hollow Arabic SERPs. Three guards:
+      //   (1) content_ar is not empty
+      //   (2) content_ar is not byte-identical to content_en (no fallback)
+      //   (3) content_ar contains Arabic Unicode range [؀-ۿ]
+      // All three must pass before we promise an Arabic version exists.
+      languages: (() => {
+        const trimmedAr = contentAr.trim();
+        const trimmedEn = contentEn.trim();
+        const hasRealAr = trimmedAr.length > 0 && trimmedAr !== trimmedEn && /[؀-ۿ]/.test(trimmedAr);
+
+        if (sitePrimaryLocale === "ar") {
+          // AR-primary: skip en-GB — /en/blog/X does not yet exist.
+          return { "ar-SA": arUrl, "x-default": arUrl };
+        }
+        if (hasRealAr) {
+          return { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl };
+        }
+        // EN-only article — don't lie to Google about an Arabic version
+        return { "en-GB": enUrl, "x-default": enUrl };
+      })(),
     },
     openGraph: {
       title,

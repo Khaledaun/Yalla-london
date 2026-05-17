@@ -356,6 +356,94 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
     return "";
   }, [sanitizedContent]);
 
+  // ═══ Quick Facts extraction ═══
+  // Per May 17 audit (GPT + Perplexity): article first paragraph sat at
+  // 650-850px depth on mobile — the reader's intent (price / area / halal
+  // / best-for) was buried below TOC + hero + author chrome. This pulls
+  // common label-style facts out of the body and renders them as a card
+  // immediately under the title chrome so the answer is above the fold.
+  //
+  // Labels matched are bilingual (EN regex + AR regex) so the same logic
+  // works for both /blog/<slug> and /ar/blog/<slug> renders. Patterns
+  // mirror what the AI content prompts emit ("Price: £X", "Best for: …",
+  // "Halal: Certified", etc.) — see config/sites.ts site prompts.
+  interface QuickFact {
+    icon: string;
+    label: string;
+    labelAr: string;
+    value: string;
+  }
+  const quickFacts = useMemo<QuickFact[]>(() => {
+    if (!sanitizedContent) return [];
+    // Search only the first ~6000 chars so we get facts from the intro/
+    // summary block, not from way down the page in unrelated sections.
+    const text = sanitizedContent.replace(/<[^>]+>/g, " ").slice(0, 6000);
+
+    const PATTERNS: Array<{ regex: RegExp; icon: string; label: string; labelAr: string }> = [
+      {
+        regex: /\b(?:Price|Cost|السعر|التكلفة)s?\s*[:|—-]\s*([^\n<.]{2,80})/i,
+        icon: "💷",
+        label: "Price",
+        labelAr: "السعر",
+      },
+      {
+        regex: /\b(?:Best for|Ideal for|الأفضل لـ|مثالي لـ)\s*[:|—-]\s*([^\n<.]{2,80})/i,
+        icon: "✨",
+        label: "Best for",
+        labelAr: "الأفضل لـ",
+      },
+      {
+        regex: /\b(?:Halal|الحلال|حلال)(?:\s*status)?\s*[:|—-]\s*([^\n<.]{2,60})/i,
+        icon: "🕌",
+        label: "Halal",
+        labelAr: "حلال",
+      },
+      {
+        regex: /\b(?:Location|Area|Address|الموقع|المنطقة|العنوان)\s*[:|—-]\s*([^\n<.]{2,80})/i,
+        icon: "📍",
+        label: "Location",
+        labelAr: "الموقع",
+      },
+      {
+        regex: /\b(?:Cuisine|Style|Type|المطبخ|النوع)\s*[:|—-]\s*([^\n<.]{2,60})/i,
+        icon: "🍽️",
+        label: "Cuisine",
+        labelAr: "المطبخ",
+      },
+      {
+        regex: /\b(?:Duration|Time required|Time needed|المدة|الوقت)\s*[:|—-]\s*([^\n<.]{2,60})/i,
+        icon: "⏱️",
+        label: "Duration",
+        labelAr: "المدة",
+      },
+      {
+        regex: /\b(?:Reservation|Booking|Reserve|الحجز)\s*[:|—-]\s*([^\n<.]{2,60})/i,
+        icon: "📅",
+        label: "Booking",
+        labelAr: "الحجز",
+      },
+      {
+        regex: /\b(?:Dress code|الزي|قواعد اللباس)\s*[:|—-]\s*([^\n<.]{2,60})/i,
+        icon: "👔",
+        label: "Dress code",
+        labelAr: "الزي",
+      },
+    ];
+
+    const facts: QuickFact[] = [];
+    const seen = new Set<string>();
+    for (const { regex, icon, label, labelAr } of PATTERNS) {
+      const match = text.match(regex);
+      if (!match) continue;
+      const value = match[1].trim().replace(/\s+/g, " ");
+      if (!value || seen.has(label)) continue;
+      seen.add(label);
+      facts.push({ icon, label, labelAr, value });
+      if (facts.length >= 6) break;
+    }
+    return facts;
+  }, [sanitizedContent]);
+
   // ═══ FAQ extraction (question-mark H2 headings) ═══
   const faqItems = useMemo<FaqItem[]>(() => {
     if (!sanitizedContent) return [];
@@ -685,6 +773,46 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
                       className={`text-sm text-yl-gray-600 leading-relaxed [&_ul]:list-disc [&_ul]:ml-5 [&_li]:mb-1.5 ${isRTL ? "font-arabic [&_ul]:mr-5 [&_ul]:ml-0" : "font-body"}`}
                       dangerouslySetInnerHTML={{ __html: keyTakeaways }}
                     />
+                  </div>
+                )}
+
+                {/* ─── Quick Facts Card ─── */}
+                {/* Pulls 2-6 label-style facts from the article body (price, area, */}
+                {/* halal, best-for, cuisine, duration, booking, dress code) and */}
+                {/* renders them as a scan-friendly grid above the article body. */}
+                {/* Per May 17 audit: previously the reader's intent answer sat */}
+                {/* 650-850px deep on mobile — buried under TOC + hero + chrome. */}
+                {quickFacts.length >= 2 && !isThinContent && (
+                  <div
+                    className={`mb-6 rounded-xl border border-yl-gold/30 bg-gradient-to-br from-yl-cream/70 to-white p-4 md:p-5`}
+                    dir={isRTL ? "rtl" : "ltr"}
+                  >
+                    <div
+                      className={`text-[10px] uppercase tracking-wider text-yl-gray-500 mb-3 ${isRTL ? "font-arabic" : "font-mono"}`}
+                    >
+                      {language === "en" ? "Quick Facts" : "حقائق سريعة"}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {quickFacts.map((fact, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="text-base flex-shrink-0 leading-none mt-0.5" aria-hidden="true">
+                            {fact.icon}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={`text-[10px] uppercase tracking-wide text-yl-gray-500 ${isRTL ? "font-arabic" : "font-mono"}`}
+                            >
+                              {language === "en" ? fact.label : fact.labelAr}
+                            </div>
+                            <div
+                              className={`text-sm font-semibold text-yl-charcoal leading-tight ${isRTL ? "font-arabic" : "font-body"}`}
+                            >
+                              {fact.value}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

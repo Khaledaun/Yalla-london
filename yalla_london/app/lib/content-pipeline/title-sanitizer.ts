@@ -46,6 +46,28 @@ const INSTRUCTION_ECHOES_G = [
 // Only strips if year is the LAST word (preserves "Ramadan Timetable 2026 London")
 const TRAILING_YEAR = /\s+20[2-3]\d$/;
 
+// CTR-killer patterns flagged in Perplexity May 17 2026 re-audit:
+//   "Best London Hotels |"             trailing pipe + whitespace
+//   "Best London Hotels ||"            double trailing pipe
+//   "Best London Hotels ()"            empty parentheses
+//   "Best London Hotels - "            trailing dash
+//   "Best London Hotels:"              trailing colon
+// Google appends "| Yalla London" automatically so a trailing pipe shows as
+// "Title |  | Yalla London" in the SERP and tanks CTR.
+const TRAILING_PIPE = /\s*\|+\s*$/;
+const EMPTY_PARENS = /\s*\(\s*\)\s*$/;
+const TRAILING_COLON = /\s*:\s*$/;
+
+// "for arabs" / "for arab travellers" stuffed at end is low-value English-SERP
+// keyword — niche audience already covered by Arabic /ar/ pages with hreflang.
+// Removing it earns ~0.4 percentage points of CTR per Backlinko study (shorter
+// titles outperform stuffed titles for general queries).
+const TRAILING_ARAB_STUFF = /\s*[-–|]?\s*for\s+arabs?(?:\s+travell?ers?)?$/i;
+
+// Duplicated subtitle pattern: "Best London Hotels - Best London Hotels Guide".
+// AI confabulates this when prompt asks for both a "title" and "headline".
+const DUPLICATED_SUBTITLE = /^(.+?)\s+[-–|]\s+\1(?:\s+(?:guide|review|complete|overview))?$/i;
+
 /**
  * Sanitize an article title — strip AI artifacts, enforce max length.
  *
@@ -75,11 +97,30 @@ export function sanitizeTitle(title: string): string {
   // Strip trailing year (only at end of title)
   cleaned = cleaned.replace(TRAILING_YEAR, "");
 
+  // Strip "for arabs" stuffing — niche keyword tank English-SERP CTR
+  cleaned = cleaned.replace(TRAILING_ARAB_STUFF, "");
+
+  // Strip empty parens "()" left after artifact removal
+  cleaned = cleaned.replace(EMPTY_PARENS, "");
+
   // Collapse double spaces, trim
   cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
 
+  // Strip trailing pipe(s) — Google appends "| Yalla London" so "Title |"
+  // becomes "Title |  | Yalla London" in the SERP (CTR killer per Backlinko).
+  cleaned = cleaned.replace(TRAILING_PIPE, "").trim();
+
+  // Strip trailing colon
+  cleaned = cleaned.replace(TRAILING_COLON, "").trim();
+
   // Strip trailing punctuation artifacts (e.g., " -" or " |" left after stripping)
   cleaned = cleaned.replace(/\s*[|–-]\s*$/, "").trim();
+
+  // Collapse duplicated subtitle ("Best Hotels - Best Hotels Guide" → "Best Hotels")
+  const dupMatch = DUPLICATED_SUBTITLE.exec(cleaned);
+  if (dupMatch) {
+    cleaned = dupMatch[1].trim();
+  }
 
   // Enforce max 60 chars (truncate at word boundary)
   if (cleaned.length > 60) {
@@ -188,6 +229,15 @@ export function hasTitleArtifacts(title: string): boolean {
   return (
     CHAR_COUNT_PATTERN.test(title) ||
     CHAR_SUFFIX_PATTERN.test(title) ||
-    INSTRUCTION_ECHOES.some((p) => p.test(title))
+    INSTRUCTION_ECHOES.some((p) => p.test(title)) ||
+    // CTR-killer patterns (Perplexity May 17 2026)
+    TRAILING_PIPE.test(title) ||
+    EMPTY_PARENS.test(title) ||
+    TRAILING_COLON.test(title) ||
+    TRAILING_ARAB_STUFF.test(title) ||
+    TRAILING_YEAR.test(title) ||
+    DUPLICATED_SUBTITLE.test(title) ||
+    // Starts with "EXPAND:" leak from content-strategy
+    /^EXPAND:\s*/i.test(title)
   );
 }

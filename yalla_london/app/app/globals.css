@@ -1368,6 +1368,39 @@
   border: 1.5px solid var(--color-stone, #78716c);
 }
 
+/* ─── Restaurant / venue fact pills ─── */
+/* Wraps Label: Value patterns ("Cuisine: Asian", "Halal: Certified",      */
+/* "Price: £80-120") that were rendered as plain text on restaurant         */
+/* listicles. Pills make the same facts visually scannable. Inline-flex so  */
+/* they wrap naturally inside <p> or <li> blocks. Per May 17 audit.         */
+.yalla-article-content .restaurant-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--yl-cream, #faf6ed);
+  border: 1px solid rgba(196, 154, 42, 0.3);
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
+  margin: 0.25rem 0.4rem 0.25rem 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: normal;
+}
+.yalla-article-content .restaurant-fact__label {
+  font-weight: 600;
+  color: var(--yl-charcoal, #1c1917);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(196, 154, 42, 0.15);
+  padding: 0.125rem 0.4rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+[dir="rtl"] .yalla-article-content .restaurant-fact {
+  margin: 0.25rem 0 0.25rem 0.4rem;
+}
+
 /* ─── Tables ─── */
 .yalla-article-content table {
   width: 100%;

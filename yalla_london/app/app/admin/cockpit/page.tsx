@@ -4526,6 +4526,20 @@ function SitesTab({
                 🎯 Rescue Plan
               </button>
               <button
+                onClick={() =>
+                  (window.location.href = `/admin/cockpit/canonicalize?siteId=${encodeURIComponent(site.id)}`)
+                }
+                className="px-2 py-1 rounded text-xs bg-[rgba(147,51,234,0.10)] hover:bg-[rgba(147,51,234,0.16)] text-[#6d28d9] border border-[rgba(147,51,234,0.30)] font-semibold"
+              >
+                ♻️ Canonicalize
+              </button>
+              <button
+                onClick={() => (window.location.href = `/admin/monday-audit?siteId=${encodeURIComponent(site.id)}`)}
+                className="px-2 py-1 rounded text-xs bg-[rgba(26,34,56,0.08)] hover:bg-[rgba(26,34,56,0.14)] text-[#1A2238] border border-[rgba(26,34,56,0.25)] font-semibold"
+              >
+                📋 Monday Audit
+              </button>
+              <button
                 onClick={() => loadLatestPublished(site.id)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id

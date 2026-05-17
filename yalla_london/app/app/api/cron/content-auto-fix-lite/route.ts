@@ -384,25 +384,46 @@ async function handleAutoFixLite(request: NextRequest) {
       const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } =
         await import("@/lib/content-pipeline/title-sanitizer");
 
-      // Scan recent posts for title artifacts
-      const postsToCheck = (await withPoolRetry(
-        async () =>
-          prisma.blogPost.findMany({
-            where: {
-              siteId: { in: activeSiteIds },
-              deletedAt: null,
-            },
-            select: {
-              id: true,
-              title_en: true,
-              meta_title_en: true,
-              meta_description_en: true,
-            },
-            take: 50,
-            orderBy: { updated_at: "desc" },
-          }),
-        "title-artifact-cleanup",
-      )) as Array<{ id: string; title_en: string; meta_title_en: string | null; meta_description_en: string | null }>;
+      // Dual-batch scan: 100 newest (catches fresh dirty titles) + 100 oldest
+      // (drains backlog of pre-existing CTR-killer patterns flagged in
+      // Perplexity May 17 2026 audit — ~30+ articles with trailing pipes,
+      // empty parens, etc. that would never cycle to top of updated_at desc).
+      const [newest, oldest] = (await Promise.all([
+        withPoolRetry(
+          async () =>
+            prisma.blogPost.findMany({
+              where: { siteId: { in: activeSiteIds }, deletedAt: null },
+              select: { id: true, title_en: true, meta_title_en: true, meta_description_en: true },
+              take: 100,
+              orderBy: { updated_at: "desc" },
+            }),
+          "title-artifact-cleanup-newest",
+        ),
+        withPoolRetry(
+          async () =>
+            prisma.blogPost.findMany({
+              where: { siteId: { in: activeSiteIds }, deletedAt: null },
+              select: { id: true, title_en: true, meta_title_en: true, meta_description_en: true },
+              take: 100,
+              orderBy: { updated_at: "asc" },
+            }),
+          "title-artifact-cleanup-oldest",
+        ),
+      ])) as Array<
+        Array<{ id: string; title_en: string; meta_title_en: string | null; meta_description_en: string | null }>
+      >;
+      const seen = new Set<string>();
+      const postsToCheck: Array<{
+        id: string;
+        title_en: string;
+        meta_title_en: string | null;
+        meta_description_en: string | null;
+      }> = [];
+      for (const p of [...newest, ...oldest]) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        postsToCheck.push(p);
+      }
 
       for (const post of postsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;

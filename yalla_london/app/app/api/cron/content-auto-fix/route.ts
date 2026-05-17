@@ -2218,7 +2218,8 @@ Constraints:
         function stripBrokenAffiliates(html: string): { html: string; stripped: number } {
           if (!html) return { html, stripped: 0 };
           let stripped = 0;
-          const cleaned = html.replace(TRACKED_LINK_RE, (full, hrefAttr: string, inner: string) => {
+          // ── Pass 1: tracked-redirect links (/api/affiliate/click?url=...) ──
+          let cleaned = html.replace(TRACKED_LINK_RE, (full, hrefAttr: string, inner: string) => {
             // Parse the click-tracker URL to extract the partner URL
             // hrefAttr looks like: /api/affiliate/click?url=ENCODED&sid=...
             // The url param is the encoded partner destination.
@@ -2248,6 +2249,35 @@ Constraints:
 
             return full;
           });
+          // ── Pass 2: DIRECT partner links bypassing the tracker ──
+          // Perplexity re-audit (May 17) caught Booking.com SERP-spam +
+          // empty-aid URLs going direct (not via /api/affiliate/click). Same
+          // pattern for old GetYourGuide partner_id= empties and Expedia
+          // utm_source= "fake affiliate" URLs. Wider regex catches any
+          // <a href="https://(known-partner-domain)..."> with an empty
+          // tracking param. Limited to known partner hostnames so we
+          // don't accidentally strip editorial links to BBC/Time Out/etc.
+          const PARTNER_HOSTS = new RegExp(
+            // Affiliate partner domains where empty tracking = leakage
+            "(booking\\.com|expedia\\.com|hotels\\.com|agoda\\.com|getyourguide\\.com|" +
+              "viator\\.com|thefork\\.|opentable\\.|tripadvisor\\.|stubhub\\.|" +
+              "blacklane\\.com|welcomepickups\\.com|tiqets\\.com|ticketnetwork\\.com|" +
+              "klook\\.com|skyscanner\\.|sportsevents365\\.com)",
+            "i",
+          );
+          const DIRECT_LINK_RE = /<a\b[^>]*\bhref="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+          cleaned = cleaned.replace(DIRECT_LINK_RE, (full, hrefAttr: string, inner: string) => {
+            // Skip if already routed through our tracker — Pass 1 handled those.
+            if (hrefAttr.includes("/api/affiliate/click")) return full;
+            // Skip if not a recognized partner domain — don't touch editorial links.
+            if (!PARTNER_HOSTS.test(hrefAttr)) return full;
+            // Decode &amp; → & for URL parsing
+            const normalized = hrefAttr.replace(/&amp;/g, "&");
+            if (!hasEmptyTrackingParam(normalized)) return full;
+            stripped++;
+            return inner;
+          });
+
           return { html: cleaned, stripped };
         }
 
@@ -2258,10 +2288,19 @@ Constraints:
             siteId: { in: activeSiteIds },
             published: true,
             deletedAt: null,
-            // Fast pre-filter: only posts that have at least one tracked link.
-            // We can't filter on regex in Prisma, but we can require
-            // /api/affiliate/click to be present using `contains`.
-            content_en: { contains: "/api/affiliate/click" },
+            // Pre-filter: catch BOTH tracked-redirect links AND direct
+            // partner links that bypass the tracker. Booking.com SERP-spam
+            // URLs (Perplexity audit May 17) fall into the second bucket —
+            // they're <a href="https://www.booking.com/searchresults...&aid="> with
+            // no /api/affiliate/click wrapper. Using OR keeps the query
+            // simple while widening coverage.
+            OR: [
+              { content_en: { contains: "/api/affiliate/click" } },
+              { content_en: { contains: "booking.com" } },
+              { content_en: { contains: "expedia.com" } },
+              { content_en: { contains: "getyourguide.com" } },
+              { content_en: { contains: "tripadvisor." } },
+            ],
           },
           select: { id: true, slug: true, content_en: true, content_ar: true },
           orderBy: { updated_at: "asc" },

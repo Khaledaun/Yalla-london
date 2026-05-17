@@ -33,6 +33,11 @@ export function detectPartner(url: string): string {
   if (lower.includes("ticketnetwork.com")) return "ticketnetwork";
   if (lower.includes("stay22.com")) return "stay22";
   if (lower.includes("tp.media") || lower.includes("travelpayouts.com")) return "travelpayouts";
+  // May 17 re-audit — register for attribution even before commission signup.
+  // Click-tracker can record referrals via GA/Plausible until partnership is live.
+  if (lower.includes("universe.com")) return "universe";
+  if (lower.includes("eticketing.co.uk")) return "eticketing";
+  if (lower.includes("ticketmaster.co.uk") || lower.includes("ticketmaster.com")) return "ticketmaster";
   return "cj-other";
 }
 

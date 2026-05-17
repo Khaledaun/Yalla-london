@@ -200,10 +200,11 @@ RULES:
 5. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
 5. AFFILIATE LINKS: Use <a href="https://www.booking.com/searchresults.html?ss=${encodeURIComponent(keyword)}" target="_blank" rel="nofollow sponsored" class="affiliate-link">Book on Booking.com</a> or similar.
 6. NO markdown. HTML only. No preamble.
+7. HYGIENE: NEVER use bracket placeholders ([x], [TBD], [insert ...]) — fill or omit. NEVER use versioning suffixes (V2, V3, v2). NEVER end titles with trailing comma, semicolon, colon, or pipe.
 
 At the end, on separate lines:
-META_TITLE: [50-60 chars, keyword near front]
-META_DESCRIPTION: [120-155 chars, compelling with keyword]`;
+META_TITLE: [50-60 chars, keyword near front. No bracket placeholders, no V2/V3, no trailing punctuation]
+META_DESCRIPTION: [120-155 chars, compelling with keyword. No bracket placeholders]`;
 
     return { prompt, mode: 'patch' };
   }
@@ -237,10 +238,11 @@ RULES:
 7. INTERNAL LINKS: Use exactly the href format from the AVAILABLE INTERNAL LINKS list with class="internal-link".
 8. Keep the same tone and writing style as the original article.
 9. NO markdown. Return only HTML.
+10. HYGIENE: NEVER use bracket placeholders ([x], [TBD], [insert ...]) — fill or omit. NEVER use versioning suffixes (V2, V3, v2). NEVER end titles with trailing comma, semicolon, colon, or pipe.
 
 At the end, on separate lines return:
-META_TITLE: [50-60 chars, keyword near front]
-META_DESCRIPTION: [120-155 chars, compelling with keyword]
+META_TITLE: [50-60 chars, keyword near front. No bracket placeholders, no V2/V3, no trailing punctuation]
+META_DESCRIPTION: [120-155 chars, compelling with keyword. No bracket placeholders]
 
 Return ONLY the enhanced HTML followed by META_TITLE and META_DESCRIPTION lines. No preamble, no explanation.`;
 

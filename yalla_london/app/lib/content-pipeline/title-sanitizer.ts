@@ -58,6 +58,22 @@ const TRAILING_PIPE = /\s*\|+\s*$/;
 const EMPTY_PARENS = /\s*\(\s*\)\s*$/;
 const TRAILING_COLON = /\s*:\s*$/;
 
+// Trailing comma/semicolon (Marathon: "Training,") — May 17 2026 re-audit
+const TRAILING_PUNCTUATION = /\s*[,;]+\s*$/;
+
+// Versioning slugs leaked from content-strategy ("V2", "V3", "(v2)", "-v3", "Version 2")
+// Lookahead keeps colon-separated subtitles intact: matches " V2" only before ":" or end-of-string.
+// Examples stripped: "Best London Hotels V2: Ultimate", "Guide v3", "Title (V2)"
+// NOTE: Two variants — non-/g for stateful .test(), /g for .replace() (see file header rule).
+const VERSION_SUFFIX = /\s+[Vv](?:ersion)?[\s-]?\d{1,2}\b(?=[\s:]|$)/;
+const VERSION_SUFFIX_G = /\s+[Vv](?:ersion)?[\s-]?\d{1,2}\b(?=[\s:]|$)/g;
+
+// Bracket placeholders AI never filled. Enumerates known placeholder words so we
+// don't strip legitimate didactic markers like [example] or citation markers [1].
+// Examples: "[x]", "[X]", "[TBD]", "[insert hotel name]", "[topic]", "[destination]"
+const BRACKET_PLACEHOLDER = /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/i;
+const BRACKET_PLACEHOLDER_G = /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/gi;
+
 // "for arabs" / "for arab travellers" stuffed at end is low-value English-SERP
 // keyword — niche audience already covered by Arabic /ar/ pages with hreflang.
 // Removing it earns ~0.4 percentage points of CTR per Backlinko study (shorter
@@ -112,6 +128,20 @@ export function sanitizeTitle(title: string): string {
 
   // Strip trailing colon
   cleaned = cleaned.replace(TRAILING_COLON, "").trim();
+
+  // Strip trailing comma/semicolon (May 17 re-audit: Marathon "Training,")
+  cleaned = cleaned.replace(TRAILING_PUNCTUATION, "").trim();
+
+  // Strip versioning slug leaks ("V2", "V3"). Must run before re-collapsing whitespace
+  // so the space before "V2" is also removed by the trim() after.
+  cleaned = cleaned.replace(VERSION_SUFFIX_G, "").trim();
+
+  // Strip unfilled bracket placeholders ("[x]", "[TBD]", "[insert ...]"). Enumerated
+  // list keeps legitimate markers like "[example]" or "[1]" intact.
+  cleaned = cleaned.replace(BRACKET_PLACEHOLDER_G, "").trim();
+
+  // Re-collapse whitespace after stripping (placeholders may leave double spaces)
+  cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
 
   // Strip trailing punctuation artifacts (e.g., " -" or " |" left after stripping)
   cleaned = cleaned.replace(/\s*[|–-]\s*$/, "").trim();
@@ -202,6 +232,10 @@ export function sanitizeContentBody(html: string): string {
   // Remove labeled word counts: "(Word count: 248)"
   cleaned = cleaned.replace(WORD_COUNT_LABELED, "");
 
+  // Strip unfilled bracket placeholders from body content ("[x]", "[TBD]", "[insert ...]")
+  // May 17 re-audit: "high hotel prices with [x] unexpected add-on costs"
+  cleaned = cleaned.replace(BRACKET_PLACEHOLDER_G, "");
+
   // Clean up any resulting empty paragraphs
   cleaned = cleaned.replace(/<p[^>]*>\s*<\/p>/gi, "");
 
@@ -237,7 +271,21 @@ export function hasTitleArtifacts(title: string): boolean {
     TRAILING_ARAB_STUFF.test(title) ||
     TRAILING_YEAR.test(title) ||
     DUPLICATED_SUBTITLE.test(title) ||
+    // May 17 2026 re-audit patterns
+    TRAILING_PUNCTUATION.test(title) ||
+    VERSION_SUFFIX.test(title) ||
+    BRACKET_PLACEHOLDER.test(title) ||
     // Starts with "EXPAND:" leak from content-strategy
     /^EXPAND:\s*/i.test(title)
   );
+}
+
+/**
+ * Check if text contains an unfilled bracket placeholder ([x], [TBD], [insert ...]).
+ * Used by pre-publication-gate to block template leaks at publish time.
+ * Returns false for legitimate markers like [example] or citation markers [1].
+ */
+export function hasBracketPlaceholder(text: string): boolean {
+  if (!text) return false;
+  return BRACKET_PLACEHOLDER.test(text);
 }

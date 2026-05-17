@@ -2369,6 +2369,137 @@ test("Prisma Field Sanity", "discovery scanner uses getCachedSitemap (not raw si
     : { status: WARN, details: "No sitemap cache check found" };
 });
 
+// ─── May 17 2026 re-audit regression tests ─────────────────────────────────
+// Each test asserts a fix from /root/.claude/plans/i-want-you-to-dazzling-yeti.md.
+// Pattern tests catch silent regressions if someone reverts the sanitizer or
+// removes a cron section. Run as part of every smoke-test pass.
+
+test("Audit-May17-Regression", "sanitizeTitle strips trailing comma + semicolon", () => {
+  return fileContains("lib/content-pipeline/title-sanitizer.ts", "TRAILING_PUNCTUATION")
+    ? { status: PASS, details: "TRAILING_PUNCTUATION regex present" }
+    : { status: FAIL, details: "TRAILING_PUNCTUATION missing — Marathon comma will leak" };
+});
+
+test("Audit-May17-Regression", "sanitizeTitle strips V2/V3 versioning suffix", () => {
+  return fileContains("lib/content-pipeline/title-sanitizer.ts", "VERSION_SUFFIX")
+    ? { status: PASS, details: "VERSION_SUFFIX regex present" }
+    : { status: FAIL, details: "VERSION_SUFFIX missing — 'V2: Ultimate' slug will leak" };
+});
+
+test("Audit-May17-Regression", "sanitizer detects + exports hasBracketPlaceholder", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/content-pipeline/title-sanitizer.ts"),
+    "utf-8",
+  );
+  return content.includes("BRACKET_PLACEHOLDER") && content.includes("export function hasBracketPlaceholder")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Bracket placeholder regex or helper missing" };
+});
+
+test("Audit-May17-Regression", "pre-publication-gate Check 17 wired (placeholder leak)", () => {
+  return fileContains("lib/seo/orchestrator/pre-publication-gate.ts", "hasBracketPlaceholder")
+    ? { status: PASS, details: "Check 17 imports hasBracketPlaceholder" }
+    : { status: FAIL, details: "Placeholder check missing in pre-pub gate" };
+});
+
+test("Audit-May17-Regression", "pre-publication-gate Check 18 wired (Arabic ratio)", () => {
+  return fileContains("lib/seo/orchestrator/pre-publication-gate.ts", "Arabic Language Ratio")
+    ? { status: PASS, details: "Check 18 enforces ≥60% Arabic chars on AR drafts" }
+    : { status: FAIL, details: "Arabic ratio gate missing" };
+});
+
+test("Audit-May17-Regression", "Shared pipe-tables module exists with exports", () => {
+  const exists = fileExists("lib/markdown/pipe-tables.ts");
+  if (!exists) return { status: FAIL, details: "lib/markdown/pipe-tables.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/markdown/pipe-tables.ts"), "utf-8");
+  return content.includes("export function convertPipeTables") &&
+    content.includes("export function hasPipeTable") &&
+    content.includes("export function unwrapPipeParagraphs")
+    ? { status: PASS, details: "All 3 exports present" }
+    : { status: FAIL, details: "Pipe-tables module missing required exports" };
+});
+
+test("Audit-May17-Regression", "phases.ts assembly calls convertPipeTables", () => {
+  return fileContains("lib/content-pipeline/phases.ts", "convertPipeTables")
+    ? { status: PASS, details: "Assembly runs pipe-table conversion at write time" }
+    : { status: FAIL, details: "Assembly missing pipe-table conversion — tables ship raw" };
+});
+
+test("Audit-May17-Regression", "BlogPostClient imports shared pipe-tables lib", () => {
+  return fileContains("app/blog/[slug]/BlogPostClient.tsx", '"@/lib/markdown/pipe-tables"')
+    ? { status: PASS, details: "BlogPostClient uses shared lib (no inline copy drift)" }
+    : { status: FAIL, details: "BlogPostClient missing shared import" };
+});
+
+test("Audit-May17-Regression", "content-auto-fix has Section 27 (pipe tables backfill)", () => {
+  return fileContains("app/api/cron/content-auto-fix/route.ts", "Section 27")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Section 27 missing — existing posts won't get tables fixed" };
+});
+
+test("Audit-May17-Regression", "content-auto-fix has Section 28 (bracket placeholder body)", () => {
+  return fileContains("app/api/cron/content-auto-fix/route.ts", "Section 28")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Section 28 missing — body placeholders won't get stripped" };
+});
+
+test("Audit-May17-Regression", "content-auto-fix has Section 29 (mojibake repair)", () => {
+  return fileContains("app/api/cron/content-auto-fix/route.ts", "Section 29")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Section 29 missing — 'Colã³N' won't get repaired" };
+});
+
+test("Audit-May17-Regression", "content-auto-fix-lite has Section 18 (title resanitization)", () => {
+  return fileContains("app/api/cron/content-auto-fix-lite/route.ts", "Section 18")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Section 18 missing — old titles won't get re-sanitized" };
+});
+
+test("Audit-May17-Regression", "content-auto-fix-lite has Section 19 (event dedup)", () => {
+  return fileContains("app/api/cron/content-auto-fix-lite/route.ts", "Section 19")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Section 19 missing — duplicate events won't get cleaned" };
+});
+
+test("Audit-May17-Regression", "yalla-homepage uses strict Arabic-ratio filter", () => {
+  return fileContains("components/home/yalla-homepage.tsx", "isArabicTitleEligible")
+    ? { status: PASS, details: "AR homepage gates by Arabic char ratio + placeholder check" }
+    : { status: FAIL, details: "AR homepage filter not strict — English titles will leak" };
+});
+
+test("Audit-May17-Regression", "/api/events deduplicates by title+venue+date", () => {
+  return fileContains("app/api/events/route.ts", "seenKeys")
+    ? { status: PASS, details: "Composite key dedup at query time" }
+    : { status: FAIL, details: "/api/events missing dedup — duplicates will show" };
+});
+
+test("Audit-May17-Regression", "/hotels has Unsplash photo fallback", () => {
+  return fileContains("app/hotels/hotels-content.tsx", "getFallbackPhoto") &&
+    fileContains("app/hotels/hotels-content.tsx", "naturalWidth === 0")
+    ? { status: PASS, details: "Unsplash fallback + 0×0 detection wired" }
+    : { status: FAIL, details: "/hotels still shows gradient-only cards" };
+});
+
+test("Audit-May17-Regression", "events-sync runs mojibake repair + composite dedup", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/events-sync/route.ts"),
+    "utf-8",
+  );
+  return content.includes("repairMojibake") && content.includes("title_en: cleanName")
+    ? { status: PASS, details: "Ingest normalizes text + checks composite key" }
+    : { status: FAIL, details: "events-sync still ingests raw mojibake / no dedup" };
+});
+
+test("Audit-May17-Regression", "partner-detector registers universe + eticketing", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/affiliate/partner-detector.ts"),
+    "utf-8",
+  );
+  return content.includes("universe.com") && content.includes("eticketing.co.uk")
+    ? { status: PASS, details: "Both partners detected for attribution" }
+    : { status: FAIL, details: "Missing universe/eticketing — clicks unattributed" };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map((r) => r.category))];
 let totalPass = 0,

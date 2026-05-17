@@ -2179,6 +2179,7 @@ Constraints:
         console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_links");
       } else {
         // Tracking-param keys we recognize. Empty value = broken attribution.
+        // May 17 re-audit additions: clickref (CJ), sub_id (Awin/Travelpayouts).
         const TRACKING_KEYS = [
           "ref",
           "partner_id",
@@ -2189,6 +2190,8 @@ Constraints:
           "aff",
           "affid",
           "subid",
+          "sub_id",
+          "clickref",
           "utm_source",
           "marker",
         ];
@@ -2259,10 +2262,13 @@ Constraints:
           // don't accidentally strip editorial links to BBC/Time Out/etc.
           const PARTNER_HOSTS = new RegExp(
             // Affiliate partner domains where empty tracking = leakage
+            // May 17 re-audit: added halalbooking (direct link no tracking),
+            // universe.com + eticketing.co.uk (sponsored rel only, no aff ID).
             "(booking\\.com|expedia\\.com|hotels\\.com|agoda\\.com|getyourguide\\.com|" +
               "viator\\.com|thefork\\.|opentable\\.|tripadvisor\\.|stubhub\\.|" +
               "blacklane\\.com|welcomepickups\\.com|tiqets\\.com|ticketnetwork\\.com|" +
-              "klook\\.com|skyscanner\\.|sportsevents365\\.com)",
+              "klook\\.com|skyscanner\\.|sportsevents365\\.com|halalbooking\\.com|" +
+              "universe\\.com|eticketing\\.co\\.uk)",
             "i",
           );
           const DIRECT_LINK_RE = /<a\b[^>]*\bhref="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -2300,6 +2306,9 @@ Constraints:
               { content_en: { contains: "expedia.com" } },
               { content_en: { contains: "getyourguide.com" } },
               { content_en: { contains: "tripadvisor." } },
+              { content_en: { contains: "halalbooking.com" } },
+              { content_en: { contains: "universe.com" } },
+              { content_en: { contains: "eticketing.co.uk" } },
             ],
           },
           select: { id: true, slug: true, content_en: true, content_ar: true },
@@ -2366,6 +2375,289 @@ Constraints:
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`empty-param-affiliate-strip: ${msg}`);
       console.warn("[content-auto-fix:s26] Section 26 failed:", msg);
+    }
+  }
+
+  // ── Section 27: Raw pipe-table backfill (May 17 2026 re-audit) ────────────
+  // Some older published articles ship pipe-table syntax raw: "| col | col |"
+  // sequences inside <p> tags that never got converted to <table> by the assembly
+  // phase. BlogPostClient now also unwraps them at render, but DB cleanup means
+  // canonical content is always semantic HTML — better for AI search ingestion,
+  // schema.org extraction, and copy-to-clipboard UX.
+  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
+    try {
+      const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
+        "@/lib/markdown/pipe-tables"
+      );
+      const PIPE_CAP = 20;
+      const candidates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          // Pre-filter: look for table separator rows (|---| or | --- |)
+          OR: [
+            { content_en: { contains: "|---" } },
+            { content_en: { contains: "| ---" } },
+            { content_ar: { contains: "|---" } },
+            { content_ar: { contains: "| ---" } },
+          ],
+        },
+        select: { id: true, slug: true, content_en: true, content_ar: true },
+        orderBy: { updated_at: "asc" },
+        take: PIPE_CAP,
+      });
+
+      let pipeFixed = 0;
+      for (const post of candidates) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+        const enUnwrapped = unwrapPipeParagraphs(post.content_en || "");
+        const arUnwrapped = unwrapPipeParagraphs(post.content_ar || "");
+        const needEn = hasPipeTable(enUnwrapped);
+        const needAr = hasPipeTable(arUnwrapped);
+        if (!needEn && !needAr) continue;
+
+        try {
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const curEn = unwrapPipeParagraphs((current.content_en as string) || "");
+              const curAr = unwrapPipeParagraphs((current.content_ar as string) || "");
+              const fixEn = hasPipeTable(curEn);
+              const fixAr = hasPipeTable(curAr);
+              if (!fixEn && !fixAr) return null;
+              const updates: Record<string, unknown> = {};
+              if (fixEn) updates.content_en = convertPipeTables(curEn);
+              if (fixAr) updates.content_ar = convertPipeTables(curAr);
+              updates.enhancement_log = buildEnhancementLogEntry(
+                current.enhancement_log,
+                "markdown_tables",
+                "content-auto-fix",
+                `Converted ${(fixEn ? 1 : 0) + (fixAr ? 1 : 0)} raw pipe-table block(s) to <table>`,
+              );
+              return updates;
+            },
+            { tag: "[content-auto-fix:section-27]" },
+          );
+          pipeFixed++;
+          console.log(`[content-auto-fix:s27] ${post.slug}: pipe table → <table>`);
+        } catch (err) {
+          console.warn(
+            `[content-auto-fix:s27] ${post.slug} update failed:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
+      (results as Record<string, unknown>).pipeTablesConverted = pipeFixed;
+      if (pipeFixed > 0) {
+        console.log(`[content-auto-fix:s27] Converted pipe tables in ${pipeFixed} article(s)`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`pipe-tables-backfill: ${msg}`);
+      console.warn("[content-auto-fix:s27] Section 27 failed:", msg);
+    }
+  }
+
+  // ── Section 28: Bracket placeholder body cleanup ──────────────────────────
+  // May 17 re-audit: "high hotel prices with [x] unexpected add-on costs" leaked
+  // to AR hero. Title-level placeholders are blocked by pre-pub gate Check 17,
+  // but body-level placeholders only warn (auto-fix sweeps them post-hoc).
+  // sanitizeContentBody now strips BRACKET_PLACEHOLDER as well — re-run on existing rows.
+  if (Date.now() - cronStart < BUDGET_MS - 10_000) {
+    try {
+      const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+      const PLACEHOLDER_CAP = 30;
+      const candidates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          OR: [
+            { content_en: { contains: "[x]" } },
+            { content_ar: { contains: "[x]" } },
+            { content_en: { contains: "[TBD]" } },
+            { content_ar: { contains: "[TBD]" } },
+            { content_en: { contains: "[insert" } },
+            { content_en: { contains: "[placeholder" } },
+            { content_en: { contains: "[TODO]" } },
+          ],
+        },
+        select: { id: true, slug: true, content_en: true, content_ar: true },
+        orderBy: { updated_at: "asc" },
+        take: PLACEHOLDER_CAP,
+      });
+
+      let placeholdersStripped = 0;
+      for (const post of candidates) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+
+        try {
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const curEn = (current.content_en as string) || "";
+              const curAr = (current.content_ar as string) || "";
+              const newEn = sanitizeContentBody(curEn);
+              const newAr = sanitizeContentBody(curAr);
+              if (newEn === curEn && newAr === curAr) return null;
+              const updates: Record<string, unknown> = {};
+              if (newEn !== curEn) updates.content_en = newEn;
+              if (newAr !== curAr) updates.content_ar = newAr;
+              updates.enhancement_log = buildEnhancementLogEntry(
+                current.enhancement_log,
+                "bracket_placeholders",
+                "content-auto-fix",
+                "Stripped unfilled bracket placeholder(s) from article body",
+              );
+              return updates;
+            },
+            { tag: "[content-auto-fix:section-28]" },
+          );
+          placeholdersStripped++;
+          console.log(`[content-auto-fix:s28] ${post.slug}: stripped bracket placeholders`);
+        } catch (err) {
+          console.warn(
+            `[content-auto-fix:s28] ${post.slug} update failed:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
+      (results as Record<string, unknown>).bracketPlaceholdersStripped = placeholdersStripped;
+      if (placeholdersStripped > 0) {
+        console.log(
+          `[content-auto-fix:s28] Stripped placeholders from ${placeholdersStripped} article(s)`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`bracket-placeholder-cleanup: ${msg}`);
+      console.warn("[content-auto-fix:s28] Section 28 failed:", msg);
+    }
+  }
+
+  // ── Section 29: Mojibake repair (BlogPost + Event) ────────────────────────
+  // May 17 re-audit: "Willie Colã³N" on /events. UTF-8 double-encoding from
+  // upstream ingestion (Ticketmaster, news feeds). repairMojibake() is safe-by-
+  // default — only rewrites when decode produces valid Latin/Arabic AND removes
+  // the mojibake markers. If validation fails, the original string is preserved.
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const { repairRecord } = await import("@/lib/utils/mojibake");
+      const MOJI_BLOG_CAP = 30;
+      const MOJI_EVENT_CAP = 30;
+      let blogRepaired = 0;
+      let eventRepaired = 0;
+
+      // BlogPost title fields (content body is usually safe — mojibake mostly appears in
+      // shorter fields that pass through ingest scripts without normalization).
+      const blogCandidates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          OR: [
+            { title_en: { contains: "Ã" } },
+            { title_ar: { contains: "Ã" } },
+            { title_en: { contains: "â€" } },
+          ],
+        },
+        select: { id: true, slug: true, title_en: true, title_ar: true },
+        orderBy: { updated_at: "asc" },
+        take: MOJI_BLOG_CAP,
+      });
+
+      for (const post of blogCandidates) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        const diff = repairRecord(post, ["title_en", "title_ar"]);
+        if (!diff) continue;
+        try {
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => {
+              const updates = repairRecord(
+                {
+                  title_en: (current.title_en as string) || null,
+                  title_ar: (current.title_ar as string) || null,
+                },
+                ["title_en", "title_ar"],
+              );
+              if (!updates) return null;
+              return {
+                ...updates,
+                enhancement_log: buildEnhancementLogEntry(
+                  current.enhancement_log,
+                  "mojibake_repair",
+                  "content-auto-fix",
+                  "Repaired UTF-8 double-encoded characters in title",
+                ),
+              };
+            },
+            { tag: "[content-auto-fix:section-29]" },
+          );
+          blogRepaired++;
+          console.log(`[content-auto-fix:s29] ${post.slug}: mojibake repaired in title`);
+        } catch (err) {
+          console.warn(
+            `[content-auto-fix:s29] ${post.slug} update failed:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
+      // Event records (title + venue + descriptions)
+      if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+        const eventCandidates = await prisma.event.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            OR: [
+              { title_en: { contains: "Ã" } },
+              { title_ar: { contains: "Ã" } },
+              { venue: { contains: "Ã" } },
+              { title_en: { contains: "â€" } },
+              { venue: { contains: "â€" } },
+            ],
+          },
+          select: { id: true, title_en: true, title_ar: true, venue: true, description_en: true, description_ar: true },
+          take: MOJI_EVENT_CAP,
+        });
+
+        for (const ev of eventCandidates) {
+          if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
+          const diff = repairRecord(ev as Record<string, string | null | undefined>, [
+            "title_en",
+            "title_ar",
+            "venue",
+            "description_en",
+            "description_ar",
+          ]);
+          if (!diff) continue;
+          try {
+            await prisma.event.update({
+              where: { id: ev.id },
+              data: diff as Record<string, string>,
+            });
+            eventRepaired++;
+          } catch (err) {
+            console.warn(
+              `[content-auto-fix:s29] event ${ev.id} update failed:`,
+              err instanceof Error ? err.message : err,
+            );
+          }
+        }
+      }
+
+      (results as Record<string, unknown>).mojibakeRepaired = blogRepaired + eventRepaired;
+      if (blogRepaired + eventRepaired > 0) {
+        console.log(
+          `[content-auto-fix:s29] Repaired ${blogRepaired} blog + ${eventRepaired} event mojibake records`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`mojibake-repair: ${msg}`);
+      console.warn("[content-auto-fix:s29] Section 29 failed:", msg);
     }
   }
 

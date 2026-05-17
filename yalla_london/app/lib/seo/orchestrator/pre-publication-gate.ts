@@ -127,6 +127,62 @@ export async function runPrePublicationGate(
     warnings.push(artifactCheck.message);
   }
 
+  // ── Check 17: Bracket placeholder leak (May 17 2026 re-audit) ────────
+  // AI sometimes leaves unfilled bracket placeholders like [x], [TBD], [insert hotel name].
+  // Title-level placeholders are publication blockers (visible in SERP, huge UX harm).
+  // Body-level placeholders warn (content-auto-fix Section 28 strips them post-hoc).
+  const { hasBracketPlaceholder } = await import(
+    "@/lib/content-pipeline/title-sanitizer"
+  );
+  const placeholderFields: Array<
+    [string, string | null | undefined, "blocker" | "warning"]
+  > = [
+    ["title_en", content.title_en, "blocker"],
+    ["title_ar", content.title_ar, "blocker"],
+    ["meta_description_en", content.meta_description_en, "warning"],
+    ["content_en", content.content_en, "warning"],
+    ["content_ar", content.content_ar, "warning"],
+  ];
+  for (const [name, value, severity] of placeholderFields) {
+    if (value && hasBracketPlaceholder(value)) {
+      const placeholderCheck: GateCheck = {
+        name: "Placeholder Leak",
+        passed: false,
+        message: `Field ${name} contains unfilled bracket placeholder (e.g. [x], [TBD], [insert ...])`,
+        severity,
+      };
+      checks.push(placeholderCheck);
+      if (severity === "blocker") {
+        blockers.push(placeholderCheck.message);
+      } else {
+        warnings.push(placeholderCheck.message);
+      }
+      break; // one notice is enough per article
+    }
+  }
+
+  // ── Check 18: Arabic language coherence ──────────────────────────────
+  // Drafts marked locale=ar with content_ar must be majority Arabic script.
+  // Catches "Arabic" content that's actually 50%+ English (broken translation,
+  // raw English with token-substitution failures). Threshold 0.6 tolerates
+  // place names ("Mayfair", hotel names) up to 40% Latin.
+  if (content.locale === "ar" && content.content_ar) {
+    const stripped = content.content_ar.replace(/<[^>]+>/g, "").replace(/\s+/g, "");
+    const arabicChars = (stripped.match(/[؀-ۿ]/g) || []).length;
+    const totalChars = stripped.length || 1;
+    const arabicRatio = arabicChars / totalChars;
+    if (arabicRatio < 0.6) {
+      const arCoherenceCheck: GateCheck = {
+        name: "Arabic Language Ratio",
+        passed: false,
+        message: `Arabic content is only ${(arabicRatio * 100).toFixed(0)}% Arabic script (need 60%+) — English contamination detected`,
+        severity: "blocker",
+      };
+      checks.push(arCoherenceCheck);
+      blockers.push(arCoherenceCheck.message);
+    }
+  }
+
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)
   // Skipped during bulk audits (skipRouteCheck) to avoid slow HTTP calls

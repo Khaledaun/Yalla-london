@@ -43,14 +43,34 @@ export async function GET(request: NextRequest) {
       if (tmEvents.length > 0) {
         const { prisma } = await import("@/lib/db");
 
+        // May 17 2026 re-audit: normalize incoming text BEFORE insert to prevent
+        // mojibake ("Willie Colã³N") and trim whitespace. Also dedup by composite
+        // (title+venue+date) — Ticketmaster sometimes emits the same physical event
+        // under different IDs per category, causing the "Twist Museum 7×" bug.
+        const { repairMojibake } = await import("@/lib/utils/mojibake");
+        const normalize = (s: string | null | undefined): string =>
+          repairMojibake(s || "").normalize("NFC").trim();
+
         for (const tm of tmEvents.slice(0, 15)) {
           if (Date.now() - startTime > BUDGET_MS) break;
 
           try {
-            // Check if we already have this Ticketmaster event
-            const existing = await prisma.event.findFirst({
+            const cleanName = normalize(tm.name);
+            const cleanVenue = normalize(tm.venue);
+            const cleanCity = normalize(tm.city);
+            const eventDate = new Date(tm.date + "T00:00:00Z");
+
+            // Check 1: existing by Ticketmaster ID
+            let existing = await prisma.event.findFirst({
               where: { affiliateTag: `tm-${tm.id}`, siteId },
             });
+
+            // Check 2: existing by composite (title+venue+date) — catches duplicate IDs
+            if (!existing) {
+              existing = await prisma.event.findFirst({
+                where: { siteId, title_en: cleanName, venue: cleanVenue, date: eventDate },
+              });
+            }
 
             if (existing) {
               // Update price/image if changed
@@ -71,13 +91,13 @@ export async function GET(request: NextRequest) {
 
             await prisma.event.create({
               data: {
-                title_en: tm.name,
-                title_ar: tm.name, // TODO: AI translate
-                description_en: `${tm.name} at ${tm.venue}, ${tm.city}. ${tm.category} event.`,
-                description_ar: `${tm.name} في ${tm.venue}. فعالية ${tm.category}.`,
-                date: new Date(tm.date + "T00:00:00Z"),
+                title_en: cleanName,
+                title_ar: cleanName, // TODO: AI translate
+                description_en: `${cleanName} at ${cleanVenue}, ${cleanCity}. ${tm.category} event.`,
+                description_ar: `${cleanName} في ${cleanVenue}. فعالية ${tm.category}.`,
+                date: eventDate,
                 time: tm.time || "19:00",
-                venue: tm.venue,
+                venue: cleanVenue,
                 category: mapCategory(tm.segment || tm.category),
                 price: formatEventPrice(tm),
                 image: tm.imageUrl || null,

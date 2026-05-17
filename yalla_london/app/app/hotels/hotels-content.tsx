@@ -630,7 +630,18 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
   const selectedAreaKey = t.areas.indexOf(selectedArea) > 0 ? areaKeys[t.areas.indexOf(selectedArea) - 1] : null;
 
   const filteredHotels = hotels[locale].filter((hotel) => {
-    const matchesSearch = !searchQuery || hotel.name.toLowerCase().includes(searchQuery.toLowerCase());
+    // May 17 audit: placeholder promises "name, area, or amenity" — old filter
+    // only matched name. Widened to match name + location + area + badge +
+    // amenities list so the input fulfills its own UX promise.
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      hotel.name.toLowerCase().includes(q) ||
+      (hotel.location && hotel.location.toLowerCase().includes(q)) ||
+      (hotel.area && hotel.area.toLowerCase().includes(q)) ||
+      (hotel.badge && hotel.badge.toLowerCase().includes(q)) ||
+      (Array.isArray(hotel.amenities) &&
+        hotel.amenities.some((a: string) => a.toLowerCase().includes(q)));
     const matchesArea = !selectedAreaKey || hotel.area === selectedAreaKey;
     return matchesSearch && matchesArea;
   });

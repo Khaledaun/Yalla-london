@@ -5815,3 +5815,32 @@ Markdown files created by Stop hook: `YYYY-MM-DD_HH-MM.md` with session ID, bran
 182. **The Jaccard duplicate threshold for TOPIC GENERATION is 0.7; for CONTENT-SELECTOR PUBLISHING it's 0.85.** Asymmetry is intentional: strict on entry (don't generate near-duplicates), lenient on exit (don't block legitimate topical depth from publishing). Once entry gates work, the publish-side threshold can stay loose.
 
 183. **Tier targets for new domains in sandbox period:** focus on PUBLISH FEWER articles at GOLD tier minimum (1800w, 5 internal, 3 inbound, named author + bio, AIO opener, 3 stats, 3 first-hand markers, structured data). After sandbox release (3-6 months), raise floor to PLATINUM for high-commercial-intent keywords (comparison, deep-dive). The pipeline publishes at the FLOOR for its content type (`TIER_FOR_TYPE[contentType]`); it does NOT need to meet the highest tier.
+
+### Session: May 17, 2026 — Affiliate + UI Audit Fix Sprint (3 commits, 24/24 new smoke tests pass)
+
+**Context:** Live validation report identified 5 persistent bugs + 2 new bugs in production despite earlier affiliate-stack fix (PR #796). Two-phase fix sprint on `claude/review-pr-fix-plan-qdFlQ`:
+
+**Phase 1** (`190eeca` + `e22980b`):
+- Pipeline upstream: title-sanitizer extensions (TRAILING_PUNCTUATION, VERSION_SUFFIX, BRACKET_PLACEHOLDER), pre-pub Checks 17+18, shared `lib/markdown/pipe-tables.ts`, AI prompt hygiene clause appended to 11 prompts, partner-detector additions (universe, eticketing, ticketmaster), `lib/utils/mojibake.ts` repair utility
+- Backfill crons: content-auto-fix Sections 27 (pipe tables) + 28 (bracket placeholders body) + 29 (mojibake repair); content-auto-fix-lite Sections 18 (title resanitization) + 19 (event dedup); events-sync ingest dedup + mojibake repair
+- UI: yalla-homepage strict AR eligibility filter; `/api/events` query-time dedup; `/hotels` Unsplash deterministic photo fallback
+- 18 new `Audit-May17-Regression` smoke tests
+
+**Phase 2** (this commit — closes the 4 honest gaps identified in Phase 1 post-audit):
+1. **Section 26 widened**: split `REAL_AFFILIATE_KEYS` from `TRACKING_KEYS` so `utm_source` is no longer treated as valid attribution. New `hasNoRealAffiliateKey(url, PARTNER_HOSTS)` helper strips partner URLs that carry NO real affiliate key (catches `booking.com/searchresults` without `aid`, TripAdvisor utm-only, halalbooking direct, universe.com, eticketing.co.uk). Both Pass 1 (tracked-redirect) and Pass 2 (direct link) now use `hasEmptyTrackingParam(url) || hasNoRealAffiliateKey(url, PARTNER_HOSTS)`.
+2. **Section 16b SQL extended**: catches Latin-contaminated `title_ar` (`title_ar !~ '[؀-ۿ]'`) and bracket-placeholder leaks (`title_ar ~ '\[(x|X|TBD|TODO|placeholder|insert)'`) — fixes Bug F at the data layer, not just display layer.
+3. **`/hotels` search widened** from `hotel.name` only to `name + location + area + badge + amenities[]` — fulfills the placeholder promise "Search by name, area, or amenity".
+4. **`/events` search widened** to `title.en + title.ar + venue + category + ticketProvider` — cross-language match + category filter.
+6 new smoke tests pin each gap fix. Total: 24/24 Audit-May17-Regression pass, 238/251 overall (94.8%).
+
+### Critical Rules Learned (May 17 Session)
+
+184. **`utm_source` is NOT a real affiliate ID for any major partner network.** TripAdvisor pays via Awin (`awc=` / `clickref=`). Expedia pays via CJ (`cjevent=`) or direct Button.io. Booking.com requires `aid=` populated. Empty `utm_source` is broken; populated `utm_source` is *also* broken because the partner network doesn't recognize it. Section 26 must split `REAL_AFFILIATE_KEYS` from utm tags so `hasNoRealAffiliateKey()` strips utm-only links from partner hosts.
+
+185. **Hiding broken Arabic content from the homepage is NOT the same as fixing it.** A strict eligibility filter on `yalla-homepage.tsx` removes English-titled articles from the AR hero, but the underlying article still renders English on its `/blog/[slug]` page in AR locale. The full fix requires Section 16b to AI-translate `title_ar` + `meta_*_ar` for articles that fail the eligibility check. Always pair a display-layer filter with a data-layer backfill cron.
+
+186. **Section 26 partner URL stripping must check TWO conditions, not one.** Phase 1 only stripped when a tracking key was *present but empty* (`?aid=`). Phase 2 added stripping when the URL is on a known partner host AND has *no real affiliate key at all* (either truly absent OR only carries utm-* tags). Both passes (Pass 1 tracked-redirect, Pass 2 direct partner link) must use the OR of both predicates: `hasEmptyTrackingParam(url) || hasNoRealAffiliateKey(url, PARTNER_HOSTS)`.
+
+187. **Search input placeholders are a promise — the filter must honour what the placeholder says.** "Search by name, area, or amenity" requires the JS filter to match against name + area + amenity. Matching only name is a misleading-UI bug even when the input fires correctly. Audit search inputs by reading the placeholder text and verifying every term it names is in the filter predicate.
+
+188. **PostgreSQL POSIX regex `~` and `!~` operate on Unicode classes inside character ranges.** `title_ar ~ '\[(x|X|TBD)'` matches bracket-placeholder leaks; `title_ar !~ '[؀-ۿ]'` matches strings with no Arabic chars. Use these in raw SQL when Prisma's `findMany` filter API can't express the regex you need. Double-escape backslashes (`'\\['`) when wrapping in JS template literals for `$queryRawUnsafe`.

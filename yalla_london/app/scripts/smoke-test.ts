@@ -2500,6 +2500,62 @@ test("Audit-May17-Regression", "partner-detector registers universe + eticketing
     : { status: FAIL, details: "Missing universe/eticketing — clicks unattributed" };
 });
 
+// ─── May 17 round-2 follow-up tests (gap fixes) ────────────────────────────
+// First-round Section 26 only stripped URLs with EMPTY tracking keys. Audit
+// caller-back identified 6 cases where the URL has NO tracking key at all
+// (booking.com/searchresults; utm-only TripAdvisor; halalbooking direct).
+// These tests pin the wider hasNoRealAffiliateKey check.
+
+test("Audit-May17-Regression", "Section 26 splits REAL_AFFILIATE_KEYS from utm-only", () => {
+  return fileContains("app/api/cron/content-auto-fix/route.ts", "REAL_AFFILIATE_KEYS")
+    ? { status: PASS, details: "Real affiliate keys distinguished from utm campaign tags" }
+    : { status: FAIL, details: "utm-only TripAdvisor/Expedia URLs won't get stripped" };
+});
+
+test("Audit-May17-Regression", "Section 26 has hasNoRealAffiliateKey helper", () => {
+  return fileContains("app/api/cron/content-auto-fix/route.ts", "hasNoRealAffiliateKey")
+    ? { status: PASS, details: "Partner URLs without real affiliate key get stripped" }
+    : { status: FAIL, details: "booking.com no-aid URLs + halalbooking direct links won't strip" };
+});
+
+test("Audit-May17-Regression", "Section 16b extension catches Latin-contaminated title_ar", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"),
+    "utf-8",
+  );
+  return content.includes("title_ar !~ '[\\\\u0600-\\\\u06FF]'") ||
+    content.includes("title_ar !~ '[\\u0600-\\u06FF]'")
+    ? { status: PASS, details: "Section 16b SQL catches no-Arabic-char title_ar" }
+    : { status: FAIL, details: "Latin-only title_ar won't be re-translated" };
+});
+
+test("Audit-May17-Regression", "Section 16b extension catches bracket-placeholder title_ar", () => {
+  return fileContains(
+    "app/api/cron/content-auto-fix/route.ts",
+    "title_ar ~ '\\\\[(x|X|TBD|TODO|placeholder|insert)'",
+  )
+    ? { status: PASS, details: "Section 16b SQL catches [x]/[TBD] in title_ar" }
+    : { status: FAIL, details: "Placeholder-leak title_ar won't be re-translated" };
+});
+
+test("Audit-May17-Regression", "/hotels search matches name + location + amenities", () => {
+  return fileContains("app/hotels/hotels-content.tsx", "hotel.amenities")
+    ? { status: PASS, details: "Search widened to match placeholder promise (name, area, amenity)" }
+    : { status: FAIL, details: "Search only matches name despite 'name, area, or amenity' placeholder" };
+});
+
+test("Audit-May17-Regression", "/events search matches title + venue + category", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/events/events-content.tsx"),
+    "utf-8",
+  );
+  return content.includes("event.category.toLowerCase().includes(q)") &&
+    content.includes("event.title.en") &&
+    content.includes("event.title.ar")
+    ? { status: PASS, details: "Search widened to title (both langs) + venue + category + provider" }
+    : { status: FAIL, details: "/events search missing category or cross-language match" };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map((r) => r.category))];
 let totalPass = 0,

@@ -249,13 +249,33 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
     return html;
   };
 
+  // Wrap restaurant/venue fact patterns (Cuisine: X, Location: Y, Price: Z,
+  // Halal: Cert) as styled pills. Per May 17 audit: restaurant listicles
+  // rendered these as plain inline text — looked like dropped editorial,
+  // unscannable. Lookahead pattern ensures we stop a value at the next
+  // recognized label OR a tag boundary, so we don't swallow neighboring
+  // prose. CSS in globals.css scopes .restaurant-fact / .restaurant-fact__label.
+  const transformRestaurantFacts = (input: string): string => {
+    if (!input) return input;
+    const LABELS = "(?:Cuisine|Location|Address|Price|Halal|Reservation|Booking|Dress\\s+code)";
+    const re = new RegExp(`\\b(${LABELS})\\s*[:|—-]\\s*([^\\n<]{2,80}?)(?=\\s+${LABELS}\\s*[:|—-]|<|$)`, "g");
+    return input.replace(re, (_full, label: string, value: string) => {
+      const safeLabel = label.replace(/\s+/g, " ");
+      const safeValue = value.trim();
+      if (!safeValue) return _full;
+      return `<span class="restaurant-fact"><span class="restaurant-fact__label">${safeLabel}</span> ${safeValue}</span>`;
+    });
+  };
+
   const rawContentMd = markdownToHtml(rawContentPreH1);
-  const rawContent = rawContentMd
-    .replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>")
-    .replace(/<\/h1>/gi, "</h2>")
-    // [IMAGE: query] tokens are replaced server-side in page.tsx transformForClient()
-    // with <figure> elements. This strip is kept as a safety net for any that slip through.
-    .replace(/\[IMAGE:[^\]]*\]/gi, "");
+  const rawContent = transformRestaurantFacts(
+    rawContentMd
+      .replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>")
+      .replace(/<\/h1>/gi, "</h2>")
+      // [IMAGE: query] tokens are replaced server-side in page.tsx transformForClient()
+      // with <figure> elements. This strip is kept as a safety net for any that slip through.
+      .replace(/\[IMAGE:[^\]]*\]/gi, ""),
+  );
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent));
   useEffect(() => {
     if (!rawContent) return undefined;

@@ -56,7 +56,21 @@ export interface MondayActionReport {
 
 const TITLE_BACKLOG_SCAN_LIMIT = 500;
 const HERO_CTA_LOOKBACK_DAYS = 7;
-const SITEMAP_REQUIRED_PATHS = ["/hotels", "/experiences", "/recommendations", "/destinations", "/itineraries"];
+
+/**
+ * Per-site high-value paths that MUST be in the sitemap. Yacht-charter
+ * paths (/destinations, /itineraries) are intentionally excluded from
+ * blog sites — they would render a "Coming Soon" empty state (soft 404)
+ * if listed (see app/sitemap.ts:112-114 comment).
+ */
+const SITEMAP_REQUIRED_PATHS_BY_SITE: Record<string, string[]> = {
+  "yalla-london": ["/hotels", "/experiences", "/recommendations", "/halal-restaurants-london", "/london-with-kids"],
+  "zenitha-yachts-med": ["/destinations", "/itineraries", "/yachts", "/inquiry", "/charter-planner"],
+  arabaldives: ["/hotels", "/experiences"],
+  "french-riviera": ["/hotels", "/experiences"],
+  istanbul: ["/hotels", "/experiences"],
+  thailand: ["/hotels", "/experiences"],
+};
 
 /**
  * Gather all 4 carryover action items for a given site.
@@ -180,27 +194,40 @@ export async function getMondayActionItems(siteId: string): Promise<MondayAction
   }
 
   // ── 4. Sitemap completeness for high-value static pages ───────────────
+  // Reads the sitemap cache DIRECTLY instead of HTTP-fetching the live URL.
+  // The HTTP approach failed in production because Vercel serverless
+  // functions hitting their own domain can timeout (self-fetch through the
+  // edge network adds latency + can deadlock the request pool).
+  // The cache is updated by content-auto-fix-lite Section 8 every 4h so
+  // it's always fresh enough for a weekly audit.
   try {
-    const { getSiteDomain } = await import("@/config/sites");
-    const baseUrl = `https://www.${getSiteDomain(siteId)}`;
-    const res = await fetch(`${baseUrl}/sitemap.xml`, {
-      headers: { "User-Agent": "yalla-london-monday-audit/1.0" },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) {
+    const required = SITEMAP_REQUIRED_PATHS_BY_SITE[siteId] || ["/hotels", "/experiences"];
+    const { getCachedSitemap } = await import("@/lib/sitemap-cache");
+    const cached = await getCachedSitemap(siteId);
+
+    if (!cached || cached.entries.length === 0) {
       items.push({
         id: "sitemap-completeness",
         category: "code_change_needed",
         severity: "warning",
-        title: `Sitemap unreachable — HTTP ${res.status}`,
-        description: `Could not fetch /sitemap.xml. This may be a transient deploy issue.`,
-        actionUrl: `${baseUrl}/sitemap.xml`,
+        title: "Sitemap cache empty",
+        description:
+          "No cached sitemap found for this site. The cache is refreshed every 4h by content-auto-fix-lite. " +
+          "If this persists, the cache regeneration cron may be failing.",
+        actionUrl: `/admin/cockpit/crons`,
       });
     } else {
-      const xml = await res.text();
-      const missing = SITEMAP_REQUIRED_PATHS.filter(
-        (p) => !xml.includes(`${baseUrl}${p}`) && !xml.includes(`>${baseUrl}${p}<`),
-      );
+      // Build a Set of path-only URLs from the cache (strip domain) for cheap lookup.
+      const sitemapPaths = new Set<string>();
+      for (const entry of cached.entries) {
+        try {
+          const u = new URL(entry.url);
+          sitemapPaths.add(u.pathname.replace(/\/$/, "") || "/");
+        } catch {
+          /* malformed URL — skip */
+        }
+      }
+      const missing = required.filter((p) => !sitemapPaths.has(p));
       if (missing.length > 0) {
         items.push({
           id: "sitemap-completeness",
@@ -208,9 +235,9 @@ export async function getMondayActionItems(siteId: string): Promise<MondayAction
           severity: missing.length >= 3 ? "warning" : "info",
           title: `Sitemap missing ${missing.length} high-value page(s)`,
           description:
-            `These priority-0.9 pages are not in the sitemap: ${missing.join(", ")}. ` +
-            `Google can't crawl pages it doesn't know about. Fix requires adding entries to app/sitemap.ts ` +
-            `(or DB-backed sitemap source). This is a code change — surface to next dev session.`,
+            `These high-priority pages are not in the sitemap: ${missing.join(", ")}. ` +
+            `Google can't crawl pages it doesn't know about. Fix requires adding entries to ` +
+            `app/sitemap.ts (or DB-backed sitemap source). This is a code change — surface to next dev session.`,
           actionUrl: `/admin/cockpit/rescue-plan?siteId=${encodeURIComponent(siteId)}`,
           metric: { label: "missing", value: missing.length },
         });
@@ -222,7 +249,7 @@ export async function getMondayActionItems(siteId: string): Promise<MondayAction
       category: "code_change_needed",
       severity: "info",
       title: "Sitemap check failed",
-      description: `Could not check sitemap: ${err instanceof Error ? err.message : String(err)}`,
+      description: `Could not check sitemap cache: ${err instanceof Error ? err.message : String(err)}`,
     });
   }
 

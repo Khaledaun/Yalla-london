@@ -16,6 +16,7 @@ import {
   Breadcrumbs,
 } from "@/components/brand-kit";
 import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
+import TopCategoryCta from "@/components/affiliate/TopCategoryCta";
 
 const hotels = {
   en: [
@@ -653,6 +654,11 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
             ? "تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك."
             : "This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you."}
         </p>
+      </div>
+
+      {/* Top affiliate hero — captures above-the-fold intent before users scroll past 15 cards */}
+      <div className="max-w-4xl mx-auto px-7">
+        <TopCategoryCta variant="hotel" locale={locale as "en" | "ar"} pageSlug="hotels" />
       </div>
 
       {/* Editorial Intro Section */}

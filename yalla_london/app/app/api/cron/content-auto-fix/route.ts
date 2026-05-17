@@ -1173,8 +1173,11 @@ async function handleAutoFix(request: NextRequest) {
   // No content_ar work here — Section 16 owns body translation.
   if (Date.now() - cronStart < BUDGET_MS - 15_000) {
     try {
-      // Find articles where title_ar IS the English title (or empty). We can't
-      // use a column-to-column comparison in Prisma, so raw SQL.
+      // Find articles where title_ar is missing, English-contaminated, or has
+      // bracket-placeholder leaks (May 17 re-audit found "high hotel prices with
+      // [x]..." on the AR hero card; "Best Halal Afternoon Tea London V2: Ultimate"
+      // also English in title_ar field). PostgreSQL `~` is POSIX regex match.
+      // ؀-ۿ is the Arabic Unicode block.
       const dupeTitlePosts: Array<{
         id: string;
         slug: string;
@@ -1192,6 +1195,10 @@ async function handleAutoFix(request: NextRequest) {
             AND (
                   title_ar = '' OR title_ar IS NULL
                   OR title_ar = title_en
+                  -- Bracket placeholder leak in title_ar (e.g. "[x]", "[TBD]")
+                  OR title_ar ~ '\\[(x|X|TBD|TODO|placeholder|insert)'
+                  -- No Arabic script characters at all = Latin contamination
+                  OR title_ar !~ '[\\u0600-\\u06FF]'
                 )
           ORDER BY created_at DESC
           LIMIT 12`,
@@ -2178,9 +2185,12 @@ Constraints:
       if (!isEnhancementOwner("content-auto-fix", "affiliate_links")) {
         console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_links");
       } else {
-        // Tracking-param keys we recognize. Empty value = broken attribution.
-        // May 17 re-audit additions: clickref (CJ), sub_id (Awin/Travelpayouts).
-        const TRACKING_KEYS = [
+        // Tracking-param keys that produce REAL commission. utm_source / utm_medium
+        // are campaign tags — they tell us "this came from yalla-london" but DO NOT
+        // pay commission on partner networks (TripAdvisor needs Awin, Booking needs
+        // populated aid, Expedia needs cjevent). May 17 audit found 6 inline links
+        // using utm-only tags and producing $0 revenue.
+        const REAL_AFFILIATE_KEYS = [
           "ref",
           "partner_id",
           "pid",
@@ -2192,9 +2202,11 @@ Constraints:
           "subid",
           "sub_id",
           "clickref",
-          "utm_source",
           "marker",
         ];
+        // Kept for backward compat — empty-only check still flags these as broken.
+        // Includes utm_source so old explicit utm-empty cases still strip.
+        const TRACKING_KEYS = [...REAL_AFFILIATE_KEYS, "utm_source"];
 
         // Match <a href="/api/affiliate/click?url=ENCODED[&sid=...]">...</a>
         // The href value may be HTML-attribute-escaped, so the inner & is &amp;
@@ -2217,6 +2229,46 @@ Constraints:
             return true;
           }
         }
+
+        /**
+         * Returns true when a partner URL has NO real affiliate key populated
+         * (either entirely absent OR only carries utm_* tags). May 17 follow-up
+         * audit found 6 inline links in this state — they produce $0 revenue but
+         * the original hasEmptyTrackingParam doesn't catch them because there's
+         * no empty-value key to detect.
+         *
+         * Pass partnerHostsPattern so this only runs against recognized affiliate
+         * partners — editorial links (e.g. theritzlondon.com) shouldn't be stripped.
+         */
+        function hasNoRealAffiliateKey(
+          decodedUrl: string,
+          partnerHostsPattern: RegExp,
+        ): boolean {
+          try {
+            const u = new URL(decodedUrl);
+            if (!partnerHostsPattern.test(u.hostname)) return false;
+            for (const key of REAL_AFFILIATE_KEYS) {
+              const val = (u.searchParams.get(key) || "").trim();
+              if (val !== "") return false; // found a real affiliate key with value
+            }
+            return true; // partner URL with zero real affiliate keys = broken
+          } catch {
+            return false;
+          }
+        }
+
+        // PARTNER_HOSTS hoisted out of stripBrokenAffiliates so hasNoRealAffiliateKey
+        // can reference it. Same regex as before — partner domains where untracked
+        // links == revenue leak. May 17 (round 2) added: halalbooking, universe,
+        // eticketing must be checked even when URL has no tracking params at all.
+        const PARTNER_HOSTS = new RegExp(
+          "(booking\\.com|expedia\\.com|hotels\\.com|agoda\\.com|getyourguide\\.com|" +
+            "viator\\.com|thefork\\.|opentable\\.|tripadvisor\\.|stubhub\\.|" +
+            "blacklane\\.com|welcomepickups\\.com|tiqets\\.com|ticketnetwork\\.com|" +
+            "klook\\.com|skyscanner\\.|sportsevents365\\.com|halalbooking\\.com|" +
+            "universe\\.com|eticketing\\.co\\.uk)",
+          "i",
+        );
 
         function stripBrokenAffiliates(html: string): { html: string; stripped: number } {
           if (!html) return { html, stripped: 0 };
@@ -2243,7 +2295,8 @@ Constraints:
               return full;
             }
 
-            if (hasEmptyTrackingParam(partnerUrl)) {
+            // Strip if EITHER: empty tracking key OR partner URL with no real affiliate key
+            if (hasEmptyTrackingParam(partnerUrl) || hasNoRealAffiliateKey(partnerUrl, PARTNER_HOSTS)) {
               stripped++;
               // Replace the <a>...</a> with just the inner text. Preserves
               // the prose so readers still see the venue/hotel name in context.
@@ -2253,24 +2306,11 @@ Constraints:
             return full;
           });
           // ── Pass 2: DIRECT partner links bypassing the tracker ──
-          // Perplexity re-audit (May 17) caught Booking.com SERP-spam +
-          // empty-aid URLs going direct (not via /api/affiliate/click). Same
-          // pattern for old GetYourGuide partner_id= empties and Expedia
-          // utm_source= "fake affiliate" URLs. Wider regex catches any
-          // <a href="https://(known-partner-domain)..."> with an empty
-          // tracking param. Limited to known partner hostnames so we
-          // don't accidentally strip editorial links to BBC/Time Out/etc.
-          const PARTNER_HOSTS = new RegExp(
-            // Affiliate partner domains where empty tracking = leakage
-            // May 17 re-audit: added halalbooking (direct link no tracking),
-            // universe.com + eticketing.co.uk (sponsored rel only, no aff ID).
-            "(booking\\.com|expedia\\.com|hotels\\.com|agoda\\.com|getyourguide\\.com|" +
-              "viator\\.com|thefork\\.|opentable\\.|tripadvisor\\.|stubhub\\.|" +
-              "blacklane\\.com|welcomepickups\\.com|tiqets\\.com|ticketnetwork\\.com|" +
-              "klook\\.com|skyscanner\\.|sportsevents365\\.com|halalbooking\\.com|" +
-              "universe\\.com|eticketing\\.co\\.uk)",
-            "i",
-          );
+          // Perplexity re-audit (May 17 round 1) caught Booking.com SERP-spam +
+          // empty-aid URLs going direct (not via /api/affiliate/click). May 17
+          // round 2 added cases where the URL has NO tracking param at all
+          // (booking.com/searchresults with no aid; tripadvisor with utm-only;
+          // halalbooking direct link; universe/eticketing no aff ID).
           const DIRECT_LINK_RE = /<a\b[^>]*\bhref="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
           cleaned = cleaned.replace(DIRECT_LINK_RE, (full, hrefAttr: string, inner: string) => {
             // Skip if already routed through our tracker — Pass 1 handled those.
@@ -2279,7 +2319,10 @@ Constraints:
             if (!PARTNER_HOSTS.test(hrefAttr)) return full;
             // Decode &amp; → & for URL parsing
             const normalized = hrefAttr.replace(/&amp;/g, "&");
-            if (!hasEmptyTrackingParam(normalized)) return full;
+            // Strip if EITHER empty key OR no real affiliate key at all (utm-only / no params)
+            if (!hasEmptyTrackingParam(normalized) && !hasNoRealAffiliateKey(normalized, PARTNER_HOSTS)) {
+              return full;
+            }
             stripped++;
             return inner;
           });

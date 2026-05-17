@@ -181,10 +181,18 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
 
   const filteredEvents = upcomingEvents.filter((event) => {
     const matchesCategory = selectedCategory === "All" || event.category === selectedCategory;
+    // May 17 audit: widened from title+venue to title (both langs) + venue +
+    // category + ticket provider. Matches the placeholder "Search events, venues…"
+    // promise more honestly. Cross-language match means typing "halal" finds
+    // both English and Arabic events containing the term.
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      searchQuery === "" ||
-      event.title[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.venue.toLowerCase().includes(searchQuery.toLowerCase());
+      q === "" ||
+      event.title.en?.toLowerCase().includes(q) ||
+      event.title.ar?.toLowerCase().includes(q) ||
+      event.venue.toLowerCase().includes(q) ||
+      event.category.toLowerCase().includes(q) ||
+      (event.ticketProvider || "").toLowerCase().includes(q);
     const matchesVip = !showVipOnly || event.vipAvailable;
     return matchesCategory && matchesSearch && matchesVip;
   });

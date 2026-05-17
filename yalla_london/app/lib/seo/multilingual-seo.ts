@@ -291,12 +291,13 @@ export class MultilingualSeoEngine {
    */
   private generateTitleVariation(originalTitle: string, language: 'en' | 'ar'): string {
     const variations = {
-      en: [' - Complete Guide', ' - Expert Tips', ' - Ultimate Guide', ' - 2024 Edition'],
-      ar: [' - دليل شامل', ' - نصائح الخبراء', ' - الدليل النهائي', ' - إصدار 2024']
+      en: [' - Complete Guide', ' - Expert Tips', ' - Ultimate Guide', ' - 2026 Edition'],
+      ar: [' - دليل شامل', ' - نصائح الخبراء', ' - الدليل النهائي', ' - إصدار 2026']
     };
 
     const suffixes = variations[language];
-    const randomSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const idx = crypto.getRandomValues(new Uint32Array(1))[0] % suffixes.length;
+    const randomSuffix = suffixes[idx];
     
     return originalTitle + randomSuffix;
   }

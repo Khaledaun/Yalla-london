@@ -32,6 +32,7 @@ export function AsyncActionToast({ action, onDismiss, onRetry }: AsyncActionToas
       }, 2000)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [action.status, action.id, onDismiss])
 
   if (!isVisible) return null

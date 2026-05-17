@@ -5,6 +5,7 @@
  * GET  - List all prompt templates
  * POST - Create a new prompt template
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';

@@ -5,7 +5,8 @@
  * Provides prompt template management with versioning, locale support, and usage tracking
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/admin/admin-ui'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -83,6 +84,7 @@ const categoryConfig = {
 }
 
 export default function PromptControlPanel() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -104,13 +106,7 @@ export default function PromptControlPanel() {
   // Check feature availability
   const isFeatureEnabled = isPremiumFeatureEnabled('FEATURE_PROMPT_CONTROL')
 
-  useEffect(() => {
-    if (isFeatureEnabled) {
-      fetchPrompts()
-    }
-  }, [filters, pagination.page, isFeatureEnabled])
-
-  const fetchPrompts = async () => {
+  const fetchPrompts = useCallback(async () => {
     if (!isFeatureEnabled) return
 
     setLoading(true)
@@ -136,7 +132,13 @@ export default function PromptControlPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isFeatureEnabled, pagination.page, pagination.limit, filters])
+
+  useEffect(() => {
+    if (isFeatureEnabled) {
+      fetchPrompts()
+    }
+  }, [fetchPrompts, isFeatureEnabled])
 
   const createPrompt = async (formData: Partial<PromptTemplate>) => {
     if (!isFeatureEnabled) return
@@ -191,7 +193,8 @@ export default function PromptControlPanel() {
   const deletePrompt = async (promptId: string) => {
     if (!isFeatureEnabled) return
 
-    if (!confirm('Are you sure you want to delete this prompt template?')) return
+    const ok = await confirm({ title: 'Delete Prompt Template', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`/api/admin/prompts/${promptId}`, {
@@ -542,6 +545,8 @@ export default function PromptControlPanel() {
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDialog />
     </div>
   )
 }

@@ -3,10 +3,12 @@
  *
  * Track affiliate revenue, partners, and performance.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -16,6 +18,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'all';
     const range = searchParams.get('range') || '30d';
+    const siteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
 
     // Calculate date range
     const days = range === '7d' ? 7 : range === '90d' ? 90 : range === 'year' ? 365 : 30;
@@ -28,19 +31,21 @@ export async function GET(request: NextRequest) {
       orderBy: { created_at: 'desc' },
     });
 
-    // Get clicks for each partner
+    // Get clicks for each partner — scoped by site
     const clicks = await prisma.affiliateClick.groupBy({
       by: ['partner_id'],
       where: {
+        site_id: siteId,
         clicked_at: { gte: startDate },
       },
       _count: true,
     });
 
-    // Get conversions for each partner
+    // Get conversions for each partner — scoped by site
     const conversions = await prisma.conversion.groupBy({
       by: ['partner_id'],
       where: {
+        site_id: siteId,
         converted_at: { gte: startDate },
       },
       _count: true,

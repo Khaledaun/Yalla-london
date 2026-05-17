@@ -132,13 +132,14 @@ export async function GET() {
         Expires: "0",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.warn("[seo/health] Unexpected error:", error instanceof Error ? error.message : error);
     return NextResponse.json(
       {
         ok: false,
-        error: error.message,
+        error: "SEO health check failed",
         timestamp: new Date().toISOString(),
-        reasons: [`Unexpected error: ${error.message}`],
+        reasons: ["Unexpected internal error"],
       },
       {
         status: 500,

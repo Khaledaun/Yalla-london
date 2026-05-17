@@ -18,8 +18,7 @@ function getEncryptionKey(): Buffer {
   const masterKey = process.env.ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET || '';
 
   if (!masterKey) {
-    console.warn('No ENCRYPTION_KEY set, using default (not secure for production)');
-    return crypto.scryptSync('default-key-not-secure', 'salt', 32);
+    throw new Error('ENCRYPTION_KEY (or NEXTAUTH_SECRET) environment variable is required for encryption');
   }
 
   // Derive a 32-byte key from the master key
@@ -33,7 +32,7 @@ export function encrypt(text: string): string {
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
 
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, new Uint8Array(key), new Uint8Array(iv));
 
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -58,8 +57,8 @@ export function decrypt(encryptedText: string): string {
   );
   const encrypted = encryptedText.slice(IV_LENGTH * 2 + TAG_LENGTH * 2);
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
+  const decipher = crypto.createDecipheriv(ALGORITHM, new Uint8Array(key), new Uint8Array(iv));
+  decipher.setAuthTag(new Uint8Array(authTag));
 
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');

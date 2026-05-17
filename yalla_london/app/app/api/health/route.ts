@@ -82,38 +82,25 @@ export async function GET(request: NextRequest) {
 
 /**
  * Check database connectivity
+ *
+ * IMPORTANT: Always uses the Prisma singleton from @/lib/db.
+ * Never create a new PrismaClient here — doing so leaks connections
+ * and exhausts the Supabase PgBouncer pool (MaxClientsInSessionMode).
  */
 async function checkDatabase(): Promise<HealthCheckResult['checks'][0]> {
   const start = Date.now();
 
   try {
-    // Try to import and use the database health check if available
-    try {
-      const { checkDatabaseHealth } = await import('@/lib/database');
-      const dbHealth = await checkDatabaseHealth();
-      const latency = Date.now() - start;
+    const { prisma } = await import('@/lib/db');
+    await prisma.$queryRaw`SELECT 1`;
+    const latency = Date.now() - start;
 
-      return {
-        name: 'database',
-        status: dbHealth.connected ? (latency > 1000 ? 'warn' : 'pass') : 'fail',
-        latency,
-        message: dbHealth.connected ? `Connected (${dbHealth.migrateStatus})` : 'Disconnected',
-      };
-    } catch {
-      // Fallback: try direct Prisma query
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
-      await prisma.$queryRaw`SELECT 1`;
-      await prisma.$disconnect();
-
-      const latency = Date.now() - start;
-      return {
-        name: 'database',
-        status: latency > 1000 ? 'warn' : 'pass',
-        latency,
-        message: latency > 1000 ? 'Slow response' : 'Connected',
-      };
-    }
+    return {
+      name: 'database',
+      status: latency > 1000 ? 'warn' : 'pass',
+      latency,
+      message: latency > 1000 ? 'Slow response' : 'Connected',
+    };
   } catch (error) {
     return {
       name: 'database',

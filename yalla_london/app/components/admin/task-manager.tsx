@@ -323,7 +323,7 @@ export function TaskManager({
                           <div className="flex items-center gap-1">
                             <Avatar className="h-4 w-4">
                               <AvatarImage src={task.assignee.avatar} />
-                              <AvatarFallback className="text-[8px]">
+                              <AvatarFallback className="text-[10px]">
                                 {task.assignee.name.split(' ').map(n => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>

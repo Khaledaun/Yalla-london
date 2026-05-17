@@ -40,10 +40,10 @@ export function markdownToHtml(markdown: string): string {
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
 
   // Convert links [text](url)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-purple-700 hover:text-purple-900 underline">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-london-600 hover:text-london-800 underline">$1</a>');
 
   // Convert horizontal rules (--- or ***)
-  html = html.replace(/^[-*]{3,}$/gm, '<hr class="my-6 border-gray-300">');
+  html = html.replace(/^[-*]{3,}$/gm, '<hr class="my-6 border-sand">');
 
   // Convert unordered lists
   html = convertUnorderedLists(html);
@@ -52,7 +52,7 @@ export function markdownToHtml(markdown: string): string {
   html = convertOrderedLists(html);
 
   // Convert blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-purple-500 pl-4 italic text-gray-700 my-4">$1</blockquote>');
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-london-600 pl-4 italic text-stone my-4">$1</blockquote>');
 
   // Convert line breaks (double newline = paragraph)
   html = html.replace(/\n\n+/g, '</p><p class="mb-4">');
@@ -147,11 +147,11 @@ function convertTableLines(lines: string[]): string {
   for (let i = 0; i < rows.length; i++) {
     const isHeader = headerSeparatorIndex > 0 && i === 0;
     const tag = isHeader ? 'th' : 'td';
-    const bgClass = isHeader ? 'bg-gray-100 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+    const bgClass = isHeader ? 'bg-cream-100 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-cream';
 
     table += '<tr>';
     for (const cell of rows[i]) {
-      table += `<${tag} class="border border-gray-300 px-4 py-2 ${bgClass}">${cell}</${tag}>`;
+      table += `<${tag} class="border border-sand px-4 py-2 ${bgClass}">${cell}</${tag}>`;
     }
     table += '</tr>';
   }

@@ -123,120 +123,7 @@ export function EntityManager() {
     return matchesSearch && matchesType;
   });
 
-  const renderEntityForm = (entity: Partial<Entity>, onSave: (entity: Partial<Entity>) => void) => {
-    const [formData, setFormData] = useState(entity);
-    const [sameAsText, setSameAsText] = useState(entity.sameAs?.join('\n') || '');
-
-    const handleSaveClick = () => {
-      const sameAsArray = sameAsText.split('\n').map(url => url.trim()).filter(Boolean);
-      const entityToSave = {
-        ...formData,
-        sameAs: sameAsArray,
-        identifier: formData.identifier || `#${formData.type?.toLowerCase()}-${Date.now()}`
-      };
-      onSave(entityToSave);
-    };
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {entity.id ? 'Edit Entity' : 'New Entity'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="entity-name">Name</Label>
-              <Input
-                id="entity-name"
-                value={formData.name || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Entity name"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="entity-type">Type</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as Entity['type'] }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Organization">Organization</SelectItem>
-                  <SelectItem value="Person">Person</SelectItem>
-                  <SelectItem value="Place">Place</SelectItem>
-                  <SelectItem value="Product">Product</SelectItem>
-                  <SelectItem value="Event">Event</SelectItem>
-                  <SelectItem value="Article">Article</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="entity-description">Description</Label>
-            <Textarea
-              id="entity-description"
-              value={formData.description || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Brief description of this entity"
-              rows={3}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="entity-url">Main URL</Label>
-              <Input
-                id="entity-url"
-                value={formData.url || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                placeholder="https://example.com"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="entity-identifier">Schema.org @id</Label>
-              <Input
-                id="entity-identifier"
-                value={formData.identifier || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, identifier: e.target.value }))}
-                placeholder="#organization-yalla-london"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="entity-sameas">SameAs URLs (one per line)</Label>
-            <Textarea
-              id="entity-sameas"
-              value={sameAsText}
-              onChange={(e) => setSameAsText(e.target.value)}
-              placeholder={`https://www.instagram.com/yallalondon\nhttps://twitter.com/yallalondon\nhttps://en.wikipedia.org/wiki/London`}
-              rows={4}
-            />
-            <div className="text-sm text-gray-500 mt-1">
-              Add social media profiles, Wikipedia pages, and other authoritative references
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveClick}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Entity
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  // Form rendering is handled by the EntityForm component below
 
   return (
     <div className="space-y-6">
@@ -281,10 +168,11 @@ export function EntityManager() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {renderEntityForm(
-            isEditing === 'new' ? newEntity : entities.find(e => e.id === isEditing) || newEntity,
-            saveEntity
-          )}
+          <EntityForm
+            entity={isEditing === 'new' ? newEntity : entities.find(e => e.id === isEditing) || newEntity}
+            onSave={saveEntity}
+            onCancel={() => setIsEditing(null)}
+          />
         </motion.div>
       )}
 
@@ -399,5 +287,125 @@ export function EntityManager() {
         </div>
       )}
     </div>
+  );
+}
+
+// Extracted as a proper React component so hooks are called unconditionally
+function EntityForm({ entity, onSave, onCancel }: {
+  entity: Partial<Entity>;
+  onSave: (entity: Partial<Entity>) => void;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState(entity);
+  const [sameAsText, setSameAsText] = useState(entity.sameAs?.join('\n') || '');
+
+  const handleSaveClick = () => {
+    const sameAsArray = sameAsText.split('\n').map(url => url.trim()).filter(Boolean);
+    const entityToSave = {
+      ...formData,
+      sameAs: sameAsArray,
+      identifier: formData.identifier || `#${formData.type?.toLowerCase()}-${Date.now()}`
+    };
+    onSave(entityToSave);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          {entity.id ? 'Edit Entity' : 'New Entity'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="entity-name">Name</Label>
+            <Input
+              id="entity-name"
+              value={formData.name || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Entity name"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="entity-type">Type</Label>
+            <Select
+              value={formData.type}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as Entity['type'] }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Organization">Organization</SelectItem>
+                <SelectItem value="Person">Person</SelectItem>
+                <SelectItem value="Place">Place</SelectItem>
+                <SelectItem value="Product">Product</SelectItem>
+                <SelectItem value="Event">Event</SelectItem>
+                <SelectItem value="Article">Article</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="entity-description">Description</Label>
+          <Textarea
+            id="entity-description"
+            value={formData.description || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Brief description of this entity"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="entity-url">Main URL</Label>
+            <Input
+              id="entity-url"
+              value={formData.url || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+              placeholder="https://example.com"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="entity-identifier">Schema.org @id</Label>
+            <Input
+              id="entity-identifier"
+              value={formData.identifier || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, identifier: e.target.value }))}
+              placeholder="#organization-yalla-london"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="entity-sameas">SameAs URLs (one per line)</Label>
+          <Textarea
+            id="entity-sameas"
+            value={sameAsText}
+            onChange={(e) => setSameAsText(e.target.value)}
+            placeholder={`https://www.instagram.com/yallalondon\nhttps://twitter.com/yallalondon\nhttps://en.wikipedia.org/wiki/London`}
+            rows={4}
+          />
+          <div className="text-sm text-gray-500 mt-1">
+            Add social media profiles, Wikipedia pages, and other authoritative references
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSaveClick}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Entity
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

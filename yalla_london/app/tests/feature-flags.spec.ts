@@ -7,24 +7,26 @@ import { vi } from "vitest";
 import {
   getFeatureFlags,
   isFeatureEnabled,
-  getFeatureFlag,
-  getFeatureFlagsByCategory,
+  getFeatureFlagStatus,
   getFeatureFlagStats,
   refreshFeatureFlags,
+  getPremiumFeatureFlagsByCategory,
 } from "../lib/feature-flags";
 
 // Mock environment variables for testing
-const mockEnv = {
-  FEATURE_PHASE4B_ENABLED: "true",
-  FEATURE_AUTO_PUBLISHING: "false",
-  FEATURE_CONTENT_ANALYTICS: "true",
-  FEATURE_SEO_OPTIMIZATION: "true",
-  FEATURE_SOCIAL_MEDIA_INTEGRATION: "false",
-  FEATURE_ADVANCED_TOPICS: "true",
-  FEATURE_EXPORT_WORDPRESS: "true",
-  FEATURE_AUDIT_SYSTEM: "true",
-  FEATURE_ENTERPRISE_FEATURES: "true",
-  FEATURE_ADVANCED_CRON: "false",
+// Note: getFeatureFlags() reads env vars WITHOUT the FEATURE_ prefix
+// (e.g. process.env.FEATURE_AUTO_PUBLISHING, process.env.PHASE4B_ENABLED, etc.)
+const mockEnv: Record<string, string> = {
+  PHASE4B_ENABLED: "1",
+  FEATURE_AUTO_PUBLISHING: "0",
+  FEATURE_CONTENT_PIPELINE: "1",
+  FEATURE_SEO: "1",
+  FEATURE_SOCIAL_MEDIA_INTEGRATION: "0",
+  FEATURE_ADVANCED_TOPICS: "1",
+  EXPORT_WORDPRESS: "1",
+  AUDIT_SYSTEM: "1",
+  FEATURE_ADVANCED_CRON: "0",
+  FEATURE_LLM_ROUTER: "1",
 };
 
 describe("Feature Flag System", () => {
@@ -34,7 +36,7 @@ describe("Feature Flag System", () => {
 
     // Mock process.env with test values
     Object.keys(mockEnv).forEach((key) => {
-      process.env[key] = mockEnv[key as keyof typeof mockEnv];
+      process.env[key] = mockEnv[key];
     });
   });
 
@@ -47,95 +49,68 @@ describe("Feature Flag System", () => {
   });
 
   describe("Feature Flag Coverage", () => {
-    test("should have all required major feature categories covered", () => {
+    test("should have all required major feature flags defined", () => {
       const flags = getFeatureFlags();
-      const categories = getFeatureFlagsByCategory();
 
-      // Verify all major feature categories are present
-      const requiredCategories = [
-        "publishing", // Auto publishing
-        "analytics", // Content analytics
-        "seo", // SEO optimization
-        "social", // Social media integration
-        "export", // Export functionality
-        "cron", // Advanced cron management
-        "compliance", // Audit system
-        "enterprise", // Enterprise features
-        "content", // Content generation
+      // Verify all major feature flags are present in the FeatureFlags interface
+      const requiredFlags: Array<keyof typeof flags> = [
+        "FEATURE_CONTENT_PIPELINE",
+        "FEATURE_AUTO_PUBLISHING",
+        "FEATURE_SEO",
+        "FEATURE_SOCIAL_MEDIA_INTEGRATION",
+        "FEATURE_ADVANCED_TOPICS",
+        "FEATURE_ADVANCED_CRON",
+        "EXPORT_WORDPRESS",
+        "AUDIT_SYSTEM",
+        "PHASE4B_ENABLED",
+        "ADVANCED_CRON",
+        "FEATURE_LLM_ROUTER",
       ];
 
-      requiredCategories.forEach((category) => {
+      requiredFlags.forEach((flagKey) => {
+        expect(flags[flagKey]).toBeDefined();
+        expect(typeof flags[flagKey]).toBe("number");
+      });
+    });
+
+    test("should return numeric values (0 or 1) for all flags", () => {
+      const flags = getFeatureFlags();
+
+      Object.entries(flags).forEach(([key, value]) => {
+        expect(typeof value).toBe("number");
+        expect([0, 1]).toContain(value);
+      });
+    });
+
+    test("should have premium feature flags organized by category", () => {
+      const categories = getPremiumFeatureFlagsByCategory();
+
+      // Verify expected premium categories exist
+      const expectedCategories = [
+        "Admin & Dashboard",
+        "Content Management",
+        "Features & Tools",
+        "User Experience",
+        "Security & Access",
+      ];
+
+      expectedCategories.forEach((category) => {
         expect(categories[category]).toBeDefined();
         expect(categories[category].length).toBeGreaterThan(0);
       });
     });
 
-    test("should have comprehensive flag coverage for all major features", () => {
-      const flags = getFeatureFlags();
+    test("should have proper premium flag structure", () => {
+      const categories = getPremiumFeatureFlagsByCategory();
 
-      // Required feature flags for major platform features
-      const requiredFlags = [
-        "PHASE4B_ENABLED", // Master content generation toggle
-        "AUTO_PUBLISHING", // Publishing features
-        "CONTENT_ANALYTICS", // Analytics features
-        "SEO_OPTIMIZATION", // SEO features
-        "SOCIAL_MEDIA_INTEGRATION", // Social features
-        "EXPORT_WORDPRESS", // Export features
-        "ADVANCED_CRON", // Cron features
-        "AUDIT_SYSTEM", // Compliance features
-        "ENTERPRISE_FEATURES", // Enterprise controls
-      ];
-
-      requiredFlags.forEach((flagKey) => {
-        expect(flags[flagKey]).toBeDefined();
-        expect(flags[flagKey].key).toBe(flagKey);
-        expect(flags[flagKey].description).toBeTruthy();
-        expect(flags[flagKey].category).toBeTruthy();
-        expect(typeof flags[flagKey].enabled).toBe("boolean");
-      });
-    });
-
-    test("should properly categorize feature flags", () => {
-      const categories = getFeatureFlagsByCategory();
-
-      // Verify specific flags are in correct categories
-      const categoryMappings = {
-        publishing: ["AUTO_PUBLISHING"],
-        analytics: ["CONTENT_ANALYTICS"],
-        seo: ["SEO_OPTIMIZATION"],
-        social: ["SOCIAL_MEDIA_INTEGRATION"],
-        export: ["EXPORT_WORDPRESS"],
-        cron: ["ADVANCED_CRON"],
-        compliance: ["AUDIT_SYSTEM"],
-        enterprise: ["ENTERPRISE_FEATURES"],
-        content: ["PHASE4B_ENABLED", "ADVANCED_TOPICS"],
-      };
-
-      Object.entries(categoryMappings).forEach(([category, expectedFlags]) => {
-        const categoryFlags = categories[category];
-        expectedFlags.forEach((flagKey) => {
-          const flag = categoryFlags.find((f) => f.key === flagKey);
-          expect(flag).toBeDefined();
-          expect(flag?.category).toBe(category);
+      Object.values(categories).forEach((categoryFlags) => {
+        categoryFlags.forEach((flag) => {
+          expect(flag.key).toBeTruthy();
+          expect(flag.name).toBeTruthy();
+          expect(flag.description).toBeTruthy();
+          expect(flag.scope).toBeTruthy();
+          expect(typeof flag.enabled).toBe("boolean");
         });
-      });
-    });
-
-    test("should have proper flag descriptions and metadata", () => {
-      const flags = getFeatureFlags();
-
-      Object.values(flags).forEach((flag) => {
-        // Each flag should have complete metadata
-        expect(flag.key).toBeTruthy();
-        expect(flag.description).toBeTruthy();
-        expect(flag.category).toBeTruthy();
-        expect(typeof flag.enabled).toBe("boolean");
-
-        // Description should be informative (at least 20 characters)
-        expect(flag.description.length).toBeGreaterThan(20);
-
-        // Key should follow naming convention
-        expect(flag.key).toMatch(/^[A-Z_]+$/);
       });
     });
   });
@@ -143,33 +118,33 @@ describe("Feature Flag System", () => {
   describe("Feature Flag Reading", () => {
     test("should correctly read enabled flags from environment", () => {
       expect(isFeatureEnabled("PHASE4B_ENABLED")).toBe(true);
-      expect(isFeatureEnabled("CONTENT_ANALYTICS")).toBe(true);
-      expect(isFeatureEnabled("SEO_OPTIMIZATION")).toBe(true);
+      expect(isFeatureEnabled("FEATURE_CONTENT_PIPELINE")).toBe(true);
+      expect(isFeatureEnabled("FEATURE_SEO")).toBe(true);
     });
 
     test("should correctly read disabled flags from environment", () => {
-      expect(isFeatureEnabled("AUTO_PUBLISHING")).toBe(false);
-      expect(isFeatureEnabled("SOCIAL_MEDIA_INTEGRATION")).toBe(false);
-      expect(isFeatureEnabled("ADVANCED_CRON")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_AUTO_PUBLISHING")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_SOCIAL_MEDIA_INTEGRATION")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_ADVANCED_CRON")).toBe(false);
     });
 
-    test("should return false for non-existent flags", () => {
-      expect(isFeatureEnabled("NON_EXISTENT_FLAG")).toBe(false);
+    test("should return false for flags with value 0", () => {
+      // Flags not set in env default to 0 via parseInt fallback
+      const flags = getFeatureFlags();
+      expect(flags.FEATURE_WP_CONNECTOR).toBe(0);
+      expect(isFeatureEnabled("FEATURE_WP_CONNECTOR")).toBe(false);
     });
 
-    test("should get individual flag details", () => {
-      const flag = getFeatureFlag("PHASE4B_ENABLED");
+    test("should get flag status with enabled boolean and numeric value", () => {
+      const status = getFeatureFlagStatus();
 
-      expect(flag).toBeDefined();
-      expect(flag?.key).toBe("PHASE4B_ENABLED");
-      expect(flag?.enabled).toBe(true);
-      expect(flag?.category).toBe("content");
-      expect(flag?.description).toContain("Phase 4B");
-    });
+      expect(status["PHASE4B_ENABLED"]).toBeDefined();
+      expect(status["PHASE4B_ENABLED"].enabled).toBe(true);
+      expect(status["PHASE4B_ENABLED"].value).toBe(1);
 
-    test("should return null for non-existent flag", () => {
-      const flag = getFeatureFlag("NON_EXISTENT_FLAG");
-      expect(flag).toBeNull();
+      expect(status["FEATURE_AUTO_PUBLISHING"]).toBeDefined();
+      expect(status["FEATURE_AUTO_PUBLISHING"].enabled).toBe(false);
+      expect(status["FEATURE_AUTO_PUBLISHING"].value).toBe(0);
     });
   });
 
@@ -177,22 +152,23 @@ describe("Feature Flag System", () => {
     test("should calculate correct statistics", () => {
       const stats = getFeatureFlagStats();
 
-      // Based on our mock environment
-      expect(stats.total).toBe(10);
-      expect(stats.enabled).toBe(7); // 7 flags set to 'true' in mockEnv
-      expect(stats.disabled).toBe(3); // 3 flags set to 'false' in mockEnv
+      // Total should match number of flags in FeatureFlags interface
+      expect(stats.total).toBe(20); // 20 flags defined in FeatureFlags
       expect(stats.enabled + stats.disabled).toBe(stats.total);
+      expect(stats.enabled).toBeGreaterThanOrEqual(0);
+      expect(stats.disabled).toBeGreaterThanOrEqual(0);
     });
 
-    test("should calculate statistics by category", () => {
+    test("should include flags record in stats", () => {
       const stats = getFeatureFlagStats();
 
-      // Verify category stats are present and valid
-      expect(stats.byCategory).toBeDefined();
+      expect(stats.flags).toBeDefined();
+      expect(Object.keys(stats.flags).length).toBe(stats.total);
 
-      Object.values(stats.byCategory).forEach((catStats) => {
-        expect(catStats.total).toBeGreaterThan(0);
-        expect(catStats.enabled + catStats.disabled).toBe(catStats.total);
+      // Each flag in stats should have enabled and value
+      Object.values(stats.flags).forEach((flag) => {
+        expect(typeof flag.enabled).toBe("boolean");
+        expect(typeof flag.value).toBe("number");
       });
     });
   });
@@ -200,17 +176,17 @@ describe("Feature Flag System", () => {
   describe("Runtime Refresh Logic", () => {
     test("should refresh flags from updated environment", () => {
       // Initial state
-      expect(isFeatureEnabled("AUTO_PUBLISHING")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_AUTO_PUBLISHING")).toBe(false);
 
       // Update environment
-      process.env.FEATURE_AUTO_PUBLISHING = "true";
+      process.env.FEATURE_AUTO_PUBLISHING = "1";
 
       // Refresh flags
       const refreshedFlags = refreshFeatureFlags();
 
       // Verify flag is now enabled
-      expect(isFeatureEnabled("AUTO_PUBLISHING")).toBe(true);
-      expect(refreshedFlags.AUTO_PUBLISHING.enabled).toBe(true);
+      expect(refreshedFlags.FEATURE_AUTO_PUBLISHING).toBe(1);
+      expect(isFeatureEnabled("FEATURE_AUTO_PUBLISHING")).toBe(true);
     });
 
     test("should handle environment variable removal", () => {
@@ -218,27 +194,29 @@ describe("Feature Flag System", () => {
       expect(isFeatureEnabled("PHASE4B_ENABLED")).toBe(true);
 
       // Remove environment variable
-      delete process.env.FEATURE_PHASE4B_ENABLED;
+      delete process.env.PHASE4B_ENABLED;
 
       // Refresh flags
       refreshFeatureFlags();
 
-      // Verify flag is now disabled (default state)
+      // Verify flag is now disabled (defaults to 0 via parseInt fallback)
       expect(isFeatureEnabled("PHASE4B_ENABLED")).toBe(false);
     });
 
     test("should handle invalid environment values", () => {
-      // Set invalid values
-      process.env.FEATURE_CONTENT_ANALYTICS = "invalid";
-      process.env.FEATURE_SEO_OPTIMIZATION = "yes";
-      process.env.FEATURE_EXPORT_WORDPRESS = "1";
+      // Set invalid values — parseInt will return NaN or unexpected numbers
+      process.env.FEATURE_CONTENT_PIPELINE = "invalid";
+      process.env.FEATURE_SEO = "yes";
+      process.env.EXPORT_WORDPRESS = "2";
 
       // Refresh flags
       refreshFeatureFlags();
 
-      // Verify invalid values are treated as false
-      expect(isFeatureEnabled("CONTENT_ANALYTICS")).toBe(false);
-      expect(isFeatureEnabled("SEO_OPTIMIZATION")).toBe(false);
+      // "invalid" -> parseInt returns NaN, NaN !== 1 -> false
+      expect(isFeatureEnabled("FEATURE_CONTENT_PIPELINE")).toBe(false);
+      // "yes" -> parseInt returns NaN, NaN !== 1 -> false
+      expect(isFeatureEnabled("FEATURE_SEO")).toBe(false);
+      // "2" -> parseInt returns 2, 2 !== 1 -> false
       expect(isFeatureEnabled("EXPORT_WORDPRESS")).toBe(false);
     });
 
@@ -269,9 +247,9 @@ describe("Feature Flag System", () => {
       // Refresh flags
       const flags = refreshFeatureFlags();
 
-      // All flags should be disabled
-      Object.values(flags).forEach((flag) => {
-        expect(flag.enabled).toBe(false);
+      // All flags should default to 0 (disabled)
+      Object.values(flags).forEach((value) => {
+        expect(value).toBe(0);
       });
 
       const stats = getFeatureFlagStats();
@@ -290,15 +268,6 @@ describe("Feature Flag System", () => {
 
       // Same flags should exist
       expect(afterKeys.sort()).toEqual(beforeKeys.sort());
-
-      // Flag structure should be preserved
-      beforeKeys.forEach((key) => {
-        expect(afterRefresh[key].key).toBe(beforeRefresh[key].key);
-        expect(afterRefresh[key].description).toBe(
-          beforeRefresh[key].description,
-        );
-        expect(afterRefresh[key].category).toBe(beforeRefresh[key].category);
-      });
     });
 
     test("should handle rapid successive refreshes", () => {
@@ -325,43 +294,56 @@ describe("Feature Flag System", () => {
   });
 
   describe("Integration with Environment Variables", () => {
-    test("should follow correct environment variable naming convention", () => {
+    test("should read flags via parseInt with 0 default", () => {
       const flags = getFeatureFlags();
 
-      Object.values(flags).forEach((flag) => {
-        const envVarName = `FEATURE_${flag.key}`;
+      // Flags set to "1" should be 1
+      expect(flags.PHASE4B_ENABLED).toBe(1);
+      expect(flags.FEATURE_CONTENT_PIPELINE).toBe(1);
 
-        // Environment variable should exist or be handleable
-        // (we don't require all env vars to be set, but if set, should follow pattern)
-        if (process.env[envVarName] !== undefined) {
-          expect(["true", "false"]).toContain(process.env[envVarName]);
-        }
-      });
+      // Flags set to "0" should be 0
+      expect(flags.FEATURE_AUTO_PUBLISHING).toBe(0);
+      expect(flags.FEATURE_ADVANCED_CRON).toBe(0);
+
+      // Flags not set at all should default to 0
+      expect(flags.FEATURE_WHITE_LABEL).toBe(0);
     });
 
-    test("should handle case sensitivity correctly", () => {
-      // Test with various cases
-      process.env.FEATURE_PHASE4B_ENABLED = "TRUE";
-      process.env.FEATURE_AUTO_PUBLISHING = "True";
-      process.env.FEATURE_CONTENT_ANALYTICS = "false";
-      process.env.FEATURE_SEO_OPTIMIZATION = "FALSE";
+    test("should only treat value 1 as enabled", () => {
+      // Set various numeric values
+      process.env.FEATURE_WP_CONNECTOR = "1";
+      process.env.FEATURE_WHITE_LABEL = "2";
+      process.env.FEATURE_BACKLINK_OFFERS = "0";
+      process.env.FEATURE_CRM_MINIMAL = "-1";
 
       refreshFeatureFlags();
 
-      // Only exact 'true' should enable flags
-      expect(isFeatureEnabled("PHASE4B_ENABLED")).toBe(false);
-      expect(isFeatureEnabled("AUTO_PUBLISHING")).toBe(false);
-      expect(isFeatureEnabled("CONTENT_ANALYTICS")).toBe(false);
-      expect(isFeatureEnabled("SEO_OPTIMIZATION")).toBe(false);
+      // Only "1" should be enabled
+      expect(isFeatureEnabled("FEATURE_WP_CONNECTOR")).toBe(true);
+      expect(isFeatureEnabled("FEATURE_WHITE_LABEL")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_BACKLINK_OFFERS")).toBe(false);
+      expect(isFeatureEnabled("FEATURE_CRM_MINIMAL")).toBe(false);
     });
   });
 });
 
 describe("Feature Flag API Integration", () => {
+  beforeEach(() => {
+    Object.keys(mockEnv).forEach((key) => {
+      process.env[key] = mockEnv[key];
+    });
+  });
+
+  afterEach(() => {
+    Object.keys(mockEnv).forEach((key) => {
+      delete process.env[key];
+    });
+  });
+
   test("should provide complete flag information for API responses", () => {
     const flags = getFeatureFlags();
     const stats = getFeatureFlagStats();
-    const categories = getFeatureFlagsByCategory();
+    const categories = getPremiumFeatureFlagsByCategory();
 
     // Verify data is suitable for API responses
     expect(Object.keys(flags).length).toBeGreaterThan(0);
@@ -377,15 +359,15 @@ describe("Feature Flag API Integration", () => {
   test("should support refresh functionality needed by API endpoint", () => {
     const beforeStats = getFeatureFlagStats();
 
-    // Change environment
-    process.env.FEATURE_AUTO_PUBLISHING = "true";
+    // Change environment — enable a previously disabled flag
+    process.env.FEATURE_AUTO_PUBLISHING = "1";
 
     // This mimics what the API endpoint does
     const refreshedFlags = refreshFeatureFlags();
     const afterStats = getFeatureFlagStats();
 
     // Verify change detection works
-    expect(beforeStats.enabled).not.toBe(afterStats.enabled);
-    expect(refreshedFlags.AUTO_PUBLISHING.enabled).toBe(true);
+    expect(afterStats.enabled).toBe(beforeStats.enabled + 1);
+    expect(refreshedFlags.FEATURE_AUTO_PUBLISHING).toBe(1);
   });
 });

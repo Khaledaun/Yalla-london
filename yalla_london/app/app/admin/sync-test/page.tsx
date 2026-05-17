@@ -5,148 +5,157 @@
 'use client'
 
 import { SyncTestTool } from '@/components/admin/sync-test-tool';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Database, Globe, Zap } from 'lucide-react';
-import Link from 'next/link';
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminAlertBanner,
+} from '@/components/admin/admin-ui';
+import { Database, Globe, Zap } from 'lucide-react';
 
 export default function SyncTestPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-6">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/admin">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
-          
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Real-time Sync Testing
-          </h1>
-          <p className="text-lg text-gray-600">
-            Test and verify the unified content pipeline between admin dashboard and public site
-          </p>
-        </div>
+    <div className="admin-page p-4 md:p-6">
+      <div className="max-w-4xl mx-auto">
+        <AdminPageHeader
+          title="Real-time Sync Testing"
+          subtitle="Test and verify the unified content pipeline between admin and public site"
+          backHref="/admin"
+        />
 
         {/* Pipeline Overview */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-blue-600" />
-              Content Pipeline Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between py-4">
-              <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500 rounded-full" />
-              <span className="text-sm font-medium">Admin Dashboard</span>
-            </div>
-            <div className="w-8 h-px bg-gray-300" />
-            <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium">Database</span>
-            </div>
-            <div className="w-8 h-px bg-gray-300" />
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm font-medium">Cache Invalidation</span>
-            </div>
-            <div className="w-8 h-px bg-gray-300" />
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium">Public Site</span>
-            </div>
-              </div>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-4 mt-6">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">Single Source of Truth</h3>
-                <p className="text-sm text-blue-700">
-                  All content stored in PostgreSQL database with Prisma ORM
+        <AdminCard className="mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="w-4 h-4" style={{ color: '#3B7EA1' }} />
+            <AdminSectionLabel>Content Pipeline Overview</AdminSectionLabel>
+          </div>
+
+          {/* Flow visualization */}
+          <div className="flex items-center justify-center gap-2 py-4 overflow-x-auto">
+            {[
+              { icon: <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#7C3AED' }} />, label: 'Admin Dashboard' },
+              null,
+              { icon: <Database className="w-3.5 h-3.5" style={{ color: '#3B7EA1' }} />, label: 'Database' },
+              null,
+              { icon: <Zap className="w-3.5 h-3.5" style={{ color: '#C49A2A' }} />, label: 'Cache Invalidation' },
+              null,
+              { icon: <Globe className="w-3.5 h-3.5" style={{ color: '#2D5A3D' }} />, label: 'Public Site' },
+            ].map((item, i) =>
+              item === null ? (
+                <div key={`sep-${i}`} className="w-6 h-px" style={{ backgroundColor: 'rgba(214,208,196,0.6)' }} />
+              ) : (
+                <div key={i} className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.icon}
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C' }}>
+                    {item.label}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Feature cards */}
+          <div className="grid md:grid-cols-3 gap-3 mt-4">
+            {[
+              {
+                title: 'Single Source of Truth',
+                desc: 'All content stored in PostgreSQL database with Prisma ORM',
+                color: '#3B7EA1',
+              },
+              {
+                title: 'Instant Cache Invalidation',
+                desc: 'Next.js cache cleared immediately when content changes',
+                color: '#C49A2A',
+              },
+              {
+                title: 'Real-time Updates',
+                desc: 'Public site reflects changes within seconds of admin actions',
+                color: '#2D5A3D',
+              },
+            ].map((card) => (
+              <div
+                key={card.title}
+                className="p-4 rounded-lg"
+                style={{
+                  backgroundColor: '#FAF8F4',
+                  border: '1px solid rgba(214,208,196,0.6)',
+                  borderTop: `3px solid ${card.color}`,
+                }}
+              >
+                <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917', marginBottom: 6 }}>
+                  {card.title}
+                </p>
+                <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', lineHeight: 1.5 }}>
+                  {card.desc}
                 </p>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <h3 className="font-medium text-yellow-900 mb-2">Instant Cache Invalidation</h3>
-                <p className="text-sm text-yellow-700">
-                  Next.js cache cleared immediately when content changes
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h3 className="font-medium text-green-900 mb-2">Real-time Updates</h3>
-                <p className="text-sm text-green-700">
-                  Public site reflects changes within seconds of admin actions
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </AdminCard>
 
         {/* Sync Test Tool */}
         <SyncTestTool />
 
         {/* Instructions */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>How to Use This Tool</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">1</div>
-                <div>
-                  <p className="font-medium">Run Sync Test</p>
-                <p className="text-sm text-gray-600">
-                  Click &ldquo;Run Sync Test&rdquo; to create a test blog post and verify it appears on the public site
-                </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">2</div>
-                <div>
-                  <p className="font-medium">Check Results</p>
-                  <p className="text-sm text-gray-600">
-                    The tool will show sync status, latency, and provide direct links to verify manually
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">3</div>
-                <div>
-                  <p className="font-medium">Manual Verification</p>
-                  <p className="text-sm text-gray-600">
-                    Use the provided links to check the homepage, blog list, and individual post pages
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">4</div>
-                <div>
-                  <p className="font-medium">Cleanup</p>
-                <p className="text-sm text-gray-600">
-                  Click &ldquo;Cleanup&rdquo; to remove the test content and keep your site clean
-                </p>
-                </div>
-              </div>
-            </div>
+        <AdminCard className="mt-4">
+          <AdminSectionLabel>How to Use This Tool</AdminSectionLabel>
 
-            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-800">
-                <strong>Expected Results:</strong> The sync test should complete in under 3 seconds with 
-                all checks passing. If sync fails or takes longer than 5 seconds, there may be an issue 
-                with the cache invalidation system or database connectivity.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="space-y-3 mt-3">
+            {[
+              {
+                step: '1',
+                title: 'Run Sync Test',
+                desc: 'Click "Run Sync Test" to create a test blog post and verify it appears on the public site',
+              },
+              {
+                step: '2',
+                title: 'Check Results',
+                desc: 'The tool will show sync status, latency, and provide direct links to verify manually',
+              },
+              {
+                step: '3',
+                title: 'Manual Verification',
+                desc: 'Use the provided links to check the homepage, blog list, and individual post pages',
+              },
+              {
+                step: '4',
+                title: 'Cleanup',
+                desc: 'Click "Cleanup" to remove the test content and keep your site clean',
+              },
+            ].map((item) => (
+              <div key={item.step} className="flex gap-3 items-start">
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{
+                    backgroundColor: '#C8322B',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#FAF8F4',
+                  }}
+                >
+                  {item.step}
+                </span>
+                <div>
+                  <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13, color: '#1C1917' }}>
+                    {item.title}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2, lineHeight: 1.5 }}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <AdminAlertBanner
+              severity="warning"
+              message="Expected Results"
+              detail="The sync test should complete in under 3 seconds with all checks passing. If sync fails or takes longer than 5 seconds, there may be an issue with the cache invalidation system or database connectivity."
+            />
+          </div>
+        </AdminCard>
       </div>
     </div>
   );

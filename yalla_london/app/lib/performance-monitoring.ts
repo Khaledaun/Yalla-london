@@ -99,7 +99,7 @@ class PerformanceMonitor {
           // Enhanced context
           initialScope: {
             tags: {
-              component: 'yalla-london-api',
+              component: 'zenitha-platform-api',
               version: this.config.release || 'unknown'
             }
           }

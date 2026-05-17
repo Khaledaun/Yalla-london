@@ -32,6 +32,18 @@ interface BlogCardProps {
 export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCardProps) {
   const isRTL = locale === 'ar'
 
+  // Format raw-slug titles into human-readable form.
+  // Detects slugs that were stored as titles (all lowercase, hyphens, no spaces)
+  // and converts them: "best-halal-restaurants-london" → "Best Halal Restaurants London"
+  const formatTitle = (title: string) => {
+    if (title === title.toLowerCase() && title.includes('-') && !/[A-Z]/.test(title) && !title.includes(' ')) {
+      return title.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    }
+    return title
+  }
+
+  const displayTitle = formatTitle(article.title)
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -50,16 +62,16 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         <div className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-gold-200/30">
           <Image
             src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=300&fit=crop&q=80'}
-            alt={article.title}
+            alt={displayTitle}
             fill
             className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors line-clamp-2 text-sm leading-snug">
-            <Link href={blogUrl}>{article.title}</Link>
+          <h4 className="font-semibold text-yl-charcoal dark:text-yl-gray-100 group-hover:text-london-800 transition-colors line-clamp-2 text-sm leading-snug">
+            <Link href={blogUrl}>{displayTitle}</Link>
           </h4>
-          <div className="flex items-center gap-2 mt-2 text-xs text-warm-gray">
+          <div className="flex items-center gap-2 mt-2 text-xs text-stone">
             {article.author && (
               <span className="font-medium">{article.author.name}</span>
             )}
@@ -82,42 +94,44 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         <Link href={blogUrl}>
           <Image
             src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=675&fit=crop&q=80'}
-            alt={article.title}
+            alt={displayTitle}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-700"
           />
           {/* Gradient overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-burgundy-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-london-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </Link>
 
         {/* Category Badge */}
         {article.category && (
           <Link
             href={`/${locale === 'ar' ? 'ar/' : ''}blog?category=${article.category.slug}`}
-            className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} px-4 py-1.5 bg-gold-400 text-burgundy-900 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-gold-300 transition-colors shadow-lg`}
+            className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} px-4 py-1.5 bg-gold-400 text-london-900 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-gold-300 transition-colors shadow-lg`}
           >
             {article.category.name}
           </Link>
         )}
 
         {/* Like Button */}
-        <button className={`absolute ${isRTL ? 'left-4' : 'right-4'} bottom-4 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-warm-charcoal hover:bg-burgundy-800 hover:text-white transition-all duration-300 shadow-lg`}>
-          <Heart size={14} className="text-burgundy-600" />
-          <span className="font-medium">{article.likes || Math.floor(Math.random() * 200) + 50}</span>
-        </button>
+        {article.likes ? (
+          <button className={`absolute ${isRTL ? 'left-4' : 'right-4'} bottom-4 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-yl-charcoal hover:bg-london-800 hover:text-white transition-all duration-300 shadow-lg`}>
+            <Heart size={14} className="text-london-600" />
+            <span className="font-medium">{article.likes}</span>
+          </button>
+        ) : null}
       </div>
 
       {/* Content */}
       <div className="p-6 space-y-4">
         {/* Title */}
-        <h3 className="text-xl md:text-2xl font-serif font-bold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors leading-tight">
-          <Link href={blogUrl} className="hover:text-burgundy-700">
-            {article.title}
+        <h3 className="text-xl md:text-2xl font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 group-hover:text-london-800 transition-colors leading-tight">
+          <Link href={blogUrl} className="hover:text-london-700">
+            {displayTitle}
           </Link>
         </h3>
 
         {/* Meta Info */}
-        <div className="flex items-center flex-wrap gap-4 text-sm text-warm-gray">
+        <div className="flex items-center flex-wrap gap-4 text-sm text-stone">
           {article.author && (
             <div className="flex items-center gap-2">
               {article.author.avatar ? (
@@ -130,12 +144,12 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                 />
               ) : (
                 <div className="w-8 h-8 bg-gradient-to-br from-gold-300 to-gold-400 rounded-full flex items-center justify-center shadow-sm">
-                  <span className="text-burgundy-800 font-semibold text-xs">
+                  <span className="text-london-800 font-semibold text-xs">
                     {article.author.name.charAt(0)}
                   </span>
                 </div>
               )}
-              <span className="font-medium text-warm-charcoal dark:text-cream-200">
+              <span className="font-medium text-yl-charcoal dark:text-yl-gray-200">
                 {article.author.name}
               </span>
             </div>
@@ -150,7 +164,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
 
         {/* Excerpt */}
         {article.excerpt && (
-          <p className="text-warm-gray dark:text-cream-300 leading-relaxed line-clamp-3">
+          <p className="text-stone dark:text-yl-gray-300 leading-relaxed line-clamp-3">
             {article.excerpt}
           </p>
         )}
@@ -159,7 +173,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         <div className="flex items-center justify-between pt-4 border-t border-gold-200/30">
           <Link
             href={blogUrl}
-            className="inline-flex items-center gap-2 text-burgundy-800 font-semibold hover:text-burgundy-600 transition-colors group/link"
+            className="inline-flex items-center gap-2 text-london-800 font-semibold hover:text-london-600 transition-colors group/link"
           >
             <span>{locale === 'ar' ? 'اقرأ المزيد' : 'Read More'}</span>
             <span className="w-0 group-hover/link:w-4 overflow-hidden transition-all duration-300">→</span>
@@ -167,7 +181,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
 
           {/* Social Share */}
           <div className="flex items-center gap-3">
-            <span className="text-xs text-warm-gray uppercase tracking-wider">
+            <span className="text-xs text-stone uppercase tracking-wider">
               {locale === 'ar' ? 'شارك' : 'Share'}
             </span>
             <div className="flex items-center gap-2">
@@ -175,15 +189,15 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                 href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-cream-200 dark:bg-cream-800 flex items-center justify-center text-warm-gray hover:bg-blue-600 hover:text-white transition-all duration-300"
+                className="w-8 h-8 rounded-full bg-yl-gray-200 dark:bg-yl-charcoal flex items-center justify-center text-stone hover:bg-blue-600 hover:text-white transition-all duration-300"
               >
                 <Facebook size={14} />
               </a>
               <a
-                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}&text=${encodeURIComponent(article.title)}`}
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}&text=${encodeURIComponent(displayTitle)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-cream-200 dark:bg-cream-800 flex items-center justify-center text-warm-gray hover:bg-sky-500 hover:text-white transition-all duration-300"
+                className="w-8 h-8 rounded-full bg-yl-gray-200 dark:bg-yl-charcoal flex items-center justify-center text-stone hover:bg-sky-500 hover:text-white transition-all duration-300"
               >
                 <Twitter size={14} />
               </a>

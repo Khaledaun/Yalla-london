@@ -71,61 +71,21 @@ export function CRMSubscriberManager() {
   const [selectedSubscriber, setSelectedSubscriber] = useState<Subscriber | null>(null)
   const [consentLogs, setConsentLogs] = useState<ConsentLog[]>([])
 
-  // Mock data for now - in real implementation, fetch from API
+  // Fetch real subscriber data from API
   useEffect(() => {
-    const mockSubscribers: Subscriber[] = [
-      {
-        id: '1',
-        email: 'john.doe@example.com',
-        status: 'CONFIRMED',
-        source: 'newsletter_signup',
-        preferences_json: {
-          topics: ['london-travel', 'london-events'],
-          frequency: 'weekly',
-          language: 'en'
-        },
-        metadata_json: {
-          utm_source: 'google',
-          utm_medium: 'organic'
-        },
-        confirmed_at: '2024-01-15T10:00:00Z',
-        engagement_score: 0.85,
-        created_at: '2024-01-10T14:30:00Z',
-        updated_at: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '2',
-        email: 'jane.smith@example.com',
-        status: 'PENDING',
-        source: 'exit_intent',
-        preferences_json: {
-          topics: ['london-food', 'london-culture'],
-          frequency: 'weekly',
-          language: 'en'
-        },
-        double_optin_sent_at: '2024-01-20T15:45:00Z',
-        created_at: '2024-01-20T15:45:00Z',
-        updated_at: '2024-01-20T15:45:00Z'
-      },
-      {
-        id: '3',
-        email: 'ahmed.hassan@example.com',
-        status: 'CONFIRMED',
-        source: 'content_gate',
-        preferences_json: {
-          topics: ['london-travel', 'london-nightlife'],
-          frequency: 'monthly',
-          language: 'ar'
-        },
-        confirmed_at: '2024-01-18T12:15:00Z',
-        engagement_score: 0.92,
-        created_at: '2024-01-18T11:00:00Z',
-        updated_at: '2024-01-18T12:15:00Z'
-      }
-    ]
-
-    setSubscribers(mockSubscribers)
-    setLoading(false)
+    fetch('/api/admin/email-center?tab=subscribers')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (Array.isArray(data.subscribers)) {
+          setSubscribers(data.subscribers);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.warn('[CRMSubscriberManager] Failed to load subscribers:', err instanceof Error ? err.message : err);
+        setSubscribers([]);
+        setLoading(false);
+      });
   }, [])
 
   const getStatusIcon = (status: string) => {

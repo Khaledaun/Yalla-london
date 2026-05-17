@@ -484,7 +484,7 @@ describe('Dashboard to Public Website Connection Tests', () => {
         orderBy: { publishedAt: 'desc' },
         take: 50,
         select: {
-          title: true,
+          title_en: true,
           slug: true,
           excerpt: true,
           publishedAt: true,

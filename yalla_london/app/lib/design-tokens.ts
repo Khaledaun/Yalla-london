@@ -109,9 +109,9 @@ export const designTokens = {
   // Typography scale
   typography: {
     fontFamilies: {
-      sans: ['Inter', 'system-ui', 'sans-serif'],
-      serif: ['Playfair Display', 'Georgia', 'serif'],
-      mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+      sans: ['Source Serif 4', 'Georgia', 'serif'],
+      serif: ['Anybody', 'system-ui', 'sans-serif'],
+      mono: ['IBM Plex Mono', 'Menlo', 'monospace'],
     },
     
     fontSize: {

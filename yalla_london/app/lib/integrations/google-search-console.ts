@@ -1,4 +1,3 @@
-
 // Google Search Console Integration
 // Enhanced with sitemap submission, crawl errors, and bulk indexing
 
@@ -45,7 +44,7 @@ export interface SearchAnalyticsRow {
 
 export interface UrlInspectionResult {
   url: string;
-  indexingState: 'INDEXED' | 'NOT_INDEXED' | 'NEUTRAL' | 'PARTIALLY_INDEXED';
+  indexingState: "INDEXED" | "NOT_INDEXED" | "NEUTRAL" | "PARTIALLY_INDEXED";
   coverageState: string;
   lastCrawlTime?: string;
   crawlStatus?: string;
@@ -53,6 +52,19 @@ export interface UrlInspectionResult {
   pageFetchState?: string;
   verdict?: string;
   issues?: string[];
+  // Extended fields for comprehensive diagnostics
+  crawledAs?: string;
+  indexingAllowed?: string;
+  crawlAllowed?: string;
+  userCanonical?: string;
+  googleCanonical?: string;
+  sitemaps?: string[];
+  referringUrls?: string[];
+  mobileUsabilityVerdict?: string;
+  mobileUsabilityIssues?: string[];
+  richResultsVerdict?: string;
+  richResultsItems?: Array<{ type: string; issues?: string[] }>;
+  rawResult?: Record<string, unknown>;
 }
 
 export class GoogleSearchConsole {
@@ -62,17 +74,36 @@ export class GoogleSearchConsole {
 
   constructor() {
     this.config = {
-      clientEmail: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || '',
-      privateKey: process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
+      clientEmail: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || "",
+      privateKey: process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "",
       // GSC_SITE_URL takes priority — must match EXACTLY what's in GSC
-      // (e.g. "sc-domain:yalla-london.com" or "https://yalla-london.com")
-      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
+      // (e.g. "sc-domain:example.com" or "https://example.com")
+      siteUrl:
+        process.env.GSC_SITE_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (() => {
+          try {
+            const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+            return getSiteDomain(getDefaultSiteId());
+          } catch (e) {
+            console.error(
+              "[gsc] CRITICAL: GSC_SITE_URL not set and config import failed. Set GSC_SITE_URL env var explicitly.",
+              e,
+            );
+            return "";
+          }
+        })(),
     };
   }
 
   // Check if GSC is configured
   isConfigured(): boolean {
     return !!(this.config.clientEmail && this.config.privateKey && this.config.siteUrl);
+  }
+
+  // Override the siteUrl for per-site queries (multi-tenant support)
+  setSiteUrl(siteUrl: string) {
+    this.config.siteUrl = siteUrl;
   }
 
   // Get configuration status for dashboard
@@ -89,40 +120,40 @@ export class GoogleSearchConsole {
       return this.accessToken;
     }
 
-    const jwt = require('jsonwebtoken');
+    const jwt = require("jsonwebtoken");
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       iss: this.config.clientEmail,
       // Full scope for read and write operations
-      scope: 'https://www.googleapis.com/auth/webmasters https://www.googleapis.com/auth/indexing',
-      aud: 'https://oauth2.googleapis.com/token',
+      scope: "https://www.googleapis.com/auth/webmasters https://www.googleapis.com/auth/indexing",
+      aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,
     };
 
-    const token = jwt.sign(payload, this.config.privateKey, { algorithm: 'RS256' });
+    const token = jwt.sign(payload, this.config.privateKey, { algorithm: "RS256" });
 
     try {
-      const response = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      const response = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
           assertion: token,
         }),
       });
 
       const data = await response.json();
       this.accessToken = data.access_token;
-      this.tokenExpiry = Date.now() + (data.expires_in * 1000);
+      this.tokenExpiry = Date.now() + data.expires_in * 1000;
 
       if (!this.accessToken) {
-        throw new Error('No access token received');
+        throw new Error("No access token received");
       }
 
       return this.accessToken;
     } catch (error) {
-      console.error('Failed to get GSC access token:', error);
+      console.error("Failed to get GSC access token:", error);
       throw error;
     }
   }
@@ -130,59 +161,58 @@ export class GoogleSearchConsole {
   // Submit URL for indexing
   async submitUrl(url: string): Promise<boolean> {
     if (!this.config.clientEmail || !this.config.privateKey) {
-      console.warn('Google Search Console credentials not configured');
+      console.warn("Google Search Console credentials not configured");
       return false;
     }
 
     try {
       const accessToken = await this.getAccessToken();
-      
+
       const response = await fetch(`https://indexing.googleapis.com/v3/urlNotifications:publish`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           url: url,
-          type: 'URL_UPDATED',
+          type: "URL_UPDATED",
         }),
       });
 
       return response.ok;
     } catch (error) {
-      console.error('Failed to submit URL to GSC:', error);
+      console.error("Failed to submit URL to GSC:", error);
       return false;
     }
   }
 
   // Get search analytics data
-  async getSearchAnalytics(
-    startDate: string,
-    endDate: string,
-    dimensions: string[] = ['query']
-  ) {
+  async getSearchAnalytics(startDate: string, endDate: string, dimensions: string[] = ["query"]) {
     if (!this.config.clientEmail || !this.config.privateKey) {
-      console.warn('Google Search Console credentials not configured');
+      console.warn("Google Search Console credentials not configured");
       return null;
     }
 
     try {
       const accessToken = await this.getAccessToken();
-      
-      const response = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(this.config.siteUrl)}/searchAnalytics/query`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+
+      const response = await fetch(
+        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(this.config.siteUrl)}/searchAnalytics/query`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            dimensions,
+            rowLimit: 1000,
+          }),
         },
-        body: JSON.stringify({
-          startDate,
-          endDate,
-          dimensions,
-          rowLimit: 100,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -192,7 +222,7 @@ export class GoogleSearchConsole {
 
       return await response.json();
     } catch (error) {
-      console.error('Failed to get search analytics:', error);
+      console.error("Failed to get search analytics:", error);
       return null;
     }
   }
@@ -207,10 +237,10 @@ export class GoogleSearchConsole {
       const accessToken = await this.getAccessToken();
 
       const response = await fetch(`https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           inspectionUrl: url,
@@ -228,22 +258,84 @@ export class GoogleSearchConsole {
 
       if (data.inspectionResult) {
         const result = data.inspectionResult;
+        const indexStatus = result.indexStatusResult || {};
+        const mobileUsability = result.mobileUsabilityResult || {};
+        const richResults = result.richResultsResult || {};
+
+        // Extract mobile usability issues
+        const mobileIssues: string[] = [];
+        if (mobileUsability.issues && Array.isArray(mobileUsability.issues)) {
+          for (const issue of mobileUsability.issues) {
+            mobileIssues.push(issue.issueMessage || issue.severity || String(issue));
+          }
+        }
+
+        // Extract rich results items
+        const richItems: Array<{ type: string; issues?: string[] }> = [];
+        if (richResults.detectedItems && Array.isArray(richResults.detectedItems)) {
+          for (const item of richResults.detectedItems) {
+            const itemIssues: string[] = [];
+            if (item.items && Array.isArray(item.items)) {
+              for (const sub of item.items) {
+                if (sub.issues && Array.isArray(sub.issues)) {
+                  for (const iss of sub.issues) {
+                    itemIssues.push(iss.issueMessage || String(iss));
+                  }
+                }
+              }
+            }
+            richItems.push({
+              type: item.richResultType || "unknown",
+              issues: itemIssues.length > 0 ? itemIssues : undefined,
+            });
+          }
+        }
+
+        // Collect all indexing-relevant issues
+        const issues: string[] = [];
+        if (!indexStatus.crawlingUserAgent) issues.push("No crawl data available");
+        if (indexStatus.verdict && indexStatus.verdict !== "PASS" && indexStatus.verdict !== "NEUTRAL") {
+          issues.push(`Verdict: ${indexStatus.verdict}`);
+        }
+        if (indexStatus.robotsTxtState === "DISALLOWED") {
+          issues.push("Blocked by robots.txt");
+        }
+        if (indexStatus.pageFetchState && indexStatus.pageFetchState !== "SUCCESSFUL") {
+          issues.push(`Page fetch: ${indexStatus.pageFetchState}`);
+        }
+        if (mobileIssues.length > 0) {
+          issues.push(...mobileIssues.map((i) => `Mobile: ${i}`));
+        }
+
         return {
           url,
-          indexingState: result.indexStatusResult?.indexingState || 'NEUTRAL',
-          coverageState: result.indexStatusResult?.coverageState || 'Unknown',
-          lastCrawlTime: result.indexStatusResult?.lastCrawlTime,
-          crawlStatus: result.indexStatusResult?.crawledAs,
-          robotsTxtState: result.indexStatusResult?.robotsTxtState,
-          pageFetchState: result.indexStatusResult?.pageFetchState,
-          verdict: result.indexStatusResult?.verdict,
-          issues: result.indexStatusResult?.crawlingUserAgent ? [] : ['No crawl data available'],
+          indexingState: indexStatus.indexingState || "NEUTRAL",
+          coverageState: indexStatus.coverageState || "Unknown",
+          lastCrawlTime: indexStatus.lastCrawlTime,
+          crawlStatus: indexStatus.crawledAs,
+          robotsTxtState: indexStatus.robotsTxtState,
+          pageFetchState: indexStatus.pageFetchState,
+          verdict: indexStatus.verdict,
+          issues,
+          // Extended fields
+          crawledAs: indexStatus.crawledAs,
+          indexingAllowed: indexStatus.indexingAllowed,
+          crawlAllowed: indexStatus.crawlAllowed,
+          userCanonical: indexStatus.userCanonical,
+          googleCanonical: indexStatus.googleCanonical,
+          sitemaps: indexStatus.sitemap ? [].concat(indexStatus.sitemap) : undefined,
+          referringUrls: indexStatus.referringUrls ? [].concat(indexStatus.referringUrls) : undefined,
+          mobileUsabilityVerdict: mobileUsability.verdict,
+          mobileUsabilityIssues: mobileIssues.length > 0 ? mobileIssues : undefined,
+          richResultsVerdict: richResults.verdict,
+          richResultsItems: richItems.length > 0 ? richItems : undefined,
+          rawResult: result,
         };
       }
 
       return null;
     } catch (error) {
-      console.error('Failed to check indexing status:', error);
+      console.error("Failed to check indexing status:", error);
       return null;
     }
   }
@@ -262,14 +354,11 @@ export class GoogleSearchConsole {
       const accessToken = await this.getAccessToken();
       const encodedSiteUrl = encodeURIComponent(this.config.siteUrl);
 
-      const response = await fetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/sitemaps`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const response = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/sitemaps`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -293,7 +382,7 @@ export class GoogleSearchConsole {
 
       return [];
     } catch (error) {
-      console.error('Failed to get sitemaps:', error);
+      console.error("Failed to get sitemaps:", error);
       return [];
     }
   }
@@ -312,16 +401,16 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/sitemaps/${encodedSitemapUrl}`,
         {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       return response.ok;
     } catch (error) {
-      console.error('Failed to submit sitemap:', error);
+      console.error("Failed to submit sitemap:", error);
       return false;
     }
   }
@@ -340,16 +429,16 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/sitemaps/${encodedSitemapUrl}`,
         {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       return response.ok;
     } catch (error) {
-      console.error('Failed to delete sitemap:', error);
+      console.error("Failed to delete sitemap:", error);
       return false;
     }
   }
@@ -361,7 +450,7 @@ export class GoogleSearchConsole {
   // Submit multiple URLs for indexing
   async submitBulkUrls(urls: string[]): Promise<IndexingResult[]> {
     if (!this.isConfigured()) {
-      return urls.map(url => ({ url, success: false, error: 'GSC not configured' }));
+      return urls.map((url) => ({ url, success: false, error: "GSC not configured" }));
     }
 
     const results: IndexingResult[] = [];
@@ -380,17 +469,17 @@ export class GoogleSearchConsole {
             return {
               url,
               success: false,
-              error: error instanceof Error ? error.message : 'Unknown error'
+              error: error instanceof Error ? error.message : "Unknown error",
             };
           }
-        })
+        }),
       );
 
       results.push(...batchResults);
 
       // Small delay between batches to respect rate limits
       if (i + batchSize < urls.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -407,20 +496,20 @@ export class GoogleSearchConsole {
       const accessToken = await this.getAccessToken();
 
       const response = await fetch(`https://indexing.googleapis.com/v3/urlNotifications:publish`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           url: url,
-          type: 'URL_DELETED',
+          type: "URL_DELETED",
         }),
       });
 
       return response.ok;
     } catch (error) {
-      console.error('Failed to request URL removal:', error);
+      console.error("Failed to request URL removal:", error);
       return false;
     }
   }
@@ -430,11 +519,7 @@ export class GoogleSearchConsole {
   // ============================================
 
   // Get top performing pages
-  async getTopPages(
-    startDate: string,
-    endDate: string,
-    limit: number = 20
-  ): Promise<SearchAnalyticsRow[]> {
+  async getTopPages(startDate: string, endDate: string, limit: number = 20): Promise<SearchAnalyticsRow[]> {
     if (!this.isConfigured()) {
       return [];
     }
@@ -446,19 +531,19 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             startDate,
             endDate,
-            dimensions: ['page'],
+            dimensions: ["page"],
             rowLimit: limit,
-            orderBy: [{ fieldName: 'clicks', sortOrder: 'DESCENDING' }],
+            orderBy: [{ fieldName: "clicks", sortOrder: "DESCENDING" }],
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -470,17 +555,13 @@ export class GoogleSearchConsole {
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
-      console.error('Failed to get top pages:', error);
+      console.error("Failed to get top pages:", error);
       return [];
     }
   }
 
   // Get top keywords/queries
-  async getTopKeywords(
-    startDate: string,
-    endDate: string,
-    limit: number = 50
-  ): Promise<SearchAnalyticsRow[]> {
+  async getTopKeywords(startDate: string, endDate: string, limit: number = 50): Promise<SearchAnalyticsRow[]> {
     if (!this.isConfigured()) {
       return [];
     }
@@ -492,19 +573,19 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             startDate,
             endDate,
-            dimensions: ['query'],
+            dimensions: ["query"],
             rowLimit: limit,
-            orderBy: [{ fieldName: 'impressions', sortOrder: 'DESCENDING' }],
+            orderBy: [{ fieldName: "impressions", sortOrder: "DESCENDING" }],
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -516,15 +597,29 @@ export class GoogleSearchConsole {
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
-      console.error('Failed to get top keywords:', error);
+      console.error("Failed to get top keywords:", error);
       return [];
     }
   }
 
-  // Get performance by country
-  async getPerformanceByCountry(
+  /**
+   * Get the top search queries Google is matching THIS SPECIFIC URL against.
+   *
+   * Critical for CTR optimization: the AI rewriting a title needs to know
+   * WHAT queries the page is actually competing for, not just generic
+   * clickability tactics. A page that ranks for "halal restaurants mayfair"
+   * deserves a different rewrite than one ranking for "best afternoon tea
+   * with kids" — even if the article body is similar.
+   *
+   * Uses GSC's dimensionFilterGroups to filter on a specific page URL.
+   * Returns the top N queries by impressions for that URL across the date
+   * range. Returns [] when GSC isn't configured or the URL has no GSC data.
+   */
+  async getQueriesForPage(
+    pageUrl: string,
     startDate: string,
-    endDate: string
+    endDate: string,
+    limit: number = 5,
   ): Promise<SearchAnalyticsRow[]> {
     if (!this.isConfigured()) {
       return [];
@@ -537,19 +632,72 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             startDate,
             endDate,
-            dimensions: ['country'],
-            rowLimit: 50,
-            orderBy: [{ fieldName: 'clicks', sortOrder: 'DESCENDING' }],
+            dimensions: ["query"],
+            dimensionFilterGroups: [
+              {
+                filters: [
+                  {
+                    dimension: "page",
+                    operator: "equals",
+                    expression: pageUrl,
+                  },
+                ],
+              },
+            ],
+            rowLimit: limit,
+            orderBy: [{ fieldName: "impressions", sortOrder: "DESCENDING" }],
           }),
-        }
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC getQueriesForPage error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.rows || [];
+    } catch (error) {
+      console.error("Failed to get queries for page:", error);
+      return [];
+    }
+  }
+
+  // Get performance by country
+  async getPerformanceByCountry(startDate: string, endDate: string): Promise<SearchAnalyticsRow[]> {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    try {
+      const accessToken = await this.getAccessToken();
+      const encodedSiteUrl = encodeURIComponent(this.config.siteUrl);
+
+      const response = await fetch(
+        `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            dimensions: ["country"],
+            rowLimit: 50,
+            orderBy: [{ fieldName: "clicks", sortOrder: "DESCENDING" }],
+          }),
+        },
       );
 
       if (!response.ok) {
@@ -561,16 +709,13 @@ export class GoogleSearchConsole {
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
-      console.error('Failed to get performance by country:', error);
+      console.error("Failed to get performance by country:", error);
       return [];
     }
   }
 
   // Get performance by device
-  async getPerformanceByDevice(
-    startDate: string,
-    endDate: string
-  ): Promise<SearchAnalyticsRow[]> {
+  async getPerformanceByDevice(startDate: string, endDate: string): Promise<SearchAnalyticsRow[]> {
     if (!this.isConfigured()) {
       return [];
     }
@@ -582,18 +727,18 @@ export class GoogleSearchConsole {
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             startDate,
             endDate,
-            dimensions: ['device'],
+            dimensions: ["device"],
             rowLimit: 10,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -605,7 +750,7 @@ export class GoogleSearchConsole {
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
-      console.error('Failed to get performance by device:', error);
+      console.error("Failed to get performance by device:", error);
       return [];
     }
   }
@@ -623,15 +768,13 @@ export class GoogleSearchConsole {
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
 
-      const batchResults = await Promise.all(
-        batch.map(url => this.getIndexingStatus(url))
-      );
+      const batchResults = await Promise.all(batch.map((url) => this.getIndexingStatus(url)));
 
       results.push(...batchResults.filter((r): r is UrlInspectionResult => r !== null));
 
       // Delay between batches
       if (i + batchSize < urls.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
 
@@ -656,21 +799,21 @@ export class GoogleSearchConsole {
 
     for (const result of results) {
       switch (result.indexingState) {
-        case 'INDEXED':
+        case "INDEXED":
           indexed++;
           break;
-        case 'NOT_INDEXED':
+        case "NOT_INDEXED":
           notIndexed++;
           if (result.verdict) {
             issues.push({ url: result.url, issue: result.verdict });
           }
           break;
-        case 'PARTIALLY_INDEXED':
+        case "PARTIALLY_INDEXED":
           pending++;
           break;
         default:
           errors++;
-          issues.push({ url: result.url, issue: 'Unknown status' });
+          issues.push({ url: result.url, issue: "Unknown status" });
       }
     }
 

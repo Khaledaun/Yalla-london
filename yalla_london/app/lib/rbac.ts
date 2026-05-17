@@ -5,8 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+
+/**
+ * IMPORTANT: authOptions and prisma are loaded via dynamic import() inside
+ * async functions below. Top-level imports caused a circular dependency
+ * (rbac → auth → rbac) that crashed the [...nextauth] route handler.
+ */
 
 // Define role hierarchy and permissions
 export const ROLES = {
@@ -107,6 +111,7 @@ export interface AuthenticatedUser {
  */
 export async function getUserWithPermissions(email: string): Promise<AuthenticatedUser | null> {
   try {
+    const { prisma } = await import('@/lib/db');
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -184,6 +189,7 @@ export function hasAllPermissions(user: any, permissions: Permission[]): boolean
  */
 export async function requireAuth(request: NextRequest): Promise<{ user: AuthenticatedUser } | NextResponse> {
   try {
+    const { authOptions } = await import('@/lib/auth');
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -341,6 +347,7 @@ export async function logAuditEvent(event: any) {
   }
   
   try {
+    const { prisma } = await import('@/lib/db');
     await prisma.auditLog.create({
       data: {
         userId: event.userId || null,

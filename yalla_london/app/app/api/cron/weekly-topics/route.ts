@@ -1,184 +1,489 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { logCronExecution } from "@/lib/cron-logger";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 /**
  * Weekly Topic Generation Cron Job
  * Generates 30 topics weekly + triggers on low backlog
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret for security
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured');
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
+  // Feature flag guard
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("weekly-topics");
+  if (flagResponse) return flagResponse;
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    console.error('❌ Unauthorized cron request');
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  // Verify cron secret for security (optional — Vercel sends it when CRON_SECRET is set)
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    console.error("❌ Unauthorized cron request");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const _cronStart = Date.now();
+  const BUDGET_MS = 280_000; // 280s usable out of 300s maxDuration
+  const budgetLeft = () => BUDGET_MS - (Date.now() - _cronStart);
 
   try {
-    console.log('🕐 Weekly topic generation cron triggered');
+    console.log("🕐 Weekly topic generation cron triggered");
 
-    // Check feature flags directly
-    const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
-    const topicResearchEnabled = process.env.FEATURE_TOPIC_RESEARCH === 'true';
-    
-    if (!phase4bEnabled || !topicResearchEnabled) {
-      console.log('⚠️ Phase 4B or topic research disabled');
-      return NextResponse.json(
-        { error: 'Topic research feature is disabled' },
-        { status: 403 }
-      );
-    }
+    // Feature flags — default to enabled so the pipeline works out of the box.
+    // Set FEATURE_TOPIC_RESEARCH=false to explicitly disable.
+    const topicResearchDisabled = process.env.FEATURE_TOPIC_RESEARCH === "false";
 
-    // Check current topic backlog
-    const pendingCount = await prisma.topicProposal.count({
-      where: { status: 'proposed' }
-    });
-
-    console.log(`📊 Current pending topics: ${pendingCount}`);
-
-    let shouldGenerate = false;
-    let reason = '';
-
-    // Check if it's time for weekly generation (run on Sundays)
-    const today = new Date();
-    const isWeeklySchedule = today.getDay() === 0; // Sunday = 0
-
-    // Check for low backlog trigger
-    const isLowBacklog = pendingCount < 10;
-
-    if (isWeeklySchedule) {
-      shouldGenerate = true;
-      reason = 'weekly_scheduled';
-    } else if (isLowBacklog) {
-      shouldGenerate = true;
-      reason = 'low_backlog_trigger';
-    }
-
-    if (!shouldGenerate) {
-      console.log('⏭️ No generation needed - sufficient backlog and not weekly schedule');
+    if (topicResearchDisabled) {
+      console.log("[weekly-topics] Topic research explicitly disabled via FEATURE_TOPIC_RESEARCH=false");
       return NextResponse.json({
         success: true,
-        message: 'No topic generation needed',
-        pendingCount,
-        reason: 'sufficient_backlog',
-        timestamp: new Date().toISOString()
+        message: "Topic research disabled by feature flag",
+        timestamp: new Date().toISOString(),
       });
     }
 
-    console.log(`🎯 Generating topics - reason: ${reason}`);
+    // ─── Per-site topic generation ──────────────────────────────────────
+    // Each active site gets topics generated for its own destination.
+    // This prevents London travel topics from being assigned to yacht sites.
+    const { getActiveSiteIds, getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
+    const primarySiteId = activeSiteIds[0] || getDefaultSiteId();
+    const targetSiteIds = activeSiteIds.length > 0 ? activeSiteIds : [primarySiteId];
 
-    // Call the topic research API to generate weekly mixed topics
-    const topicResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/topics/research`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cronSecret}`, // Pass through auth
-      },
-      body: JSON.stringify({
-        category: 'weekly_mixed',
-        locale: 'en',
-        cron: true, // Flag to indicate this is a cron job
-      }),
-    });
+    const today = new Date();
+    const isWeeklySchedule = today.getDay() === 1; // Monday = 1 (matches vercel.json "0 4 * * 1")
 
-    if (!topicResponse.ok) {
-      throw new Error(`Topic generation failed: ${topicResponse.status}`);
+    const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
+    const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
+
+    let savedCount = 0;
+    let totalGenerated = 0;
+    let reason = "";
+    const perSiteResults: Record<string, { pending: number; generated: number; saved: number }> = {};
+
+    for (const targetSiteId of targetSiteIds) {
+      if (budgetLeft() < 10_000) {
+        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms), stopping site loop`);
+        break;
+      }
+
+      // Per-site feature flag — allows disabling topic generation for a single site
+      const siteFlag = await checkCronEnabled("weekly-topics", targetSiteId);
+      if (siteFlag) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — disabled by per-site flag`);
+        continue;
+      }
+
+      // Skip yacht sites — they use a different content model (Yacht, YachtDestination, CharterItinerary)
+      // and don't need TopicProposals generated through the blog topic pipeline
+      const { isYachtSite } = await import("@/config/sites");
+      if (isYachtSite(targetSiteId)) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — yacht site uses different content model`);
+        // Don't add to perSiteResults — yacht sites should not trigger
+        // "All AI providers failed" false alarm (pending:0, generated:0 matches failure filter)
+        continue;
+      }
+
+      const siteConfig = getSiteConfig(targetSiteId);
+      const siteDestination = siteConfig?.destination || "luxury travel";
+
+      // Per-site backlog check (ZY-004 fix)
+      const pendingCount = await prisma.topicProposal.count({
+        where: { site_id: targetSiteId, status: { in: ["proposed", "ready", "queued", "planned"] } },
+      });
+
+      console.log(`[weekly-topics] Site ${targetSiteId}: ${pendingCount} pending, destination="${siteDestination}"`);
+
+      const isLowBacklog = pendingCount < 10;
+      let shouldGenerate = false;
+
+      if (isWeeklySchedule) {
+        shouldGenerate = true;
+        reason = "weekly_scheduled";
+      } else if (isLowBacklog) {
+        shouldGenerate = true;
+        reason = "low_backlog_trigger";
+      }
+
+      if (!shouldGenerate) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — sufficient backlog (${pendingCount})`);
+        perSiteResults[targetSiteId] = { pending: pendingCount, generated: 0, saved: 0 };
+        continue;
+      }
+
+      // ─── Holiday-aware topic generation ──────────────────
+      // Fetch upcoming GCC holidays to inject seasonal context into AI prompts.
+      // This drives "publish Eid hotel guide 2 weeks before Eid" intelligence.
+      const holidayContext = await getHolidayContext();
+
+      // ─── Generate topics with per-site destination ──────────────────
+      let topicData: { topics: any[] } = { topics: [] };
+      let arabicData: { topics: any[] } | null = null;
+      let providerUsed = "none";
+
+      if (grokAvailable) {
+        try {
+          topicData = await generateTopicsViaGrok(siteDestination, "en", holidayContext);
+          providerUsed = "grok";
+        } catch (e) {
+          console.warn(`[weekly-topics] Grok EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+
+      if (topicData.topics.length === 0 && pplxKey) {
+        try {
+          topicData = await generateTopicsDirect(pplxKey, "weekly_mixed", "en", siteDestination, holidayContext);
+          providerUsed = "perplexity";
+        } catch (e) {
+          console.warn(`[weekly-topics] Perplexity EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+
+      if (topicData.topics.length === 0) {
+        try {
+          topicData = await generateTopicsViaAIProvider("weekly_mixed", "en", siteDestination, holidayContext);
+          providerUsed = "ai-provider";
+        } catch (e) {
+          console.warn(
+            `[weekly-topics] AI provider EN failed for ${targetSiteId}:`,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
+
+      // Arabic topics — budget-gated
+      if (budgetLeft() > 15_000) {
+        if (providerUsed === "grok" && grokAvailable) {
+          try {
+            arabicData = await generateTopicsViaGrok(siteDestination, "ar");
+          } catch (e) {
+            console.warn(`[weekly-topics] Grok AR failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+          }
+        }
+        if (!arabicData && pplxKey) {
+          try {
+            arabicData = await generateTopicsDirect(pplxKey, "weekly_mixed", "ar", siteDestination);
+          } catch (e) {
+            console.warn(
+              `[weekly-topics] Perplexity AR failed for ${targetSiteId}:`,
+              e instanceof Error ? e.message : e,
+            );
+          }
+        }
+      }
+
+      const allTopics = [
+        ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: "en" })),
+        ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: "ar" })),
+      ];
+
+      totalGenerated += allTopics.length;
+      let siteSaved = 0;
+
+      for (const t of allTopics) {
+        // Budget check — stop DB saves if we're running out of time
+        if (budgetLeft() < 3_000) {
+          console.log(`[weekly-topics] Budget exhausted during DB saves (${budgetLeft()}ms left), stopping`);
+          break;
+        }
+        try {
+          // Always prefer title (human-readable) over slug (URL artifact with hyphens/hashes).
+          // Slugs like "best-halal-fine-dining-893f" produce garbage keywords.
+          const { sanitizeKeyword } = await import("@/lib/content-pipeline/constants");
+          let keyword = sanitizeKeyword(t.title || t.slug || "");
+          if (keyword.length < 10) continue; // too short after cleanup
+
+          // ── Topic Discipline Gates (professional-standards.ts) ──────────
+          // These checks PREVENT new duplicate-content from entering the
+          // pipeline. Adopted April 30, 2026 after the F-grade audit
+          // revealed 12+ "Best Halal Restaurants" variants competing for
+          // the same query.
+          const { TOPIC_DISCIPLINE, jaccardSimilarity, normalizeForDuplicateDetection } =
+            await import("@/lib/standards/professional-standards");
+
+          // Gate 1: Forbidden slug patterns (-v3, hex hashes, year tags).
+          // The AI sometimes returns slugs like "best-halal-london-v9-e924a639"
+          // which are clearly cascade-naming artifacts.
+          const candidateSlug = (t.slug || keyword)
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-");
+          const forbiddenMatch = TOPIC_DISCIPLINE.forbiddenSlugPatterns.find((pat) => pat.test(candidateSlug));
+          if (forbiddenMatch) {
+            console.log(`[weekly-topics] REJECTED "${keyword}" — slug "${candidateSlug}" matches forbidden pattern`);
+            continue;
+          }
+
+          // Gate 2: Paused clusters. Some keyword themes have been heavily
+          // over-served and we won't generate more variants until cleanup
+          // operation reduces the existing competition.
+          const keywordLower = keyword.toLowerCase();
+          const pausedMatch = TOPIC_DISCIPLINE.pausedClusters.find((c) => keywordLower.includes(c));
+          if (pausedMatch) {
+            console.log(
+              `[weekly-topics] REJECTED "${keyword}" — cluster "${pausedMatch}" is PAUSED (over-served, awaiting cleanup)`,
+            );
+            continue;
+          }
+
+          // Skip duplicates per site (check both topic proposals and published articles)
+          const exists = await prisma.topicProposal.findFirst({
+            where: { primary_keyword: keyword, locale: t.locale, site_id: targetSiteId },
+          });
+          if (exists) continue;
+
+          // Skip if a published BlogPost already covers this keyword
+          const keywordSlug = keyword
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .slice(0, 80);
+          const publishedExists = await prisma.blogPost.findFirst({
+            where: {
+              siteId: targetSiteId,
+              published: true,
+              deletedAt: null,
+              slug: { startsWith: keywordSlug },
+            },
+            select: { id: true },
+          });
+          if (publishedExists) {
+            console.log(`[weekly-topics] Skipping "${keyword}" — published article already exists`);
+            continue;
+          }
+
+          // Gate 3: Jaccard similarity vs ALL recent published titles.
+          // Catches near-duplicates that don't share a slug prefix —
+          // e.g. "Best Halal Luxury Dining London" vs published
+          // "Best Halal Restaurants in London for Muslims".
+          const recentPublished = await prisma.blogPost.findMany({
+            where: {
+              siteId: targetSiteId,
+              published: true,
+              deletedAt: null,
+              created_at: { gte: new Date(Date.now() - TOPIC_DISCIPLINE.minDaysBetweenSimilarTopics * 86400000) },
+            },
+            select: { slug: true, title_en: true, title_ar: true },
+            take: 500,
+          });
+          const candidateTitleSet = normalizeForDuplicateDetection(t.title || keyword);
+          let dupSlug: string | null = null;
+          for (const post of recentPublished) {
+            const postTitle = t.locale === "ar" ? post.title_ar || post.title_en || "" : post.title_en || "";
+            if (!postTitle) continue;
+            const sim = jaccardSimilarity(candidateTitleSet, normalizeForDuplicateDetection(postTitle));
+            if (sim >= TOPIC_DISCIPLINE.duplicateRejectionJaccardThreshold) {
+              dupSlug = post.slug;
+              break;
+            }
+          }
+          if (dupSlug) {
+            console.log(
+              `[weekly-topics] REJECTED "${keyword}" — Jaccard ≥ ${TOPIC_DISCIPLINE.duplicateRejectionJaccardThreshold} vs published "${dupSlug}"`,
+            );
+            continue;
+          }
+
+          // Also skip if an ArticleDraft is already in the pipeline for this keyword
+          // (prevents near-duplicate topics from entering the pipeline before the
+          // first one has been published)
+          const draftExists = await prisma.articleDraft.findFirst({
+            where: {
+              site_id: targetSiteId,
+              keyword: { startsWith: keywordSlug },
+              current_phase: { not: "failed" },
+            },
+            select: { id: true },
+          });
+          if (draftExists) {
+            console.log(`[weekly-topics] Skipping "${keyword}" — draft already in pipeline`);
+            continue;
+          }
+
+          // Sanitize AI-returned fields. Validate pageType against the
+          // canonical enum from getThresholdsForPageType so unknown values
+          // don't break the pipeline. Cap longtails/questions to keep
+          // research_data manageable in the prompts that consume them.
+          const VALID_PAGE_TYPES = new Set([
+            "guide",
+            "comparison",
+            "listicle",
+            "deep-dive",
+            "answer",
+            "review",
+            "seasonal",
+          ]);
+          const VALID_INTENTS = new Set(["info", "commercial", "transactional", "navigational"]);
+          const cleanStringArray = (v: unknown, max: number): string[] =>
+            Array.isArray(v)
+              ? v
+                  .filter((s): s is string => typeof s === "string")
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 2 && s.length < 200)
+                  .slice(0, max)
+              : [];
+          const longtails = cleanStringArray(t.longtails, 5);
+          const questions = cleanStringArray(t.questions, 4);
+          const pageType =
+            typeof t.pageType === "string" && VALID_PAGE_TYPES.has(t.pageType.toLowerCase())
+              ? t.pageType.toLowerCase()
+              : "guide";
+          const intent =
+            typeof t.intent === "string" && VALID_INTENTS.has(t.intent.toLowerCase()) ? t.intent.toLowerCase() : "info";
+
+          await prisma.topicProposal.create({
+            data: {
+              title: t.title || keyword,
+              primary_keyword: keyword,
+              longtails,
+              questions,
+              intent,
+              suggested_page_type: pageType,
+              locale: t.locale,
+              site_id: targetSiteId,
+              status: "ready",
+              confidence_score: 0.7,
+              evergreen: false,
+              source_weights_json: { source: "weekly-topics-cron", site: targetSiteId, destination: siteDestination },
+              authority_links_json: { rationale: t.rationale || "", sources: t.sources || [] },
+            },
+          });
+          savedCount++;
+          siteSaved++;
+        } catch (saveErr) {
+          console.warn(
+            `[weekly-topics] Failed to save topic "${t.title}" for ${targetSiteId}:`,
+            saveErr instanceof Error ? saveErr.message : saveErr,
+          );
+        }
+      }
+
+      perSiteResults[targetSiteId] = { pending: pendingCount, generated: allTopics.length, saved: siteSaved };
+    } // end per-site loop
+
+    console.log(
+      `[weekly-topics] Completed: ${totalGenerated} topics generated, ${savedCount} saved across ${targetSiteIds.length} sites`,
+    );
+
+    // Detect if zero topics were generated for content sites (not yacht sites)
+    const contentSitesAttempted = Object.entries(perSiteResults).filter(([, r]) => r.generated === 0 && r.pending < 10);
+    const noAiProviders =
+      !grokAvailable &&
+      !pplxKey &&
+      !process.env.ANTHROPIC_API_KEY &&
+      !process.env.OPENAI_API_KEY &&
+      !process.env.GOOGLE_API_KEY;
+
+    // If we attempted generation but got 0 topics, that's a failure
+    if (totalGenerated === 0 && contentSitesAttempted.length > 0) {
+      const failureMessage = noAiProviders
+        ? "No AI API keys configured — set XAI_API_KEY, PPLX_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY to enable topic generation"
+        : "All AI providers failed to generate topics — check API key validity and provider status";
+
+      console.warn(`[weekly-topics] ${failureMessage}`);
+
+      await logCronExecution("weekly-topics", "failed", {
+        durationMs: Date.now() - _cronStart,
+        itemsProcessed: 0,
+        errorMessage: failureMessage,
+        resultSummary: {
+          reason,
+          total: 0,
+          newSaved: 0,
+          noAiProviders,
+          perSite: perSiteResults,
+        },
+      });
+
+      onCronFailure({ jobName: "weekly-topics", error: new Error(failureMessage) }).catch((err) =>
+        console.warn("[weekly-topics] onCronFailure hook failed:", err instanceof Error ? err.message : err),
+      );
+
+      return NextResponse.json({
+        success: false,
+        error: failureMessage,
+        reason,
+        generated: { total: 0, newSaved: 0, duplicatesSkipped: 0 },
+        perSite: perSiteResults,
+        timestamp: new Date().toISOString(),
+      });
     }
-
-    const topicData = await topicResponse.json();
-
-    // Generate Arabic topics as well if Arabic is enabled
-    const arabicResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/topics/research`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cronSecret}`,
-      },
-      body: JSON.stringify({
-        category: 'weekly_mixed',
-        locale: 'ar',
-        cron: true,
-      }),
-    });
-
-    let arabicData = null;
-    if (arabicResponse.ok) {
-      arabicData = await arabicResponse.json();
-    }
-
-    // Log generation results
-    const totalGenerated = (topicData?.count || 0) + (arabicData?.count || 0);
-    console.log(`✅ Topic generation completed: ${totalGenerated} topics created`);
 
     await logCronExecution("weekly-topics", "completed", {
       durationMs: Date.now() - _cronStart,
-      itemsProcessed: totalGenerated,
+      itemsProcessed: savedCount,
       resultSummary: {
         reason,
-        english: topicData?.count || 0,
-        arabic: arabicData?.count || 0,
         total: totalGenerated,
-        pendingCountBefore: pendingCount,
+        newSaved: savedCount,
+        duplicatesSkipped: totalGenerated - savedCount,
+        perSite: perSiteResults,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Weekly topic generation completed',
+      message: "Weekly topic generation completed",
       reason,
       generated: {
-        english: topicData?.count || 0,
-        arabic: arabicData?.count || 0,
         total: totalGenerated,
+        newSaved: savedCount,
+        duplicatesSkipped: totalGenerated - savedCount,
       },
-      pendingCountBefore: pendingCount,
-      timestamp: new Date().toISOString()
+      perSite: perSiteResults,
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    console.error('❌ Weekly topic generation failed:', error);
+    console.error("❌ Weekly topic generation failed:", error);
     await logCronExecution("weekly-topics", "failed", {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { 
-        error: 'Weekly topic generation failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+
+    // Fire failure hook — checks topic backlog and raises alert if critical
+    onCronFailure({ jobName: "weekly-topics", error }).catch((err) =>
+      console.warn("[weekly-topics] onCronFailure hook failed:", err instanceof Error ? err.message : err),
     );
+
+    return NextResponse.json({ error: "Weekly topic generation failed" }, { status: 500 });
   }
 }
 
-// Health check endpoint
+// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  const pendingCount = await prisma.topicProposal.count({
-    where: { status: 'proposed' }
-  });
+  // Healthcheck mode — quick status without generating topics
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
+    const siteIds = activeSiteIds.length > 0 ? activeSiteIds : [getDefaultSiteId()];
 
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: 'weekly-topics cron',
-    pendingTopics: pendingCount,
-    lowBacklog: pendingCount < 10,
-    nextWeeklyRun: getNextSunday(),
-    timestamp: new Date().toISOString()
-  });
+    const perSite: Record<string, { pending: number; lowBacklog: boolean }> = {};
+    let totalPending = 0;
+
+    for (const sid of siteIds) {
+      const count = await prisma.topicProposal.count({
+        where: { site_id: sid, status: { in: ["proposed", "ready", "queued", "planned"] } },
+      });
+      perSite[sid] = { pending: count, lowBacklog: count < 10 };
+      totalPending += count;
+    }
+
+    return NextResponse.json({
+      status: "healthy",
+      endpoint: "weekly-topics cron",
+      pendingTopics: totalPending,
+      lowBacklog: totalPending < 10,
+      perSite,
+      nextWeeklyRun: getNextSunday(),
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // Real execution — delegate to POST handler
+  return POST(request);
 }
 
 function getNextSunday(): string {
@@ -187,4 +492,180 @@ function getNextSunday(): string {
   const nextSunday = new Date(today);
   nextSunday.setDate(today.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
   return nextSunday.toISOString();
+}
+
+/**
+ * Get GCC holiday context for topic generation — drives timely content.
+ * Example: "Eid Al Fitr (March 30) → publish hotel/restaurant guides 2 weeks BEFORE"
+ */
+async function getHolidayContext(): Promise<string> {
+  try {
+    const { getUpcomingGCCHolidays, isBookingPeakHoliday } = await import("@/lib/apis/holidays");
+    const holidays = await getUpcomingGCCHolidays(60); // Next 60 days
+    if (holidays.length === 0) return "";
+    const peaks = holidays.filter(isBookingPeakHoliday);
+    const others = holidays.filter((h) => !isBookingPeakHoliday(h)).slice(0, 3);
+    const lines: string[] = [];
+    if (peaks.length > 0) {
+      lines.push(`UPCOMING GCC BOOKING PEAKS (publish guides 2-3 weeks BEFORE):`);
+      for (const p of peaks.slice(0, 5)) {
+        lines.push(`  - ${p.name} (${p.countryCode}): ${p.date}`);
+      }
+    }
+    if (others.length > 0) {
+      lines.push(`Other upcoming GCC holidays: ${others.map((h) => `${h.name} ${h.date}`).join(", ")}`);
+    }
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Call Perplexity API directly — same logic as /api/phase4b/topics/research
+ * but without the HTTP round-trip, rate limiter, and feature-flag re-check.
+ */
+async function generateTopicsDirect(
+  apiKey: string,
+  category: string,
+  locale: string,
+  destination: string,
+  holidayContext: string = "",
+): Promise<{ topics: any[] }> {
+  const holidayBlock = holidayContext
+    ? `\n\nSEASONAL INTELLIGENCE:\n${holidayContext}\nIf a major holiday is within 30 days, include 1-2 topics timed to that holiday (e.g., "Best Iftar Restaurants" before Ramadan, "Eid Weekend Getaway" before Eid).\n`
+    : "";
+  const prompt = `You are a local editor specializing in ${destination} travel content. Suggest 5 timely article topics about ${destination} for "${category}"
+in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
+TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport tips, family activities). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
+PAGETYPE MIX: At least 1 must be "comparison" (X vs Y, X vs Y vs Z) and at least 1 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
+Each topic MUST include 3 long-tail keyword variations (3-6 words each, including comparison/intent modifiers like "vs", "best for", "how to", "is it worth") AND 2-3 question-format queries that real travelers type.
+Return strict JSON array with objects: {title, slug, rationale, sources: string[], longtails: string[], questions: string[], pageType: "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", intent: "info"|"commercial"|"transactional"}`;
+
+  const res = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "sonar",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 800,
+      temperature: 0.3,
+    }),
+    signal: AbortSignal.timeout(30_000), // 30s max
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Perplexity API HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const content: string = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.delta?.content ?? "";
+
+  let parsed: any[] = [];
+  try {
+    const maybe = JSON.parse(content);
+    if (Array.isArray(maybe)) parsed = maybe;
+  } catch {
+    /* ignore parse failures */
+  }
+
+  return { topics: parsed.slice(0, 5) };
+}
+
+/**
+ * Fallback: generate topics via the unified AI provider layer (Claude/OpenAI/Gemini)
+ * when Perplexity API key is not configured.
+ */
+async function generateTopicsViaAIProvider(
+  category: string,
+  locale: string,
+  destination: string,
+  holidayContext: string = "",
+): Promise<{ topics: any[] }> {
+  const { generateJSON } = await import("@/lib/ai/provider");
+
+  const holidayBlock = holidayContext
+    ? `\n\nSEASONAL INTELLIGENCE:\n${holidayContext}\nIf a major holiday is within 30 days, include 1-2 topics timed to that holiday.\n`
+    : "";
+  const prompt =
+    locale === "en"
+      ? `You are a local editor specializing in ${destination} travel content.
+Suggest 5 timely, SEO-worthy article topics about ${destination} for the category "${category}".
+TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
+PAGETYPE MIX: At least 1 must be "comparison" (X vs Y, X vs Y vs Z) and at least 1 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
+Each topic MUST include a short URL slug, 1-2 authority source domains, 3 long-tail keyword variations (3-6 words each, including comparison/intent modifiers like "vs", "best for", "how to", "is it worth"), and 2-3 question-format queries real travelers type.
+Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"], longtails: ["..."], questions: ["..."], pageType: "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", intent: "info"|"commercial"|"transactional"}]`
+      : `أنت محرر متخصص في محتوى السفر إلى ${destination}.
+اقترح 5 مواضيع مقالات عن ${destination} مناسبة لفئة "${category}".
+المزيج: 4 مواضيع عامة (معالم، فنادق، مطاعم، برامج سياحية، رحلات، تسوق، أنشطة عائلية) + 1 موضوع متخصص (حلال أو مسافرون عرب).
+مزيج أنواع الصفحات: على الأقل 1 من نوع "comparison" (مقارنة X مقابل Y) و1 من نوع "answer" (إجابة مباشرة على سؤال واحد). الباقي يمكن أن يكون "guide" أو "listicle" أو "deep-dive" أو "review".
+لكل موضوع: عنوان قصير، سلاغ URL، مصدرين موثوقين، 3 كلمات مفتاحية طويلة الذيل (3-6 كلمات لكل واحدة)، و2-3 أسئلة بصيغة سؤال يبحث عنها المسافرون فعلياً.
+أرجع مصفوفة JSON: [{title, slug, rationale, sources: ["domain.com"], longtails: ["..."], questions: ["..."], pageType: "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", intent: "info"|"commercial"|"transactional"}]`;
+
+  const result = await Promise.race([
+    generateJSON<any[]>(prompt, {
+      maxTokens: 1024,
+      temperature: 0.5,
+      timeoutMs: 30_000,
+      taskType: "topic_research",
+      calledFrom: "weekly-topics",
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("AI topic generation timed out after 30s")), 30_000),
+    ),
+  ]);
+
+  const topics = Array.isArray(result) ? result.slice(0, 5) : [];
+  return { topics };
+}
+
+/**
+ * Generate topics via Grok Live Search (Responses API with web_search + x_search).
+ * Uses real-time web and X/Twitter data for the most up-to-date trending topics.
+ * This is the preferred method when XAI_API_KEY is configured.
+ */
+async function generateTopicsViaGrok(
+  destination: string,
+  locale: string,
+  holidayContext: string = "",
+): Promise<{ topics: any[] }> {
+  const { searchTrendingTopics } = await import("@/lib/ai/grok-live-search");
+
+  // Pass holiday context as extra instruction to Grok
+  const extraContext = holidayContext ? `\nSEASONAL: ${holidayContext.split("\n").slice(0, 3).join(". ")}` : "";
+  const result = await Promise.race([
+    searchTrendingTopics(destination + extraContext, locale),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Grok topic research timed out after 30s")), 30_000),
+    ),
+  ]);
+
+  // Parse the JSON response from Grok
+  let topics: any[] = [];
+  try {
+    let jsonStr = result.content.trim();
+    // Strip markdown code fences if present
+    if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    topics = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+  } catch (parseErr) {
+    console.warn(
+      "[weekly-topics] Failed to parse Grok response as JSON:",
+      parseErr instanceof Error ? parseErr.message : parseErr,
+    );
+    console.warn("[weekly-topics] Raw Grok response:", result.content.slice(0, 500));
+  }
+
+  console.log(
+    `[weekly-topics] Grok returned ${topics.length} topics (${locale}) using ${result.usage.totalTokens} tokens`,
+  );
+  return { topics };
 }

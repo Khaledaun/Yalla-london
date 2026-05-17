@@ -3,9 +3,9 @@
  *
  * Manage PDF travel guides across all sites.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function GET(request: NextRequest) {
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get('site');
     const status = searchParams.get('status');
@@ -21,10 +22,10 @@ export async function GET(request: NextRequest) {
     // Get PDF guides
     const guides = await prisma.pdfGuide.findMany({
       where: {
-        site_id: siteId || undefined,
+        site: siteId || undefined,
         status: status || undefined,
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
     });
 
@@ -37,44 +38,37 @@ export async function GET(request: NextRequest) {
 
         const recentDownloads = await prisma.pdfDownload.count({
           where: {
-            guide_id: guide.id,
-            downloaded_at: { gte: thirtyDaysAgo },
+            pdfGuideId: guide.id,
+            downloadedAt: { gte: thirtyDaysAgo },
           },
         });
 
-        // Get leads from this guide
+        // Get leads from this guide (downloads with an email)
         const leadsFromGuide = await prisma.pdfDownload.count({
           where: {
-            guide_id: guide.id,
-            lead_email: { not: null },
+            pdfGuideId: guide.id,
+            email: { not: null },
           },
-        });
-
-        // Get site name
-        const site = await prisma.site.findUnique({
-          where: { id: guide.site_id },
-          select: { name: true },
         });
 
         return {
           id: guide.id,
           title: guide.title,
-          destination: guide.destination,
-          template: guide.template,
-          locale: guide.locale,
-          siteId: guide.site_id,
-          siteName: site?.name || 'Unknown',
-          fileUrl: guide.file_url,
-          fileSize: guide.file_size,
+          slug: guide.slug,
+          description: guide.description,
+          style: guide.style,
+          language: guide.language,
+          siteId: guide.site,
+          pdfUrl: guide.pdfUrl,
           status: guide.status,
-          downloads: guide.download_count,
+          downloads: guide.downloads,
           recentDownloads,
           leadsGenerated: leadsFromGuide,
-          conversionRate: guide.download_count > 0
-            ? ((leadsFromGuide / guide.download_count) * 100).toFixed(1)
+          conversionRate: guide.downloads > 0
+            ? ((leadsFromGuide / guide.downloads) * 100).toFixed(1)
             : '0',
-          createdAt: guide.created_at.toISOString(),
-          updatedAt: guide.updated_at.toISOString(),
+          createdAt: guide.createdAt.toISOString(),
+          updatedAt: guide.updatedAt.toISOString(),
         };
       })
     );
@@ -97,7 +91,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Failed to get PDF guides:', error);
+    console.error('[pdf-guides] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to get guides' },
       { status: 500 }
@@ -110,33 +104,41 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const {
       title,
-      destination,
-      template,
-      locale,
+      slug,
+      description,
+      style = 'luxury',
+      language = 'en',
       siteId,
       sections,
       branding,
       status = 'draft',
     } = await request.json();
 
+    if (!title || !siteId) {
+      return NextResponse.json(
+        { error: 'title and siteId are required' },
+        { status: 400 }
+      );
+    }
+
+    // Generate slug from title if not provided
+    const guideSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
     // Create guide record
     const guide = await prisma.pdfGuide.create({
       data: {
         title,
-        destination,
-        template,
-        locale,
-        site_id: siteId,
+        slug: guideSlug,
+        description: description || null,
+        site: siteId,
+        style,
+        language,
         status,
-        config_json: {
-          sections,
-          branding,
-        },
-        file_url: '', // Will be updated after generation
-        file_size: 0,
-        download_count: 0,
+        contentSections: sections || [],
+        htmlContent: branding ? JSON.stringify(branding) : null,
       },
     });
 
@@ -145,11 +147,12 @@ export async function POST(request: NextRequest) {
       guide: {
         id: guide.id,
         title: guide.title,
+        slug: guide.slug,
         status: guide.status,
       },
     });
   } catch (error) {
-    console.error('Failed to create PDF guide:', error);
+    console.error('[pdf-guides] POST error:', error);
     return NextResponse.json(
       { error: 'Failed to create guide' },
       { status: 500 }
@@ -162,14 +165,23 @@ export async function PATCH(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const { id, title, status, sections, branding } = await request.json();
+    const { prisma } = await import("@/lib/db");
+    const { id, title, description, status, sections, style, language } = await request.json();
 
-    const updateData: any = {};
-    if (title) updateData.title = title;
-    if (status) updateData.status = status;
-    if (sections || branding) {
-      updateData.config_json = { sections, branding };
+    if (!id) {
+      return NextResponse.json(
+        { error: 'id is required' },
+        { status: 400 }
+      );
     }
+
+    const updateData: Record<string, any> = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (style !== undefined) updateData.style = style;
+    if (language !== undefined) updateData.language = language;
+    if (sections !== undefined) updateData.contentSections = sections;
 
     await prisma.pdfGuide.update({
       where: { id },
@@ -178,7 +190,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to update PDF guide:', error);
+    console.error('[pdf-guides] PATCH error:', error);
     return NextResponse.json(
       { error: 'Failed to update guide' },
       { status: 500 }
@@ -191,6 +203,7 @@ export async function DELETE(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -201,9 +214,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete downloads first
+    // Delete downloads first (cascade)
     await prisma.pdfDownload.deleteMany({
-      where: { guide_id: id },
+      where: { pdfGuideId: id },
     });
 
     // Delete guide
@@ -213,7 +226,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete PDF guide:', error);
+    console.error('[pdf-guides] DELETE error:', error);
     return NextResponse.json(
       { error: 'Failed to delete guide' },
       { status: 500 }

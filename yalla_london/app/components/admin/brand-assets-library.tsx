@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { sanitizeSvg } from '@/lib/html-sanitizer'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,13 +23,13 @@ function hexToRgb(hex: string): string {
 const defaultBrandColors = [
   {
     name: 'Navy Primary',
-    hex: '#1A1F36',
+    hex: '#1C1917',
     rgb: 'rgb(26, 31, 54)',
     usage: 'Primary text, headers, buttons, footer'
   },
   {
     name: 'Coral Accent',
-    hex: '#E8634B',
+    hex: '#C8322B',
     rgb: 'rgb(232, 99, 75)',
     usage: 'CTA buttons, highlights, badges, links'
   },
@@ -40,7 +41,7 @@ const defaultBrandColors = [
   },
   {
     name: 'Light Navy',
-    hex: '#2D3452',
+    hex: '#3D3835',
     rgb: 'rgb(45, 52, 82)',
     usage: 'Hover states, gradients, darker sections'
   },
@@ -61,7 +62,7 @@ const defaultBrandColors = [
 // Typography
 const typography = [
   {
-    name: 'Plus Jakarta Sans',
+    name: 'Anybody',
     weights: ['400 Regular', '500 Medium', '600 SemiBold', '700 Bold', '800 ExtraBold'],
     usage: 'English text, headings, body copy',
     link: 'https://fonts.google.com/specimen/Plus+Jakarta+Sans'
@@ -81,11 +82,11 @@ const logos = [
     name: 'Primary Logo (Dark)',
     description: 'Main logo for light backgrounds',
     svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="5" width="40" height="40" rx="8" fill="#1A1F36"/>
-      <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="white" text-anchor="middle">Y</text>
-      <circle cx="32" cy="14" r="5" fill="#E8634B"/>
-      <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="#1A1F36">Yalla</text>
-      <text x="115" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="500" font-size="28" fill="#A3A3A3">London</text>
+      <rect x="0" y="5" width="40" height="40" rx="8" fill="#1C1917"/>
+      <text x="20" y="33" font-family="Anybody, sans-serif" font-weight="800" font-size="22" fill="white" text-anchor="middle">Y</text>
+      <circle cx="32" cy="14" r="5" fill="#C8322B"/>
+      <text x="52" y="35" font-family="Anybody, sans-serif" font-weight="800" font-size="28" fill="#1C1917">Yalla</text>
+      <text x="115" y="35" font-family="Anybody, sans-serif" font-weight="500" font-size="28" fill="#A3A3A3">London</text>
     </svg>`,
     background: 'light'
   },
@@ -95,10 +96,10 @@ const logos = [
     description: 'Main logo for dark backgrounds',
     svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="5" width="40" height="40" rx="8" fill="white"/>
-      <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="#1A1F36" text-anchor="middle">Y</text>
-      <circle cx="32" cy="14" r="5" fill="#E8634B"/>
-      <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="white">Yalla</text>
-      <text x="115" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="500" font-size="28" fill="#A3A3A3">London</text>
+      <text x="20" y="33" font-family="Anybody, sans-serif" font-weight="800" font-size="22" fill="#1C1917" text-anchor="middle">Y</text>
+      <circle cx="32" cy="14" r="5" fill="#C8322B"/>
+      <text x="52" y="35" font-family="Anybody, sans-serif" font-weight="800" font-size="28" fill="white">Yalla</text>
+      <text x="115" y="35" font-family="Anybody, sans-serif" font-weight="500" font-size="28" fill="#A3A3A3">London</text>
     </svg>`,
     background: 'dark'
   },
@@ -107,9 +108,9 @@ const logos = [
     name: 'App Icon (Dark)',
     description: 'Square icon for apps and favicons',
     svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-      <rect width="50" height="50" rx="10" fill="#1A1F36"/>
-      <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">Y</text>
-      <circle cx="38" cy="14" r="6" fill="#E8634B"/>
+      <rect width="50" height="50" rx="10" fill="#1C1917"/>
+      <text x="25" y="34" font-family="Anybody, sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">Y</text>
+      <circle cx="38" cy="14" r="6" fill="#C8322B"/>
     </svg>`,
     background: 'light'
   },
@@ -119,8 +120,8 @@ const logos = [
     description: 'Light version for dark contexts',
     svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
       <rect width="50" height="50" rx="10" fill="white"/>
-      <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="#1A1F36" text-anchor="middle">Y</text>
-      <circle cx="38" cy="14" r="6" fill="#E8634B"/>
+      <text x="25" y="34" font-family="Anybody, sans-serif" font-weight="800" font-size="26" fill="#1C1917" text-anchor="middle">Y</text>
+      <circle cx="38" cy="14" r="6" fill="#C8322B"/>
     </svg>`,
     background: 'dark'
   },
@@ -135,12 +136,12 @@ const designElements = [
   },
   {
     name: 'Primary Gradient',
-    css: 'background: linear-gradient(to right, #1A1F36, #2D3452)',
+    css: 'background: linear-gradient(to right, #1C1917, #3D3835)',
     usage: 'Headers, hero sections, CTAs'
   },
   {
     name: 'Coral Gradient',
-    css: 'background: linear-gradient(to right, #E8634B, #F0816D)',
+    css: 'background: linear-gradient(to right, #C8322B, #e34040)',
     usage: 'Buttons, highlights, accent areas'
   },
   {
@@ -167,8 +168,8 @@ export function BrandAssetsLibrary() {
 
   // Generate brand colors based on current site
   const brandColors = useMemo(() => {
-    const primaryColor = currentSite.primary_color || '#1A1F36'
-    const secondaryColor = currentSite.secondary_color || '#E8634B'
+    const primaryColor = currentSite.primary_color || '#1C1917'
+    const secondaryColor = currentSite.secondary_color || '#C8322B'
 
     return [
       {
@@ -191,7 +192,7 @@ export function BrandAssetsLibrary() {
       },
       {
         name: 'Light Primary',
-        hex: '#2D3452',
+        hex: '#3D3835',
         rgb: 'rgb(45, 52, 82)',
         usage: 'Hover states, gradients, darker sections'
       },
@@ -212,8 +213,8 @@ export function BrandAssetsLibrary() {
 
   // Generate site-specific logos
   const siteLogos = useMemo(() => {
-    const primaryColor = currentSite.primary_color || '#1A1F36'
-    const secondaryColor = currentSite.secondary_color || '#E8634B'
+    const primaryColor = currentSite.primary_color || '#1C1917'
+    const secondaryColor = currentSite.secondary_color || '#C8322B'
     const siteName = currentSite.name || 'Yalla London'
     const firstLetter = siteName.charAt(0).toUpperCase()
 
@@ -224,9 +225,9 @@ export function BrandAssetsLibrary() {
         description: `Main logo for light backgrounds`,
         svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="5" width="40" height="40" rx="8" fill="${primaryColor}"/>
-          <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="white" text-anchor="middle">${firstLetter}</text>
+          <text x="20" y="33" font-family="Anybody, sans-serif" font-weight="800" font-size="22" fill="white" text-anchor="middle">${firstLetter}</text>
           <circle cx="32" cy="14" r="5" fill="${secondaryColor}"/>
-          <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="${primaryColor}">${siteName.split(' ')[0] || 'Site'}</text>
+          <text x="52" y="35" font-family="Anybody, sans-serif" font-weight="800" font-size="28" fill="${primaryColor}">${siteName.split(' ')[0] || 'Site'}</text>
         </svg>`,
         background: 'light'
       },
@@ -236,9 +237,9 @@ export function BrandAssetsLibrary() {
         description: 'Main logo for dark backgrounds',
         svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="5" width="40" height="40" rx="8" fill="white"/>
-          <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
+          <text x="20" y="33" font-family="Anybody, sans-serif" font-weight="800" font-size="22" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
           <circle cx="32" cy="14" r="5" fill="${secondaryColor}"/>
-          <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="white">${siteName.split(' ')[0] || 'Site'}</text>
+          <text x="52" y="35" font-family="Anybody, sans-serif" font-weight="800" font-size="28" fill="white">${siteName.split(' ')[0] || 'Site'}</text>
         </svg>`,
         background: 'dark'
       },
@@ -248,7 +249,7 @@ export function BrandAssetsLibrary() {
         description: 'Square icon for apps and favicons',
         svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
           <rect width="50" height="50" rx="10" fill="${primaryColor}"/>
-          <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">${firstLetter}</text>
+          <text x="25" y="34" font-family="Anybody, sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">${firstLetter}</text>
           <circle cx="38" cy="14" r="6" fill="${secondaryColor}"/>
         </svg>`,
         background: 'light'
@@ -259,7 +260,7 @@ export function BrandAssetsLibrary() {
         description: 'Light version for dark contexts',
         svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
           <rect width="50" height="50" rx="10" fill="white"/>
-          <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
+          <text x="25" y="34" font-family="Anybody, sans-serif" font-weight="800" font-size="26" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
           <circle cx="38" cy="14" r="6" fill="${secondaryColor}"/>
         </svg>`,
         background: 'dark'
@@ -286,12 +287,12 @@ export function BrandAssetsLibrary() {
   return (
     <div className="space-y-8">
       {/* Current Site Info */}
-      <Card className="bg-gradient-to-r from-gray-50 to-white border-l-4" style={{ borderLeftColor: currentSite.primary_color || '#1A1F36' }}>
+      <Card className="bg-gradient-to-r from-gray-50 to-white border-l-4" style={{ borderLeftColor: currentSite.primary_color || '#1C1917' }}>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl"
-              style={{ backgroundColor: currentSite.primary_color || '#1A1F36' }}
+              style={{ backgroundColor: currentSite.primary_color || '#1C1917' }}
             >
               {currentSite.name?.charAt(0) || 'Y'}
             </div>
@@ -431,10 +432,10 @@ export function BrandAssetsLibrary() {
                   <div key={logo.id} className="border rounded-xl overflow-hidden">
                     <div
                       className={`p-8 flex items-center justify-center ${
-                        logo.background === 'dark' ? 'bg-[#1A1F36]' : 'bg-gray-50'
+                        logo.background === 'dark' ? 'bg-[#1C1917]' : 'bg-gray-50'
                       }`}
                       style={{ minHeight: '120px' }}
-                      dangerouslySetInnerHTML={{ __html: logo.svg }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(logo.svg || '') }}
                     />
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
@@ -566,7 +567,7 @@ export function BrandAssetsLibrary() {
                   <li>In Canva, go to Uploads &gt; Upload files</li>
                   <li>Select your downloaded SVG files</li>
                   <li>Add brand colors using the HEX codes above</li>
-                  <li>Use Plus Jakarta Sans (available in Canva fonts)</li>
+                  <li>Use Anybody (available in Canva fonts)</li>
                 </ol>
               </div>
 

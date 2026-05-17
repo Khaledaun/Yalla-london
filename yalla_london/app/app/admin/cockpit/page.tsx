@@ -4526,6 +4526,14 @@ function SitesTab({
                 🎯 Rescue Plan
               </button>
               <button
+                onClick={() =>
+                  (window.location.href = `/admin/cockpit/canonicalize?siteId=${encodeURIComponent(site.id)}`)
+                }
+                className="px-2 py-1 rounded text-xs bg-[rgba(147,51,234,0.10)] hover:bg-[rgba(147,51,234,0.16)] text-[#6d28d9] border border-[rgba(147,51,234,0.30)] font-semibold"
+              >
+                ♻️ Canonicalize
+              </button>
+              <button
                 onClick={() => loadLatestPublished(site.id)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id

@@ -2556,6 +2556,63 @@ test("Audit-May17-Regression", "/events search matches title + venue + category"
     : { status: FAIL, details: "/events search missing category or cross-language match" };
 });
 
+// ─── May 17 round-3 fixes (aggregated report follow-up) ────────────────────
+// Report at 19:23 UTC flagged: (1) slug v-suffix chaining still happening
+// (best-halal-afternoon-tea-london-v7-v4-v8), (2) campaign-executor silently
+// failing with "(no error message captured)", (3) events-refresh HTTP 401,
+// (4) seo-deep-review failing every run on AI timeouts during content
+// expansion, (5) 13 old articles starved of internal links. All 5 pinned.
+
+test("Audit-May17-Regression", "select-runner strips inherited v-suffix from slug", () => {
+  // File has regex literal /(?:-v\d+){1,}$/gi — JS string `(?:-v\d+){1,}$`.
+  // In source code that means escape `\d` as `\\d` (one extra backslash for JS).
+  return fileContains(
+    "lib/content-pipeline/select-runner.ts",
+    "(?:-v\\d+){1,}$",
+  )
+    ? { status: PASS, details: "Inherited v-suffix stripped before collision check (prevents v7-v4-v8 chains)" }
+    : { status: FAIL, details: "Slug versioning will continue accumulating cascaded v-tags" };
+});
+
+test("Audit-May17-Regression", "campaign-executor captures error_message on failure", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/campaign-executor/route.ts"),
+    "utf-8",
+  );
+  return content.includes("failureMessages") && content.includes("error_message: errorMessage")
+    ? { status: PASS, details: "Per-campaign errors surfaced to CronJobLog.error_message" }
+    : { status: FAIL, details: "campaign-executor silent failures will remain (no error message captured)" };
+});
+
+test("Audit-May17-Regression", "events-seed POST accepts cron auth", () => {
+  return fileContains(
+    "app/api/admin/events-seed/route.ts",
+    "requireAdminOrCron",
+  )
+    ? { status: PASS, details: "events-refresh cron auth works (CRON_SECRET Bearer accepted)" }
+    : { status: FAIL, details: "events-refresh will keep failing HTTP 401" };
+});
+
+test("Audit-May17-Regression", "seo-deep-review skips content expansion on AI timeout", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/seo-deep-review/route.ts"),
+    "utf-8",
+  );
+  return content.includes("Content expansion skipped") && content.includes("fix.notes.push")
+    ? { status: PASS, details: "AI timeouts logged as NOTE not ERROR — cron stays 'completed' status" }
+    : { status: FAIL, details: "seo-deep-review fails entire article when content expansion times out" };
+});
+
+test("Audit-May17-Regression", "seo-agent internal links scan oldest articles too", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"),
+    "utf-8",
+  );
+  return content.includes("newestPosts") && content.includes("oldestPosts")
+    ? { status: PASS, details: "Two-pass scan drains long-tail backlog (Feb articles no longer starved)" }
+    : { status: FAIL, details: "Older articles will stay at 0 inbound links" };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map((r) => r.category))];
 let totalPass = 0,

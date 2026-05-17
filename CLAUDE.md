@@ -5844,3 +5844,33 @@ Markdown files created by Stop hook: `YYYY-MM-DD_HH-MM.md` with session ID, bran
 187. **Search input placeholders are a promise — the filter must honour what the placeholder says.** "Search by name, area, or amenity" requires the JS filter to match against name + area + amenity. Matching only name is a misleading-UI bug even when the input fires correctly. Audit search inputs by reading the placeholder text and verifying every term it names is in the filter predicate.
 
 188. **PostgreSQL POSIX regex `~` and `!~` operate on Unicode classes inside character ranges.** `title_ar ~ '\[(x|X|TBD)'` matches bracket-placeholder leaks; `title_ar !~ '[؀-ۿ]'` matches strings with no Arabic chars. Use these in raw SQL when Prisma's `findMany` filter API can't express the regex you need. Double-escape backslashes (`'\\['`) when wrapping in JS template literals for `$queryRawUnsafe`.
+
+### Session: May 17, 2026 — Aggregated Report Round-3 Fix Sprint (29/29 new smoke tests pass)
+
+**Context:** Aggregated report at 19:23 UTC (Grade B 71/100) surfaced 5 issues that survived the Phase 1+2 affiliate/UI sprint:
+1. **Slug v-suffix chaining still happening**: `best-halal-afternoon-tea-london-v7-v4-v8`, `which-tube-lines-...-v2`, `london-marathon-spectator-guide-v2`, `best-halal-fine-dining-...-v4-v4`. Section 16 was consolidating them BUT new ones were being published faster than cleanup could keep up.
+2. **campaign-executor silently failing**: dashboard showed `(no error message captured)` — root cause: status was set to "failed" but `error_message` field was never populated.
+3. **events-refresh HTTP 401**: cron called `/api/admin/events-seed` POST with Bearer CRON_SECRET, but the endpoint required admin session auth.
+4. **seo-deep-review failing every run**: "Content expansion: All AI providers failed: grok timeout; claude timeout" caused 4 articles per run to fail entirely, even though their other fixes (meta, internal links, canonical) succeeded.
+5. **13 articles with 0 inbound internal links** (all Feb 2026): seo-agent's newest-first scan (`take:100 orderBy:desc`) never reached older articles.
+
+**Fixes shipped:**
+- `select-runner.ts` slug cleanup gains `.replace(/(?:-v\d+){1,}$/gi, "")` — strips inherited v-suffixes from the slug BEFORE the same-topic Jaccard collision check, so duplicates get rejected instead of accumulating yet another v-tag. Section 16 (already existing) handles the consolidation backfill.
+- `campaign-executor/route.ts` collects per-campaign failure messages into `failureMessages[]` array and writes the first 5 to `CronJobLog.error_message` (capped at 1500 chars). Falls back to a generic "No items succeeded out of N processed" message when no specific errors were captured.
+- `events-seed/route.ts` POST handler swapped `requireAdmin` → `requireAdminOrCron` so the cron-originated Bearer call passes auth.
+- `seo-deep-review/route.ts` content-expansion catch block now classifies AI provider timeouts as `fix.notes` (informational) instead of `fix.errors` (which marks the whole article as failed). Pattern: `if (/timeout|aborted|All AI providers failed/i.test(msg)) → notes else errors`.
+- `seo-agent/route.ts` internal link backfill runs two parallel queries (`take:60 orderBy:desc` + `take:60 orderBy:asc`), then dedups — long-tail Feb articles get scanned every run alongside fresh content.
+
+5 new smoke tests pin each fix (29/29 Audit-May17-Regression now pass; 243/256 overall = 95%).
+
+### Critical Rules Learned (May 17 Round 3)
+
+189. **Inherited slug v-suffixes must be stripped BEFORE the collision check, not after.** If an EXPAND-style draft enters select-runner with `keyword = "best-halal-tea-london-v2"`, the slug-collision branch will see `-v2` is taken and create `-v2-v3`, then next round `-v2-v3-v4`. Strip `/(?:-v\d+){1,}$/gi` from the inherited slug FIRST so the Jaccard check correctly identifies it as a duplicate and rejects.
+
+190. **Cron `status: "failed"` without `error_message` is a silent failure.** The dashboard reads the `error_message` column for diagnostics. When a cron computes status from result aggregates (e.g., `totalSucceeded > 0 ? completed : failed`), it MUST also populate `error_message` with the underlying cause — either by collecting per-item errors into a joined string OR by writing a generic "N items failed of M processed" fallback. The CEO Inbox + diagnostic-agent rely on this field; missing it = invisible problem.
+
+191. **Cron-to-internal-endpoint calls must use `requireAdminOrCron`, not `requireAdmin`.** A cron calling its own `/api/admin/*` POST handler with `Bearer ${CRON_SECRET}` will get 401 if the endpoint uses pure `requireAdmin` (which only checks for admin session cookies). The right pattern is `requireAdminOrCron` which accepts EITHER admin session OR CRON_SECRET Bearer. This is the documented exception to Rule #100 (never use internal HTTP fetch) — when the cron MUST go through HTTP (e.g., shared logic with the admin UI), the endpoint auth must accept both methods.
+
+192. **AI provider timeouts in ENHANCEMENT crons should be NOTES, not ERRORS.** seo-deep-review's content-expansion call is one of 13+ fixes per article. If the AI times out, the OTHER 12 fixes succeeded — the article doesn't deserve to be marked "failed". Classification rule: a timeout/abort on an AI step that's an enhancement (not a requirement) should call `fix.notes.push()`. Only step failures that BLOCK other work or corrupt data should call `fix.errors.push()`. Pattern: `if (/timeout|aborted|All AI providers failed/i.test(msg))` → graceful skip.
+
+193. **Single-pass newest-first scans starve the long tail.** When a cron processes a batch sized smaller than total inventory (`take:100 orderBy:desc`), articles older than the 100-newest are never touched. After 100 newer articles publish, the older ones are permanently out of reach. Run TWO passes — one descending, one ascending — and dedupe by ID. The combined 120 candidates from both ends drain the backlog within a few runs while still catching fresh content.

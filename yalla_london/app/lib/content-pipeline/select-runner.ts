@@ -1488,9 +1488,16 @@ export async function promoteToBlogPost(
   }
 
   // Clean slug: remove date stamps and deduplicate year tokens to avoid
-  // Google's "auto-generated content" signals
+  // Google's "auto-generated content" signals. Also strip pre-existing
+  // -v2/-v3 suffixes from the INHERITED slug — May 17 report (round 3)
+  // found slugs accumulating chained v-tags (`-v7-v4-v8`) when expansion
+  // drafts re-entered the collision path with a v-suffixed keyword. We
+  // normalize back to the base slug here, then the same-topic Jaccard
+  // check below will correctly identify the duplicate and reject it
+  // INSTEAD of appending yet another v-tag.
   slug = slug
     .replace(/-\d{4}-\d{2}-\d{2}$/g, "") // Strip trailing date stamps (e.g., -2026-02-17)
+    .replace(/(?:-v\d+){1,}$/gi, "")    // Strip chained v-suffixes from the END only
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "");
   // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")

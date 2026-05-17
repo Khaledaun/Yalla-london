@@ -126,6 +126,50 @@ async function handle(request: NextRequest) {
   const duration = Date.now() - startTime;
   const isSuccess = totalFailed === 0;
 
+  // ── Monday morning audit: gather carryover action items + email digest ──
+  // Surfaces 4 categories from the May 17 "Close the Loop" sprint:
+  //   (1) cannibalization clusters needing manual canonicalization
+  //   (2) hero CTA 7d conversion count (metric watch)
+  //   (3) dirty-title backlog drain progress (auto-draining)
+  //   (4) sitemap completeness for high-value static pages (code change)
+  // Read-only — never mutates state. Failures degrade gracefully so the
+  // primary campaign-creation result is never blocked.
+  let auditEmailSent = false;
+  let totalActionItems = 0;
+  try {
+    if (Date.now() - startTime < BUDGET_MS - 25_000) {
+      const { getMondayActionItems, buildMondayActionEmailHtml } = await import("@/lib/ops/monday-action-items");
+      const reports = await Promise.all(sites.map((s) => getMondayActionItems(s).catch(() => null)));
+      const validReports = reports.filter((r): r is NonNullable<typeof r> => r !== null);
+      totalActionItems = validReports.reduce((n, r) => n + r.items.length, 0);
+
+      const adminEmails = (process.env.ADMIN_EMAILS || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      if (totalActionItems > 0 && adminEmails.length > 0) {
+        const baseUrl = origin;
+        const { sendEmail } = await import("@/lib/email/sender");
+        const criticalCount = validReports.reduce(
+          (n, r) => n + r.items.filter((i) => i.severity === "critical").length,
+          0,
+        );
+        const subjectPrefix = criticalCount > 0 ? `🚨 [${criticalCount} CRITICAL] ` : "";
+        const sendResult = await sendEmail({
+          to: adminEmails[0],
+          subject: `${subjectPrefix}Monday audit: ${totalActionItems} action item(s) across ${validReports.length} site(s)`,
+          html: buildMondayActionEmailHtml(validReports, baseUrl),
+        });
+        auditEmailSent = sendResult.success;
+        if (!sendResult.success) {
+          console.warn("[weekly-rescue-campaign] Monday audit email failed:", sendResult.error);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[weekly-rescue-campaign] Monday audit pass failed:", err instanceof Error ? err.message : err);
+  }
+
   await logCronExecution("weekly-rescue-campaign", isSuccess ? "completed" : "failed", {
     durationMs: duration,
     itemsProcessed: perSiteResults.length,
@@ -143,6 +187,10 @@ async function handle(request: NextRequest) {
       totalSkipped,
       totalFailed,
       perSiteResults,
+      mondayAudit: {
+        totalActionItems,
+        emailSent: auditEmailSent,
+      },
     },
   }).catch((err) => console.warn("[weekly-rescue-campaign] log failed:", err));
 
@@ -154,6 +202,10 @@ async function handle(request: NextRequest) {
     skipped: totalSkipped,
     failed: totalFailed,
     perSite: perSiteResults,
+    mondayAudit: {
+      totalActionItems,
+      emailSent: auditEmailSent,
+    },
   });
 }
 

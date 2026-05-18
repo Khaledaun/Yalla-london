@@ -877,7 +877,7 @@ async function handleAutoFixLite(request: NextRequest) {
         if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
         const posts = await prisma.blogPost.findMany({
           where: { siteId: sid, deletedAt: null, published: true },
-          select: { id: true, slug: true, seo_score: true, content_en: true, created_at: true },
+          select: { id: true, slug: true, seo_score: true, title_en: true, content_en: true, created_at: true },
           orderBy: { created_at: "asc" },
           take: 500,
         });
@@ -887,22 +887,145 @@ async function handleAutoFixLite(request: NextRequest) {
           if (!groups.has(norm)) groups.set(norm, []);
           groups.get(norm)!.push(p);
         }
-        for (const [, group] of groups) {
-          if (group.length < 2) continue;
-          const sorted = [...group].sort((a, b) => {
-            if ((a.seo_score || 0) !== (b.seo_score || 0)) return (b.seo_score || 0) - (a.seo_score || 0);
-            const aw = a.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
-            const bw = b.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
-            if (aw !== bw) return bw - aw;
+
+        // Skip rest of section if no actual duplicate groups exist.
+        const dupGroups = Array.from(groups.values()).filter((g) => g.length >= 2);
+        if (dupGroups.length === 0) continue;
+
+        // ─── Real-world signal aggregation ───────────────────────────────
+        // Pre-compute three lookups in PARALLEL so the winner-picker can use
+        // performance + indexing + link-equity data instead of just seo_score.
+        // This is what makes the auto-pick match what Khaled would choose
+        // manually in the cockpit Content Matrix tab — no more overrides needed.
+        const allSlugs = dupGroups.flatMap((g) => g.map((p) => p.slug));
+        const domain = (await import("@/config/sites")).getSiteDomain(sid);
+        const allUrls = allSlugs.map((s) => `${domain}/blog/${s}`);
+
+        const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const [gscRows, indexingRows, allPublishedContent] = await Promise.all([
+          // GSC clicks + impressions per URL over last 30 days (the page that's
+          // actually getting traffic is ALWAYS the canonical winner)
+          prisma.gscPagePerformance.groupBy({
+            by: ["url"],
+            where: { site_id: sid, url: { in: allUrls }, date: { gte: since30d } },
+            _sum: { clicks: true, impressions: true },
+          }),
+          // Indexing status per URL (an indexed page has SEO equity we shouldn't destroy)
+          prisma.uRLIndexingStatus.findMany({
+            where: { site_id: sid, url: { in: allUrls } },
+            select: { url: true, status: true },
+          }),
+          // All published content_en for inbound-link counting (one query, scan in JS)
+          prisma.blogPost.findMany({
+            where: { siteId: sid, deletedAt: null, published: true, content_en: { not: "" } },
+            select: { content_en: true },
+            take: 500,
+          }),
+        ]);
+
+        const gscByUrl = new Map<string, { clicks: number; impressions: number }>();
+        for (const r of gscRows) {
+          gscByUrl.set(r.url, {
+            clicks: r._sum.clicks || 0,
+            impressions: r._sum.impressions || 0,
+          });
+        }
+        const indexStatusByUrl = new Map<string, string>();
+        for (const r of indexingRows) indexStatusByUrl.set(r.url, r.status);
+
+        // Count inbound /blog/<slug> references per slug across all published HTML
+        const inboundLinksBySlug = new Map<string, number>();
+        for (const slug of allSlugs) {
+          let count = 0;
+          const linkPattern = new RegExp(`href=["']\\/(?:ar\\/)?blog\\/${slug.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}["']`, "g");
+          for (const post of allPublishedContent) {
+            const matches = (post.content_en || "").match(linkPattern);
+            if (matches) count += matches.length;
+          }
+          inboundLinksBySlug.set(slug, count);
+        }
+
+        // ─── Canonical scoring ───────────────────────────────────────────
+        // Higher score = better canonical winner. Weights chosen so real-world
+        // performance dominates synthetic scoring (a page with clicks always
+        // beats a page with high seo_score but zero traffic).
+        const scoreCanonical = (p: (typeof posts)[number]): { score: number; breakdown: string } => {
+          const url = `${domain}/blog/${p.slug}`;
+          const gsc = gscByUrl.get(url) || { clicks: 0, impressions: 0 };
+          const indexStatus = indexStatusByUrl.get(url) || "";
+          const inbound = inboundLinksBySlug.get(p.slug) || 0;
+          const wordCount = (p.content_en || "").replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+
+          // Slug cleanliness (clean canonical slug always wins over -v7-v4-v8 chains)
+          const cleanSlug =
+            !/(?:-v\d+){1,}$/i.test(p.slug) &&
+            !/-[0-9a-f]{6,}$/.test(p.slug) &&
+            !/-\d{4}-\d{2}-\d{2}$/.test(p.slug);
+
+          // Title cleanliness (no bracket placeholders, V2/V3 leaks, trailing punctuation)
+          const cleanTitle =
+            !!p.title_en &&
+            !/\[[a-zA-Z_]{1,20}\]/.test(p.title_en) &&
+            !/\b[Vv](?:ersion)?[\s-]?\d{1,2}\b/.test(p.title_en) &&
+            !/[,;|]\s*$/.test(p.title_en);
+
+          let score = 0;
+          const parts: string[] = [];
+          if (gsc.clicks > 0) {
+            score += gsc.clicks * 50; // 1 click = 50 pts
+            parts.push(`+${gsc.clicks * 50}clicks`);
+          }
+          if (gsc.impressions > 0) {
+            const impScore = Math.min(gsc.impressions, 1000); // cap at 1000 imp
+            score += impScore;
+            parts.push(`+${impScore}imp`);
+          }
+          if (indexStatus === "indexed") {
+            score += 500;
+            parts.push("+500indexed");
+          } else if (indexStatus === "submitted") {
+            score += 100;
+            parts.push("+100submitted");
+          }
+          if (cleanSlug) {
+            score += 200;
+            parts.push("+200clean-slug");
+          }
+          if (cleanTitle) {
+            score += 100;
+            parts.push("+100clean-title");
+          }
+          score += Math.min(inbound * 10, 100);
+          if (inbound > 0) parts.push(`+${Math.min(inbound * 10, 100)}inbound`);
+          score += p.seo_score || 0;
+          parts.push(`+${p.seo_score || 0}seo`);
+          score += Math.floor(wordCount / 100);
+          parts.push(`+${Math.floor(wordCount / 100)}words`);
+
+          return { score, breakdown: parts.join(" ") };
+        };
+
+        for (const group of dupGroups) {
+          const scored = group.map((p) => ({ ...p, ...scoreCanonical(p) }));
+          // Sort: highest canonical score, then oldest as tiebreaker (preserves
+          // the older URL's link equity in case scores genuinely tie).
+          scored.sort((a, b) => {
+            if (a.score !== b.score) return b.score - a.score;
             return a.created_at.getTime() - b.created_at.getTime();
           });
-          const winner = sorted[0];
-          for (let i = 1; i < sorted.length; i++) {
+          const winner = scored[0];
+          console.log(
+            `[content-auto-fix-lite:s16] Group "${normalizeSlug(winner.slug)}": ${scored.length} variants, winner="${winner.slug}" (score=${winner.score}, ${winner.breakdown})`,
+          );
+          for (let i = 1; i < scored.length; i++) {
             if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
             await prisma.blogPost.update({
-              where: { id: sorted[i].id },
+              where: { id: scored[i].id },
               data: { published: false, canonical_slug: winner.slug },
             });
+            console.log(
+              `[content-auto-fix-lite:s16]   ↳ unpublish "${scored[i].slug}" (score=${scored[i].score}, ${scored[i].breakdown}) → 301 → "${winner.slug}"`,
+            );
             results.duplicatesUnpublished++;
           }
         }

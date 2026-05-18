@@ -2613,6 +2613,21 @@ test("Audit-May17-Regression", "seo-agent internal links scan oldest articles to
     : { status: FAIL, details: "Older articles will stay at 0 inbound links" };
 });
 
+test("Audit-May17-Regression", "Section 16 canonical picker uses GSC + indexing signals", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/content-auto-fix-lite/route.ts"),
+    "utf-8",
+  );
+  // Must reference GSC clicks, indexing status, slug cleanliness, and inbound link count
+  const hasGsc = content.includes("gscPagePerformance") && content.includes("scoreCanonical");
+  const hasIndexing = content.includes("uRLIndexingStatus") && content.includes('"indexed"');
+  const hasSlugCheck = content.includes("cleanSlug") && content.includes("(?:-v\\d+){1,}$");
+  const hasInbound = content.includes("inboundLinksBySlug");
+  return hasGsc && hasIndexing && hasSlugCheck && hasInbound
+    ? { status: PASS, details: "Auto-canonical picker uses real-world signals (no manual override needed)" }
+    : { status: FAIL, details: `Picker missing signals: gsc=${hasGsc} indexing=${hasIndexing} slug=${hasSlugCheck} inbound=${hasInbound}` };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map((r) => r.category))];
 let totalPass = 0,

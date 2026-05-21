@@ -2613,6 +2613,23 @@ test("Audit-May17-Regression", "seo-agent internal links scan oldest articles to
     : { status: FAIL, details: "Older articles will stay at 0 inbound links" };
 });
 
+test("Audit-May17-Regression", "briefing affiliate sections count direct clicks too", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/briefing/builder.ts"),
+    "utf-8",
+  );
+  // §9, §12 must use getClickSummary (unifies CjClickEvent + AuditLog direct);
+  // §11 must fold in AFFILIATE_CLICK_DIRECT AuditLog rows.
+  const usesSummary = content.includes("getClickSummary");
+  const usesDirectInComparisons = content.includes("AFFILIATE_CLICK_DIRECT") &&
+    content.includes("directClickRows");
+  // Guard against regression: raw cjClickEvent.count must NOT be the click source
+  const noRawCount = !content.includes("cjClickEvent.count({ where: { ...filter, createdAt:");
+  return usesSummary && usesDirectInComparisons && noRawCount
+    ? { status: PASS, details: "Briefing §9/§11/§12 count CJ + direct clicks via getClickSummary" }
+    : { status: FAIL, details: `Briefing undercounts: summary=${usesSummary} direct=${usesDirectInComparisons} noRaw=${noRawCount}` };
+});
+
 test("Audit-May17-Regression", "Section 16 canonical picker uses GSC + indexing signals", () => {
   const content = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-auto-fix-lite/route.ts"),

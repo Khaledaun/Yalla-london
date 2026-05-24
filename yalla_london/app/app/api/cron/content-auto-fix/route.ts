@@ -2073,8 +2073,15 @@ Constraints:
           /\bpartner\s+with\b/i,
           /\bdisclosure\b/i,
         ];
+        // May 19 audit: 3 articles flagged "no disclosure paragraph (FTC violation)"
+        // because the OLD regex only matched /api/affiliate/click or rel="sponsored"
+        // — articles with BARE partner URLs (the booking.com / expedia.com / etc.
+        // dead-program links Section 26 will strip) were invisible to Section 25,
+        // so they never got a disclosure either. Widen to match the same
+        // PARTNER_HOSTS pattern Section 26 uses so disclosure injection covers
+        // any article that has affiliate-INTENT links, even if they're broken.
         const AFFILIATE_LINK_RE =
-          /(<a\b[^>]*\bhref="[^"]*\/api\/affiliate\/click[^"]*"[^>]*>)|(<a\b[^>]*\brel="[^"]*\bsponsored\b[^"]*"[^>]*>)/i;
+          /(<a\b[^>]*\bhref="[^"]*\/api\/affiliate\/click[^"]*"[^>]*>)|(<a\b[^>]*\brel="[^"]*\bsponsored\b[^"]*"[^>]*>)|(<a\b[^>]*\bhref="https?:\/\/(?:[^"\/]*\.)?(?:booking\.com|expedia\.com|hotels\.com|agoda\.com|getyourguide\.com|viator\.com|thefork\.|opentable\.|tripadvisor\.|stubhub\.|blacklane\.com|welcomepickups\.com|tiqets\.com|ticketnetwork\.com|klook\.com|skyscanner\.|sportsevents365\.com|halalbooking\.com|universe\.com|eticketing\.co\.uk|travelpayouts\.com|tp\.media|stay22\.com)[^"]*"[^>]*>)/i;
 
         const candidates = await prisma.blogPost.findMany({
           where: {

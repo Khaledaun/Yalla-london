@@ -2630,6 +2630,41 @@ test("Audit-May17-Regression", "briefing affiliate sections count direct clicks 
     : { status: FAIL, details: `Briefing undercounts: summary=${usesSummary} direct=${usesDirectInComparisons} noRaw=${noRawCount}` };
 });
 
+// ─── May 19 briefing follow-up (3 quick wins) ─────────────────────────────
+test("Audit-May17-Regression", "image-pipeline has deterministic Unsplash fallback", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/image-pipeline/route.ts"),
+    "utf-8",
+  );
+  return content.includes("FALLBACK_PHOTOS") && content.includes("deterministic fallback")
+    ? { status: PASS, details: "Articles with no Unsplash result get a hashed fallback photo" }
+    : { status: FAIL, details: "Featured-image backfill will perma-stuck when Unsplash returns 0" };
+});
+
+test("Audit-May17-Regression", "Section 25 detects bare partner URLs (FTC disclosure)", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"),
+    "utf-8",
+  );
+  // Must match booking.com/expedia/etc directly, not just /api/affiliate/click
+  return content.includes("booking\\.com|expedia\\.com|hotels\\.com|agoda\\.com") &&
+    content.includes("Section 25") &&
+    content.includes("PARTNER_HOSTS pattern Section 26")
+    ? { status: PASS, details: "FTC disclosure covers articles with bare partner-host links too" }
+    : { status: FAIL, details: "Section 25 misses articles with bare booking.com/expedia links" };
+});
+
+test("Audit-May17-Regression", "queue-monitor excludes reservoir from stuck-24h", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/content-pipeline/queue-monitor.ts"),
+    "utf-8",
+  );
+  return content.includes('d.currentPhase === "reservoir"') &&
+    content.includes("VALID resting state")
+    ? { status: PASS, details: "Reservoir drafts no longer trigger false stuck-24h critical alerts" }
+    : { status: FAIL, details: "Reservoir drafts inflate stuck-24h critical count" };
+});
+
 test("Audit-May17-Regression", "Section 16 canonical picker uses GSC + indexing signals", () => {
   const content = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-auto-fix-lite/route.ts"),

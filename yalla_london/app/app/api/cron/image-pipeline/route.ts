@@ -84,7 +84,35 @@ export async function GET(request: NextRequest) {
           const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" })).filter(
             (p) => !PHOTO_BLOCKLIST.has(p.id),
           );
-          if (photos.length === 0) continue;
+
+          // May 19 audit: 3 articles stayed perma-stuck because Unsplash returned 0
+          // results for their specific title queries. Fall back to a deterministic
+          // luxury-destination photo (same pool the /hotels page uses) so every
+          // article gets SOMETHING instead of staying NULL forever. Hash the title
+          // so the same article always gets the same fallback photo.
+          if (photos.length === 0) {
+            const FALLBACK_PHOTOS = [
+              "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1200&q=80", // hotel lobby
+              "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1200&q=80", // hotel exterior
+              "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=1200&q=80", // luxury room
+              "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80", // grand facade
+              "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=1200&q=80", // luxury w view
+              "https://images.unsplash.com/photo-1455587734955-081b22074882?w=1200&q=80", // boutique
+            ];
+            let hash = 0;
+            for (let i = 0; i < article.slug.length; i++) {
+              hash = (hash * 31 + article.slug.charCodeAt(i)) & 0xfffffff;
+            }
+            const fallbackUrl = FALLBACK_PHOTOS[hash % FALLBACK_PHOTOS.length];
+            await prisma.blogPost.update({
+              where: { id: article.id },
+              data: { featured_image: fallbackUrl },
+            });
+            articlesUpdated++;
+            imagesAdded++;
+            console.log(`[image-pipeline] No Unsplash result for "${query}" — used deterministic fallback for ${article.slug}`);
+            continue;
+          }
 
           const photo = photos[0];
           const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });

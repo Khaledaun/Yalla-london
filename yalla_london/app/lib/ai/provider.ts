@@ -44,6 +44,10 @@ export interface AICompletionOptions {
    *  budget split. 'heavy' phases (drafting, assembly) use adaptive fallback that gives
    *  the next provider 80% of remaining budget on fast failures (<5s). */
   phaseBudgetHint?: 'light' | 'medium' | 'heavy';
+  /** AgentTask id this call is running under. When set, the call's estimated cost
+   *  is added to agentTask.spentUsd. Combined with `budgetUsd`, this caps cascading
+   *  AI spend within a task tree. Paperclip-inspired (May 24 2026). */
+  agentTaskId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +95,8 @@ function logUsage(
   const promptTokens = result?.usage.promptTokens ?? 0;
   const completionTokens = result?.usage.completionTokens ?? 0;
 
+  const costUsd = estimateCost(model, promptTokens, completionTokens);
+
   import('@/lib/db')
     .then(({ prisma }) =>
       prisma.apiUsageLog.create({
@@ -103,7 +109,7 @@ function logUsage(
           promptTokens,
           completionTokens,
           totalTokens: promptTokens + completionTokens,
-          estimatedCostUsd: estimateCost(model, promptTokens, completionTokens),
+          estimatedCostUsd: costUsd,
           success: !error,
           errorMessage: error ? error.slice(0, 500) : null,
         },
@@ -112,6 +118,18 @@ function logUsage(
     .catch((err) => {
       console.warn('[ai/provider] logUsage failed (non-fatal):', err instanceof Error ? err.message : err);
     });
+
+  // Per-task budget tracking (paperclip-inspired). When the caller passes an
+  // agentTaskId, increment that task's spentUsd. The pre-call budget check in
+  // generateCompletion will fail-closed on the NEXT call if the task is over.
+  // Fire-and-forget — accounting hiccups should never block AI work.
+  if (options.agentTaskId && costUsd > 0) {
+    import('@/lib/agents/task-helpers')
+      .then(({ recordTaskSpend }) => recordTaskSpend(options.agentTaskId!, costUsd))
+      .catch((err) => {
+        console.warn('[ai/provider] recordTaskSpend failed (non-fatal):', err instanceof Error ? err.message : err);
+      });
+  }
 }
 
 export interface AICompletionResult {
@@ -684,6 +702,28 @@ export async function generateCompletion(
     const budgetError = await checkSiteBudgetLimit(options.siteId);
     if (budgetError) {
       throw new Error(`[ai/provider] Site budget exceeded for ${options.siteId}: ${budgetError}`);
+    }
+  }
+
+  // Per-task budget check (paperclip-inspired). Walks UP the AgentTask tree —
+  // if any ancestor has a budget cap and spent >= budget, this call is rejected
+  // BEFORE incurring more cost. Skip when no agentTaskId is provided.
+  if (options.agentTaskId) {
+    try {
+      const { checkTaskBudget } = await import('@/lib/agents/task-helpers');
+      const budget = await checkTaskBudget(options.agentTaskId);
+      if (!budget.allowed) {
+        throw new Error(
+          `[ai/provider] Task ${options.agentTaskId} over budget: ${budget.reason || `spent $${budget.spentUsd.toFixed(2)} of $${budget.budgetUsd ?? 0}`}`,
+        );
+      }
+    } catch (err) {
+      // Re-throw budget errors; swallow infrastructure errors (DB unavailable etc.)
+      // so a transient DB blip doesn't block AI work.
+      if (err instanceof Error && err.message.includes('over budget')) {
+        throw err;
+      }
+      console.warn('[ai/provider] task-budget check failed (allowing call):', err instanceof Error ? err.message : err);
     }
   }
 

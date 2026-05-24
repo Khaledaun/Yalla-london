@@ -16,7 +16,7 @@ export const maxDuration = 300;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sanitizeKeyword, RESERVOIR_CAP, getReservoirCap } from "@/lib/content-pipeline/constants";
+import { sanitizeKeyword, RESERVOIR_CAP, RESERVOIR_CREATION_BUFFER, getReservoirCap } from "@/lib/content-pipeline/constants";
 const BUDGET_MS = 280_000;
 
 async function handleScheduleExecutor(request: NextRequest) {
@@ -128,11 +128,14 @@ async function handleScheduleExecutor(request: NextRequest) {
     const perSiteReservoir: Record<string, { count: number; cap: number }> = {};
     for (const sid of contentSiteIds) {
       const siteReservoirCap = await getReservoirCap(sid);
+      const effectiveCap = Math.max(1, siteReservoirCap - RESERVOIR_CREATION_BUFFER);
       const siteReservoirCount = await prisma.articleDraft.count({
         where: { current_phase: "reservoir", site_id: sid },
       });
       perSiteReservoir[sid] = { count: siteReservoirCount, cap: siteReservoirCap };
-      if (siteReservoirCount < siteReservoirCap) {
+      // Use effectiveCap (cap - buffer) for the creation decision so reservoir
+      // must drain below buffer threshold before resuming new draft generation.
+      if (siteReservoirCount < effectiveCap) {
         allSitesFull = false;
       }
     }

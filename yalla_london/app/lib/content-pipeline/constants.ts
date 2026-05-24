@@ -114,9 +114,22 @@ export const BUILD_RUNNER_BUDGET_RESERVE_MS = 15_000; // 15 seconds
 // Maximum articles in reservoir before content-builder-create and
 // schedule-executor skip new draft creation (saves AI budget).
 // Use getReservoirCap(siteId) for per-site caps via SiteSettings.
-export const DEFAULT_RESERVOIR_CAP = 80;
+//
+// May 24 audit: lowered 80 → 50 per CLAUDE.md Rule #183 "PUBLISH FEWER, MUCH
+// BETTER". Site had 98 in reservoir while shedding 93% of organic clicks
+// week-over-week — pipeline was producing far faster than content-selector
+// could quality-gate, burning $10/week of AI on articles that sat unindexed.
+// Lower cap forces the pipeline to drain before new generation resumes.
+export const DEFAULT_RESERVOIR_CAP = 50;
 /** @deprecated Use getReservoirCap(siteId) for per-site support */
 export const RESERVOIR_CAP = DEFAULT_RESERVOIR_CAP;
+
+// Creation buffer — creation crons require reservoir to drop this much BELOW
+// the cap before resuming new draft generation. Stops the "barely-below-cap +
+// new draft → barely-above-cap → next cron blocks → barely-below-cap" cycle
+// that lets reservoirs creep up to 98 even with a 50 cap. Effective cap for
+// the start-creating decision: cap - buffer = 40 by default.
+export const RESERVOIR_CREATION_BUFFER = 10;
 
 /**
  * Per-site reservoir cap. Checks SiteSettings workflow.reservoirCap first,

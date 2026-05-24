@@ -137,7 +137,10 @@ export async function runCeoIntelligence(
   }
 
   // Compute grade
-  const grade = computeGrade(kpiDeltas);
+  const grade = computeGrade(kpiDeltas, {
+    clicksChange: metrics.clicksChange,
+    impressionsChange: metrics.impressionsChange,
+  });
 
   const report: CEOReport = {
     grade: grade.letter,
@@ -446,7 +449,7 @@ async function generatePlans(
 REAL METRICS (last 7-30 days):
 - Sessions: ${metrics.sessions30d} (30d) | Page views: ${metrics.pageViews30d}
 - GSC Clicks: ${metrics.clicks7d} (7d) | Impressions: ${metrics.impressions7d}
-- CTR: ${(metrics.avgCTR * 100).toFixed(1)}% | Avg Position: ${metrics.avgPosition.toFixed(1)}
+- CTR: ${metrics.avgCTR.toFixed(1)}% | Avg Position: ${metrics.avgPosition.toFixed(1)}
 - Published articles: ${metrics.publishedTotal} total, ${metrics.publishedLast7d} last 7d
 - Content velocity: ${metrics.contentVelocity.toFixed(1)} articles/day
 - Indexed pages: ${metrics.indexedPages} | Never submitted: ${metrics.neverSubmitted}
@@ -507,12 +510,17 @@ Respond ONLY with JSON.`;
 
 // ── Actuals Map Builder ────────────────────────────────────────────────
 
-function buildActualsMap(m: CEOMetrics): Record<string, number> {
+function buildActualsMap(m: CEOMetrics): Record<string, number | null> {
+  // NOTE: m.avgCTR comes pre-scaled from gsc-trend-analysis.ts:153 (already a
+  // percentage value 0-100, not a decimal). Do NOT multiply by 100 again — that
+  // bug caused "170%" display in the May 24 report (1.7% × 100 = 170).
+  // NOTE: lcpMs is null when no PageSpeed data was collected. Treat as "no data"
+  // so a missing measurement doesn't fake-pass the 2500ms target with actual=0.
   return {
     indexedPages: m.indexedPages,
     organicSessions: m.sessions30d,
-    averageCTR: m.avgCTR * 100, // convert decimal to %
-    lcpMs: 0, // placeholder — requires live PageSpeed call
+    averageCTR: m.avgCTR,
+    lcpMs: null,
     contentVelocity: m.contentVelocity,
     affiliateClicks: m.affiliateClicks30d,
     publishedArticles: m.publishedTotal,
@@ -522,16 +530,44 @@ function buildActualsMap(m: CEOMetrics): Record<string, number> {
 
 // ── Grade Computation ──────────────────────────────────────────────────
 
-function computeGrade(deltas: KPIDelta[]): { letter: string; color: string } {
-  const green = deltas.filter((d) => d.status === "green").length;
-  const total = deltas.length || 1;
+function computeGrade(
+  deltas: KPIDelta[],
+  trends: { clicksChange?: number | null; impressionsChange?: number | null } = {},
+): { letter: string; color: string } {
+  // Base grade from green/total ratio — EXCLUDE no-data KPIs from the denominator
+  // so missing measurements don't artificially deflate (or inflate) the grade.
+  const measured = deltas.filter((d) => d.status !== "no-data");
+  const green = measured.filter((d) => d.status === "green").length;
+  const total = measured.length || 1;
   const ratio = green / total;
 
-  if (ratio >= 0.8) return { letter: "A", color: "#2D5A3D" };
-  if (ratio >= 0.6) return { letter: "B", color: "#3B7EA1" };
-  if (ratio >= 0.4) return { letter: "C", color: "#C49A2A" };
-  if (ratio >= 0.2) return { letter: "D", color: "#E07C24" };
-  return { letter: "F", color: "#C8322B" };
+  let baseTier = 4; // F
+  if (ratio >= 0.8) baseTier = 0; // A
+  else if (ratio >= 0.6) baseTier = 1; // B
+  else if (ratio >= 0.4) baseTier = 2; // C
+  else if (ratio >= 0.2) baseTier = 3; // D
+
+  // Trend penalty — a catastrophic traffic drop drags the grade down even when
+  // absolute KPIs technically exceed their (low) targets. May 24 audit: site
+  // shed 93% of clicks WoW while showing Grade A purely on cumulative volume.
+  // Threshold: -25% WoW → -1 letter. -50% WoW → -2 letters. -75% WoW → -3.
+  let trendPenalty = 0;
+  const clicksChange = trends.clicksChange ?? null;
+  const impressionsChange = trends.impressionsChange ?? null;
+  const worstChange = Math.min(
+    clicksChange ?? Infinity,
+    impressionsChange ?? Infinity,
+  );
+  if (Number.isFinite(worstChange)) {
+    if (worstChange <= -75) trendPenalty = 3;
+    else if (worstChange <= -50) trendPenalty = 2;
+    else if (worstChange <= -25) trendPenalty = 1;
+  }
+
+  const finalTier = Math.min(4, baseTier + trendPenalty);
+  const letters = ["A", "B", "C", "D", "F"];
+  const colors = ["#2D5A3D", "#3B7EA1", "#C49A2A", "#E07C24", "#C8322B"];
+  return { letter: letters[finalTier], color: colors[finalTier] };
 }
 
 // ── Phase 6: Email Report ──────────────────────────────────────────────
@@ -539,7 +575,21 @@ function computeGrade(deltas: KPIDelta[]): { letter: string; color: string } {
 function buildEmailReport(report: CEOReport): string {
   const { grade, gradeColor, metrics, kpiDeltas, plans, fixes, standards } = report;
 
-  const statusEmoji = (s: string) => (s === "green" ? "&#9989;" : s === "amber" ? "&#9888;&#65039;" : "&#10060;");
+  const statusEmoji = (s: string) =>
+    s === "green"
+      ? "&#9989;"
+      : s === "amber"
+        ? "&#9888;&#65039;"
+        : s === "no-data"
+          ? "&#9898;" // ⚪ white circle = no data
+          : "&#10060;";
+
+  // Render actual value — "—" when null (no data), otherwise the number with
+  // optional % suffix. Prevents the LCP "0 + ✅" fake-success rendering.
+  const renderActual = (k: KPIDelta): string => {
+    if (k.actual === null || k.actual === undefined) return "&mdash;";
+    return `${k.actual}${k.unit === "%" ? "%" : ""}`;
+  };
 
   const kpiRows = kpiDeltas
     .map(
@@ -547,7 +597,7 @@ function buildEmailReport(report: CEOReport): string {
         `<tr>
       <td style="padding:8px;border-bottom:1px solid #eee">${k.label}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${k.target}${k.unit === "%" ? "%" : ""}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${k.actual}${k.unit === "%" ? "%" : ""}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${renderActual(k)}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${statusEmoji(k.status)}</td>
     </tr>`,
     )

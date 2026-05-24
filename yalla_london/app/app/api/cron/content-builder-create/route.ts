@@ -16,7 +16,7 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
-import { RESERVOIR_CAP, getReservoirCap } from "@/lib/content-pipeline/constants";
+import { RESERVOIR_CAP, RESERVOIR_CREATION_BUFFER, getReservoirCap } from "@/lib/content-pipeline/constants";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -74,13 +74,17 @@ async function handleCreate(request: NextRequest) {
         continue;
       }
 
-      // Skip if reservoir is full (per-site cap from SiteSettings, falls back to global)
+      // Skip if reservoir is at-or-near cap. Apply a buffer so creation only
+      // resumes when reservoir has drained BELOW (cap - buffer). Prevents the
+      // race where creation runs add drafts every time content-selector
+      // promotes one — keeping reservoir hovering at cap forever.
       const siteReservoirCap = await getReservoirCap(siteId);
+      const effectiveCap = Math.max(1, siteReservoirCap - RESERVOIR_CREATION_BUFFER);
       const reservoirCount = await prisma.articleDraft.count({
         where: { site_id: siteId, current_phase: "reservoir" },
       });
-      if (reservoirCount >= siteReservoirCap) {
-        fullReservoirs.push(`${siteId}(${reservoirCount}/${siteReservoirCap})`);
+      if (reservoirCount >= effectiveCap) {
+        fullReservoirs.push(`${siteId}(${reservoirCount}/${siteReservoirCap}, buffer=${RESERVOIR_CREATION_BUFFER})`);
         continue;
       }
 

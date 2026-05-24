@@ -2665,6 +2665,73 @@ test("Audit-May17-Regression", "queue-monitor excludes reservoir from stuck-24h"
     : { status: FAIL, details: "Reservoir drafts inflate stuck-24h critical count" };
 });
 
+// ─── May 24 weekly-report fixes (CTR 170%, LCP 0, Grade A despite collapse) ─
+
+test("Audit-May17-Regression", "CEO Intelligence does not double-multiply avgCTR", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/ceo-engine/intelligence.ts"),
+    "utf-8",
+  );
+  // The pre-fix code was `m.avgCTR * 100` in buildActualsMap which produced
+  // the impossible "170%" display (gsc-trend-analysis already pre-scales).
+  const noDoubleMultiply = !content.includes("averageCTR: m.avgCTR * 100");
+  const promptNoDoubleMultiply = !content.includes("(metrics.avgCTR * 100).toFixed(1)%");
+  return noDoubleMultiply && promptNoDoubleMultiply
+    ? { status: PASS, details: "avgCTR is used as-is (pre-scaled by gsc-trend-analysis)" }
+    : { status: FAIL, details: `Double-multiply still present: buildActuals=${noDoubleMultiply} prompt=${promptNoDoubleMultiply}` };
+});
+
+test("Audit-May17-Regression", "compareMetrics handles null actuals (no-data state)", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/ceo-engine/kpi-manager.ts"),
+    "utf-8",
+  );
+  return content.includes(`"no-data"`) &&
+    content.includes("rawActual === null") &&
+    content.includes("actual: number | null")
+    ? { status: PASS, details: "KPIDelta supports no-data status; LCP=0 no longer fake-passes" }
+    : { status: FAIL, details: "compareMetrics still coerces null to 0" };
+});
+
+test("Audit-May17-Regression", "computeGrade applies WoW trend penalty", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/ceo-engine/intelligence.ts"),
+    "utf-8",
+  );
+  return content.includes("trendPenalty") &&
+    content.includes("worstChange <= -50") &&
+    content.includes("clicksChange")
+    ? { status: PASS, details: "Grade drops 2+ letters when traffic collapses 50%+ WoW" }
+    : { status: FAIL, details: "Grade still purely counts green-KPI ratio; ignores trends" };
+});
+
+test("Audit-May17-Regression", "Reservoir cap lowered to 50 + creation buffer", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/content-pipeline/constants.ts"),
+    "utf-8",
+  );
+  return content.includes("DEFAULT_RESERVOIR_CAP = 50") &&
+    content.includes("RESERVOIR_CREATION_BUFFER")
+    ? { status: PASS, details: "Cap=50 + 10-slot buffer (effective creation threshold = 40)" }
+    : { status: FAIL, details: "Reservoir cap still 80 or no creation buffer" };
+});
+
+test("Audit-May17-Regression", "Content builders use effectiveCap (cap - buffer)", () => {
+  const builder = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"),
+    "utf-8",
+  );
+  const scheduler = fs.readFileSync(
+    path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"),
+    "utf-8",
+  );
+  const builderOK = builder.includes("RESERVOIR_CREATION_BUFFER") && builder.includes("effectiveCap");
+  const schedulerOK = scheduler.includes("RESERVOIR_CREATION_BUFFER") && scheduler.includes("effectiveCap");
+  return builderOK && schedulerOK
+    ? { status: PASS, details: "Both creation crons require reservoir < (cap - buffer)" }
+    : { status: FAIL, details: `Buffer not applied: builder=${builderOK} scheduler=${schedulerOK}` };
+});
+
 test("Audit-May17-Regression", "Section 16 canonical picker uses GSC + indexing signals", () => {
   const content = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-auto-fix-lite/route.ts"),

@@ -32,10 +32,14 @@ export interface KPIDelta {
   label: string;
   unit: string;
   target: number;
-  actual: number;
-  delta: number;
+  // actual is null when the metric couldn't be measured (e.g., no PageSpeed
+  // call for LCP). Renderers MUST treat null as "no data" — never as 0.
+  actual: number | null;
+  delta: number | null;
   deltaPercent: number | null;
-  status: "green" | "amber" | "red";
+  // "no-data" surfaces missing measurements explicitly instead of fake-passing
+  // the threshold with actual=0 (May 24 audit: LCP showed ✅ at "0ms").
+  status: "green" | "amber" | "red" | "no-data";
 }
 
 // ── Default KPIs (from CLAUDE.md Business KPIs table) ──────────────────
@@ -159,16 +163,32 @@ export async function updateKPIs(siteId: string, kpis: KPITarget[]): Promise<KPI
  */
 export function compareMetrics(
   kpis: KPITarget[],
-  actuals: Record<string, number>,
+  actuals: Record<string, number | null>,
 ): KPIDelta[] {
   return kpis.map((kpi) => {
-    const actual = actuals[kpi.metric] ?? 0;
+    const rawActual = actuals[kpi.metric];
     const target = kpi.target30d;
-    const delta = actual - target;
 
-    // For LCP, lower is better
+    // No-data branch: surface explicitly with status "no-data" instead of
+    // treating null/undefined as 0 (which would fake-pass lower-is-better
+    // metrics like LCP).
+    if (rawActual === null || rawActual === undefined) {
+      return {
+        metric: kpi.metric,
+        label: kpi.label,
+        unit: kpi.unit,
+        target,
+        actual: null,
+        delta: null,
+        deltaPercent: null,
+        status: "no-data" as const,
+      };
+    }
+
+    const actual = rawActual;
+    const delta = actual - target;
     const isLowerBetter = kpi.metric === "lcpMs";
-    const ratio = target === 0 ? null : (actual / target);
+    const ratio = target === 0 ? null : actual / target;
 
     let status: "green" | "amber" | "red";
     if (isLowerBetter) {

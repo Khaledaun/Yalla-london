@@ -523,9 +523,16 @@ async function buildAffiliateClicksRevenue(siteIds: string[]): Promise<Affiliate
   const d7 = new Date(now - 7 * DAY_MS);
   const d30 = new Date(now - 30 * DAY_MS);
 
-  const [clicks7d, clicks30d, commissions7d, commissions30d] = await Promise.all([
-    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d7 } } }),
-    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d30 } } }),
+  // Click counts MUST use getClickSummary — it unifies CjClickEvent (CJ
+  // tracked-link clicks via ?id=) AND AuditLog AFFILIATE_CLICK_DIRECT
+  // (direct-URL clicks via ?url=). Counting cjClickEvent alone misses every
+  // Travelpayouts / Stay22 / Vrbo-fallback / static-rule click — which is
+  // the VAST majority since only Vrbo is CJ-approved. (May 19 audit: briefing
+  // showed 0 clicks while aggregated-report showed 52 — this was the cause.)
+  const { getClickSummary } = await import("@/lib/affiliate/click-aggregator");
+  const [clickSummaries7d, clickSummaries30d, commissions7d, commissions30d] = await Promise.all([
+    Promise.all(siteIds.map((s) => getClickSummary({ siteId: s, since: d7 }))),
+    Promise.all(siteIds.map((s) => getClickSummary({ siteId: s, since: d30 }))),
     prisma.cjCommission.findMany({
       where: { ...filter, eventDate: { gte: d7 } },
       select: { commissionAmount: true, status: true },
@@ -535,6 +542,8 @@ async function buildAffiliateClicksRevenue(siteIds: string[]): Promise<Affiliate
       select: { commissionAmount: true, status: true, eventDate: true },
     }),
   ]);
+  const clicks7d = clickSummaries7d.reduce((sum, x) => sum + x.total, 0);
+  const clicks30d = clickSummaries30d.reduce((sum, x) => sum + x.total, 0);
 
   // CjCommission.status is a CommissionStatus enum: PENDING | APPROVED |
   // DECLINED | LOCKED. APPROVED + LOCKED = real conversions.
@@ -637,10 +646,19 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
     take: 5000,
   });
 
-  // Click counts grouped by advertiser via CjLink → CjAdvertiser.
+  // Click counts grouped by advertiser via CjLink → CjAdvertiser (CJ tracked links).
   const clickRows = await prisma.cjClickEvent.findMany({
     where: { ...filter, createdAt: { gte: since } },
     select: { link: { select: { advertiser: { select: { name: true, category: true } } } } },
+    take: 10_000,
+  });
+
+  // Direct-URL clicks (AuditLog) — these have no CjLink relation; the partner
+  // name lives in details.partner. Without this, every Travelpayouts / Stay22 /
+  // Vrbo-fallback click is invisible in the per-partner comparison table.
+  const directClickRows = await prisma.auditLog.findMany({
+    where: { action: "AFFILIATE_CLICK_DIRECT", timestamp: { gte: since } },
+    select: { details: true },
     take: 10_000,
   });
 
@@ -673,6 +691,24 @@ async function buildAffiliateComparisons(siteIds: string[]): Promise<AffiliateCo
     };
     cur.clicks++;
     if (category) cur.contentTypes.add(category);
+    byPartnerMap.set(partner, cur);
+  }
+
+  // Fold in direct-URL clicks, grouped by details.partner. Scope by siteId
+  // (or legacy null) so multi-site briefings stay isolated.
+  const siteIdSet = new Set(siteIds);
+  for (const row of directClickRows) {
+    const details = (row.details || {}) as Record<string, unknown>;
+    const rowSiteId = details.siteId as string | null | undefined;
+    if (rowSiteId && !siteIdSet.has(rowSiteId)) continue; // skip other sites; null = legacy, keep
+    const partner = (details.partner as string) || "(direct)";
+    const cur = byPartnerMap.get(partner) || {
+      clicks: 0,
+      conversions: 0,
+      revenueUsd: 0,
+      contentTypes: new Set<string>(),
+    };
+    cur.clicks++;
     byPartnerMap.set(partner, cur);
   }
 
@@ -713,10 +749,16 @@ async function buildAffiliateTrends(siteIds: string[]): Promise<AffiliateTrends>
     }),
   ]);
 
-  const [clicks7d, clicks14d] = await Promise.all([
-    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d7 } } }),
-    prisma.cjClickEvent.count({ where: { ...filter, createdAt: { gte: d14, lt: d7 } } }),
+  // Unified click counts (CjClickEvent + AuditLog direct). getClickSummary
+  // only supports a >= since lower bound, so the prior week is derived by
+  // subtraction: clicks(last 14d) − clicks(last 7d) = clicks in the d14..d7 window.
+  const { getClickSummary } = await import("@/lib/affiliate/click-aggregator");
+  const [sum7d, sum14d] = await Promise.all([
+    Promise.all(siteIds.map((s) => getClickSummary({ siteId: s, since: d7 }))),
+    Promise.all(siteIds.map((s) => getClickSummary({ siteId: s, since: d14 }))),
   ]);
+  const clicks7d = sum7d.reduce((s, x) => s + x.total, 0);
+  const clicks14d = sum14d.reduce((s, x) => s + x.total, 0) - clicks7d;
 
   const thisRev = Number(thisWeek._sum.commissionAmount) || 0;
   const priorRev = Number(priorWeek._sum.commissionAmount) || 0;

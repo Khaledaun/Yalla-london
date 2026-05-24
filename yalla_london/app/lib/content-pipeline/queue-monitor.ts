@@ -163,7 +163,14 @@ export async function getQueueSnapshot(siteId?: string): Promise<QueueSnapshot> 
   }
 
   // Rule 2: Drafts stuck in same phase >24h
+  // May 19 audit: reservoir drafts were being counted as "stuck" — but reservoir
+  // is a VALID resting state (articles wait there for content-selector to promote
+  // them, sometimes for days). Reservoir has its own 7-day age-out in content-auto-fix.
+  // Counting reservoir as stuck-24h inflates the critical-finding count and triggers
+  // false-alarm dashboard alerts. Exclude it from the "stuck" rule — only active
+  // pipeline phases are truly stuck.
   const stuckDrafts = drafts.filter((d) => {
+    if (d.currentPhase === "reservoir") return false;
     const ageH = (now.getTime() - d.updatedAt.getTime()) / (60 * 60 * 1000);
     return ageH > GENERAL_STUCK_REJECT_HOURS;
   });

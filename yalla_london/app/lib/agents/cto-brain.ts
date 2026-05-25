@@ -457,15 +457,46 @@ function buildReportDescription(
 export async function runCTOMaintenance(
   siteId: string,
   budgetMs: number,
+  options: { parentTaskId?: string | null } = {},
 ): Promise<CTOMaintenanceResult> {
   const loopStart = Date.now();
   const allFindings: CTOFinding[] = [];
   const allActions: CTOAction[] = [];
   const allErrors: string[] = [];
 
+  // Create the AgentTask that tracks this maintenance run. Same pattern as
+  // ceo-brain (May 24 paperclip-inspired) — every CTO run is a tracked task
+  // with its own AI-spend cap. CTO does little/no AI today, but the contract
+  // is in place for when phases like SCAN start using an AI summarizer.
+  let ctoTaskId: string | null = null;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const created = await prisma.agentTask.create({
+      data: {
+        agentType: "cto",
+        taskType: "cto-maintenance",
+        priority: "low",
+        status: "running",
+        description: `CTO maintenance loop (5 phases) for site ${siteId}`,
+        input: { siteId, budgetMs } as Record<string, unknown>,
+        siteId,
+        parentTaskId: options.parentTaskId ?? null,
+        budgetUsd: 0.1, // CTO does little AI today; tight cap surfaces accidents
+      },
+      select: { id: true },
+    });
+    ctoTaskId = created.id;
+  } catch (err) {
+    console.warn(
+      "[cto-brain] AgentTask create failed (proceeding without budget cap):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const ctx: ToolContext = {
     siteId,
     agentId: "cto",
+    agentTaskId: ctoTaskId ?? undefined,
   };
 
   // Ensure registry is built (validates tool wiring)
@@ -528,7 +559,50 @@ export async function runCTOMaintenance(
   // --- Phase 5: REPORT ---
   await phaseReport(siteId, allFindings, allActions, allErrors, Date.now() - loopStart);
 
-  return buildResult("report", loopStart, allFindings, allActions, allErrors);
+  const result = buildResult("report", loopStart, allFindings, allActions, allErrors);
+
+  // Finalize the AgentTask. Status reflects whether anything errored — even
+  // partial-phase crashes mark this as "failed". spentUsd was accumulated by
+  // ai/provider's logUsage whenever a phase actually fired generateCompletion
+  // via the ctx (CTO does little AI today; pattern is in place for future).
+  await finalizeCTOTask(ctoTaskId, loopStart, allFindings, allErrors);
+
+  return result;
+}
+
+/**
+ * Finalize an AgentTask row created at the start of a CTO run. Safe to call
+ * with taskId=null (skips silently). Idempotent via the underlying update.
+ */
+async function finalizeCTOTask(
+  taskId: string | null,
+  startTime: number,
+  findings: CTOFinding[],
+  errors: string[],
+): Promise<void> {
+  if (!taskId) return;
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.agentTask.update({
+      where: { id: taskId },
+      data: {
+        status: errors.length > 0 ? "failed" : "completed",
+        output: {
+          findings: findings.length,
+          errors: errors.length,
+        } as Record<string, unknown>,
+        findings: findings.slice(0, 20).map((f) => `${f.severity}: ${f.description}`),
+        errorMessage: errors.length > 0 ? errors.slice(0, 3).join(" | ").slice(0, 500) : null,
+        durationMs: Date.now() - startTime,
+        completedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    console.warn(
+      "[cto-brain] AgentTask finalize failed (non-fatal):",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
 
 function buildResult(
@@ -558,8 +632,36 @@ export async function runCTOTask(
   siteId: string,
   taskType: string,
   budgetMs: number,
+  options: { parentTaskId?: string | null } = {},
 ): Promise<CTOMaintenanceResult> {
-  const ctx: ToolContext = { siteId, agentId: "cto" };
+  // Create a tracked AgentTask for this on-demand run. Same pattern as
+  // runCTOMaintenance — admin-triggered tasks are also traceable + budget-capped.
+  let ctoTaskId: string | null = null;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const created = await prisma.agentTask.create({
+      data: {
+        agentType: "cto",
+        taskType: `cto-task:${taskType}`,
+        priority: "medium",
+        status: "running",
+        description: `On-demand CTO task: ${taskType} (site ${siteId})`,
+        input: { siteId, taskType, budgetMs } as Record<string, unknown>,
+        siteId,
+        parentTaskId: options.parentTaskId ?? null,
+        budgetUsd: 0.1,
+      },
+      select: { id: true },
+    });
+    ctoTaskId = created.id;
+  } catch (err) {
+    console.warn(
+      "[cto-brain] AgentTask create failed (proceeding without budget cap):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  const ctx: ToolContext = { siteId, agentId: "cto", agentTaskId: ctoTaskId ?? undefined };
   const start = Date.now();
   const findings: CTOFinding[] = [];
   const errors: string[] = [];
@@ -620,10 +722,18 @@ export async function runCTOTask(
       break;
     }
     case "maintenance":
-    default:
-      return runCTOMaintenance(siteId, budgetMs);
+    default: {
+      // Delegate to maintenance — link as a child so the goal tree shows
+      // the on-demand task spawning the maintenance loop. Finalize the
+      // parent (this) task with a pointer to the child's findings.
+      const maintResult = await runCTOMaintenance(siteId, budgetMs, { parentTaskId: ctoTaskId });
+      await finalizeCTOTask(ctoTaskId, start, maintResult.findings, maintResult.errors);
+      return maintResult;
+    }
   }
 
+  // Non-default cases fall through here.
+  await finalizeCTOTask(ctoTaskId, start, findings, errors);
   return {
     phase: "report",
     durationMs: Date.now() - start,

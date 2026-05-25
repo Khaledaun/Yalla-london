@@ -2805,6 +2805,25 @@ test("Audit-May17-Regression", "ToolContext exposes agentTaskId to tools", () =>
     : { status: FAIL, details: "ToolContext missing agentTaskId — tools can't propagate budget" };
 });
 
+test("Audit-May17-Regression", "cto-brain creates AgentTask + finalizes per run", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/agents/cto-brain.ts"),
+    "utf-8",
+  );
+  const createsMaintenance = content.includes('taskType: "cto-maintenance"') &&
+    content.includes("budgetUsd: 0.1");
+  const createsOnDemand = content.includes('taskType: `cto-task:${taskType}`');
+  const propagatesCtx = content.includes("agentTaskId: ctoTaskId ?? undefined");
+  const hasFinalizer = content.includes("async function finalizeCTOTask");
+  const linksChild = content.includes("parentTaskId: ctoTaskId");
+  return createsMaintenance && createsOnDemand && propagatesCtx && hasFinalizer && linksChild
+    ? { status: PASS, details: "CTO maintenance + on-demand tasks tracked with budget cap, goal-tree linked" }
+    : {
+        status: FAIL,
+        details: `Wiring incomplete: maintenance=${createsMaintenance} onDemand=${createsOnDemand} ctx=${propagatesCtx} finalize=${hasFinalizer} parentLink=${linksChild}`,
+      };
+});
+
 test("Audit-May17-Regression", "Content builders use effectiveCap (cap - buffer)", () => {
   const builder = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"),

@@ -329,6 +329,73 @@ export async function processCEOEvent(
   // 1. Build context
   const ctx = await buildContext(event);
 
+  // 1b. Create the AgentTask that represents this event's processing. Every AI
+  // call below (the main response loop + any tool-triggered call) carries this
+  // taskId so per-task spend accumulates here and the budget cap applies. If
+  // an ancestor task exists (e.g. a campaign that triggered this event), the
+  // caller can populate event.metadata.parentTaskId.
+  let ceoTaskId: string | null = null;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const created = await prisma.agentTask.create({
+      data: {
+        agentType: "ceo",
+        taskType: "ceo-event-process",
+        priority: "medium",
+        status: "running",
+        description: `${event.channel} event: ${event.content.slice(0, 200)}`,
+        input: {
+          channel: event.channel,
+          externalId: event.externalId,
+          contentLength: event.content.length,
+        } as Record<string, unknown>,
+        siteId: event.siteId,
+        conversationId: (event.metadata?.conversationId as string | undefined) || null,
+        parentTaskId: (event.metadata?.parentTaskId as string | undefined) || null,
+        // Default budget: $0.50 per event turn. Enough for ~250 agent-response
+        // calls or ~20 expensive ones — generous safety net. Set null on the
+        // task row in the cockpit if you want to disable cap entirely; set
+        // smaller via event.metadata.budgetUsd for cost-sensitive flows.
+        budgetUsd: (event.metadata?.budgetUsd as number | undefined) ?? 0.5,
+      },
+      select: { id: true },
+    });
+    ceoTaskId = created.id;
+  } catch (err) {
+    console.warn(
+      "[ceo-brain] AgentTask create failed (proceeding without budget cap):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  // Helper to finalize the task on each return path. Idempotent — checks if
+  // already finalized before writing.
+  const finalizeCeoTask = async (
+    status: "completed" | "failed",
+    output?: Record<string, unknown>,
+    errorMessage?: string,
+  ): Promise<void> => {
+    if (!ceoTaskId) return;
+    try {
+      const { prisma } = await import("@/lib/db");
+      await prisma.agentTask.update({
+        where: { id: ceoTaskId },
+        data: {
+          status,
+          output: output as Record<string, unknown> | undefined,
+          errorMessage: errorMessage?.slice(0, 500),
+          durationMs: Date.now() - startMs,
+          completedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.warn(
+        "[ceo-brain] AgentTask finalize failed (non-fatal):",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  };
+
   // 2. Build system prompt with tool descriptions
   const systemPrompt =
     buildSystemPrompt(ctx) + "\n\n" + buildToolDescriptions(registry);
@@ -358,6 +425,7 @@ export async function processCEOEvent(
   const rateCheck = checkRateLimit(event.channel, "outbound", rateLimitCounters, DEFAULT_SAFETY_CONFIG);
   if (!rateCheck.allowed) {
     console.warn(`[ceo-brain] Rate limited: ${rateCheck.reason}`);
+    await finalizeCeoTask("failed", { reason: "rate-limited" }, rateCheck.reason);
     return {
       success: false,
       responseText: "I've reached my response limit for now. Please try again later.",
@@ -386,6 +454,11 @@ export async function processCEOEvent(
       calledFrom: "ceo-brain",
       siteId: event.siteId,
       timeoutMs: 30_000,
+      // Per-task budget check + spend accumulation. If checkTaskBudget()
+      // detects this task (or any ancestor) is over budget, the call throws
+      // BEFORE incurring more cost. After the call, recordTaskSpend() adds
+      // the estimated cost to agent_tasks.spentUsd.
+      agentTaskId: ceoTaskId ?? undefined,
     });
 
     const responseText = result?.content || "";
@@ -441,11 +514,13 @@ export async function processCEOEvent(
         continue;
       }
 
-      // Build tool context
+      // Build tool context — agentTaskId propagates so any AI call a tool
+      // makes also lands against this event's budget.
       const toolCtx: ToolContext = {
         siteId: event.siteId,
         agentId: "ceo",
         conversationId: event.metadata?.conversationId as string | undefined,
+        agentTaskId: ceoTaskId ?? undefined,
       };
 
       // Execute tool with per-tool timeout (Fix #14)
@@ -636,6 +711,26 @@ export async function processCEOEvent(
 
   console.log(
     `[ceo-brain] Processed event in ${durationMs}ms — tools: [${toolsUsed.join(", ")}], confidence: ${confidence}`,
+  );
+
+  // Finalize the per-event AgentTask. status = "failed" if we surfaced an
+  // error (escalation / approval pending), otherwise "completed". This is the
+  // counterpart to the create() at the top of processCEOEvent — together they
+  // bound the lifecycle of every event for per-task budget tracking + the
+  // approval queue UI.
+  const finalStatus = actionResult.error ? "failed" : "completed";
+  await finalizeCeoTask(
+    finalStatus,
+    {
+      responseLength: finalResponse.length,
+      toolsUsed,
+      toolSuccessCount,
+      toolFailCount,
+      pendingApprovals: pendingApprovals.length,
+      needsEscalation,
+      confidence,
+    },
+    actionResult.error,
   );
 
   return actionResult;

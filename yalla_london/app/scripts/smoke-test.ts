@@ -2780,6 +2780,31 @@ test("Audit-May17-Regression", "Approval queue page + API exist", () => {
     : { status: FAIL, details: "Approval UI or API missing" };
 });
 
+test("Audit-May17-Regression", "ceo-brain wires agentTaskId end-to-end", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/agents/ceo-brain.ts"),
+    "utf-8",
+  );
+  // Must: create AgentTask at start, pass agentTaskId to generateCompletion,
+  // pass agentTaskId in ToolContext, finalize on return paths.
+  const createsTask = content.includes('taskType: "ceo-event-process"') &&
+    content.includes("budgetUsd:");
+  const wiredToAI = content.includes("agentTaskId: ceoTaskId");
+  const wiredToCtx = content.includes("agentTaskId: ceoTaskId ?? undefined");
+  const finalizes = content.includes("finalizeCeoTask") &&
+    /finalizeCeoTask\([\s\S]{0,200}"failed"/.test(content) &&
+    /finalizeCeoTask\([\s\S]{0,200}finalStatus/.test(content);
+  return createsTask && wiredToAI && wiredToCtx && finalizes
+    ? { status: PASS, details: "Every CEO event creates a tracked AgentTask with budget; AI + tools meter against it" }
+    : { status: FAIL, details: `Wiring incomplete: create=${createsTask} ai=${wiredToAI} ctx=${wiredToCtx} finalize=${finalizes}` };
+});
+
+test("Audit-May17-Regression", "ToolContext exposes agentTaskId to tools", () => {
+  return fileContains("lib/agents/types.ts", "agentTaskId?: string")
+    ? { status: PASS, details: "Tools can read ctx.agentTaskId for AI calls they make" }
+    : { status: FAIL, details: "ToolContext missing agentTaskId — tools can't propagate budget" };
+});
+
 test("Audit-May17-Regression", "Content builders use effectiveCap (cap - buffer)", () => {
   const builder = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"),

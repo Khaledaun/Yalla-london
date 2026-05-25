@@ -269,6 +269,14 @@ export interface ToolContext {
   agentId: AgentId;
   conversationId?: string;
   contactId?: string;
+  /**
+   * AgentTask row representing this event's processing. AI calls fired by tools
+   * MUST include this id in `AICompletionOptions.agentTaskId` so per-task budget
+   * enforcement works (lib/agents/task-helpers.ts checkTaskBudget walks the
+   * tree; when an ancestor's spent >= budget, further calls fail-closed).
+   * Created by ceo-brain at the start of processCEOEvent.
+   */
+  agentTaskId?: string;
 }
 
 export interface ToolResult {

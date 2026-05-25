@@ -2716,6 +2716,70 @@ test("Audit-May17-Regression", "Reservoir cap lowered to 50 + creation buffer", 
     : { status: FAIL, details: "Reservoir cap still 80 or no creation buffer" };
 });
 
+// ─── May 24 paperclip-inspired features (goal ancestry + per-task budget + approvals queue) ─
+
+test("Audit-May17-Regression", "AgentTask schema has parentTaskId + budget fields", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "prisma/schema.prisma"),
+    "utf-8",
+  );
+  // Match within the AgentTask block specifically (must be self-referential relation)
+  return content.includes("parentTaskId    String?") &&
+    content.includes(`AgentTask?  @relation("AgentTaskTree"`) &&
+    content.includes("budgetUsd       Float?") &&
+    content.includes("spentUsd        Float       @default(0)")
+    ? { status: PASS, details: "Goal ancestry FK + per-task cost cap fields present" }
+    : { status: FAIL, details: "AgentTask missing paperclip-inspired fields" };
+});
+
+test("Audit-May17-Regression", "Migration for AgentTask paperclip fields exists", () => {
+  return fileExists("prisma/migrations/20260524_agent_task_paperclip_inspired/migration.sql")
+    ? { status: PASS, details: "" }
+    : { status: FAIL, details: "Migration file missing — schema drift on deploy" };
+});
+
+test("Audit-May17-Regression", "task-helpers module exports core helpers", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/agents/task-helpers.ts"),
+    "utf-8",
+  );
+  const hasTree = content.includes("export async function getTaskTree");
+  const hasBudget = content.includes("export async function checkTaskBudget") &&
+    content.includes("export async function recordTaskSpend");
+  const hasApproval = content.includes("export async function persistPendingApproval") &&
+    content.includes("export async function approvePendingApproval") &&
+    content.includes("export async function rejectPendingApproval") &&
+    content.includes("export async function listPendingApprovals");
+  return hasTree && hasBudget && hasApproval
+    ? { status: PASS, details: "Tree + budget + approval helpers exported" }
+    : { status: FAIL, details: `Missing helpers: tree=${hasTree} budget=${hasBudget} approval=${hasApproval}` };
+});
+
+test("Audit-May17-Regression", "ceo-brain persists pending approvals to DB", () => {
+  return fileContains("lib/agents/ceo-brain.ts", "persistPendingApproval")
+    ? { status: PASS, details: "Approvals now survive request/response cycle (cockpit can list them)" }
+    : { status: FAIL, details: "Pending approvals still in-memory only — lost between sessions" };
+});
+
+test("Audit-May17-Regression", "AI provider enforces per-task budget cap", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "lib/ai/provider.ts"),
+    "utf-8",
+  );
+  return content.includes("agentTaskId?: string") &&
+    content.includes("checkTaskBudget(options.agentTaskId)") &&
+    content.includes("recordTaskSpend(options.agentTaskId")
+    ? { status: PASS, details: "generateCompletion checks budget pre-call + records spend post-call" }
+    : { status: FAIL, details: "Per-task budget not wired through AI provider" };
+});
+
+test("Audit-May17-Regression", "Approval queue page + API exist", () => {
+  return fileExists("app/admin/cockpit/approvals/page.tsx") &&
+    fileExists("app/api/admin/agent/approvals/route.ts")
+    ? { status: PASS, details: "/admin/cockpit/approvals + /api/admin/agent/approvals shipped" }
+    : { status: FAIL, details: "Approval UI or API missing" };
+});
+
 test("Audit-May17-Regression", "Content builders use effectiveCap (cap - buffer)", () => {
   const builder = fs.readFileSync(
     path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"),

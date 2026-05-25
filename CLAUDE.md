@@ -5884,3 +5884,33 @@ Markdown files created by Stop hook: `YYYY-MM-DD_HH-MM.md` with session ID, bran
 197. **Grade computation must factor in WoW trend deltas, not just absolute green-KPI counts.** A site can blow past static low targets (20 indexed, 200 sessions) on cumulative volume alone while losing 93% of weekly traffic. May 24 audit: site shed 11,166 → 654 impressions WoW and still showed Grade A because 8 of 8 KPIs were "green" vs target. `computeGrade` now applies a trendPenalty using `metrics.clicksChange` / `impressionsChange`: -25% WoW → -1 letter, -50% → -2 letters, -75% → -3. Excludes `no-data` KPIs from the denominator so missing measurements don't pad the green ratio.
 
 198. **Reservoir cap creation buffer prevents barely-below-cap thrashing.** Pre-buffer behaviour: reservoir at 79 / cap 80 → content-builder-create allowed to add → reservoir 81 → next cron blocked → content-selector drains 1 → reservoir 80 → still blocked → drains 1 more → reservoir 79 → creation cron adds → repeat. Result: reservoir hovered just at-or-near cap indefinitely. Fix: `RESERVOIR_CREATION_BUFFER = 10` means both creation crons require reservoir count < `cap - buffer` (default 40 with cap 50). Once reservoir tops cap, it must drain BELOW the buffer before new creation resumes — letting content-selector breathe. Cap also lowered 80 → 50 per Rule #183 ("PUBLISH FEWER, MUCH BETTER").
+
+### Session: May 24, 2026 — Paperclip-inspired Agent Hardening (3 features, no migration)
+
+After reviewing the paperclip multi-agent orchestration repo (67k★, MIT), the platform adopted three of its strongest patterns WITHOUT migrating away from the existing Vercel Cron + Prisma stack. Paperclip's "zero-human company" framing is marketing — the actual repo has approval gates + budget oversight + supervised delegation. Yalla London already had ~90% of paperclip's primitives; this PR backfills the remaining three.
+
+**1. Goal ancestry — `AgentTask.parentTaskId`** (self-referential FK with SET NULL on delete)
+Enables linking child tasks to parent goals (e.g., "rewrite article X" → "CTR optimization Q2"). Helper `getTaskTree(rootId)` walks descendants up to 5 levels deep; `getRootTaskId(taskId)` walks up. Cockpit can now render goal trees instead of orphan tasks.
+
+**2. Per-task budget cap — `AgentTask.budgetUsd` + `AgentTask.spentUsd`**
+`AICompletionOptions` gained an `agentTaskId` field. When set:
+- `generateCompletion()` calls `checkTaskBudget()` BEFORE the AI call — walks UP the ancestor chain, fails closed if any ancestor's spent ≥ budget
+- `logUsage()` calls `recordTaskSpend()` AFTER the AI call — increments `spentUsd` on the task by the estimated cost
+- Cascading prevents a single campaign-execute task from blowing past a $5 cap by triggering 50 child AI calls
+
+**3. Approval queue UI + persistence**
+Previously, `safety.ts requireApproval` returned `{ requiresApproval: true }` and ceo-brain pushed entries into an in-memory `pendingApprovals` array — lost between request/response cycles. Now `persistPendingApproval()` writes a `status="needs_approval"` `AgentTask` row that survives. New page at `/admin/cockpit/approvals` lists pending approvals with one-tap Approve/Reject. New API at `/api/admin/agent/approvals` (GET list, POST `{action: approve|reject, taskId}`). Approve flips status to "approved" (deferred-execute pattern — a worker picks it up; not auto-run from the API). Reject marks rejected with a reason.
+
+**Migration:** `20260524_agent_task_paperclip_inspired` — idempotent `ADD COLUMN IF NOT EXISTS`, self-referential FK with `IF NOT EXISTS` constraint check, indexes for `parentTaskId` + `status+createdAt` (the latter for approval-queue ORDER BY queries).
+
+**Critical Rules Learned (May 24 paperclip-inspired):**
+
+199. **Per-task budget caps cascade DOWN the tree.** Walking UP from the current task to root in `checkTaskBudget` means if ANY ancestor is over budget, this call fails. A child task with `budgetUsd: null` still gets blocked when its parent runs out. The opposite (each task independently capped) lets a 5-deep tree blow past the root's cap by 5×. Always walk ancestors.
+
+200. **In-memory approval queues lose data on every restart.** Returning `pendingApprovals` in the response object is fine for IMMEDIATE display, but Khaled checks the cockpit hours later. Always persist approval-required actions to a DB row with `status="needs_approval"` so the admin UI can list them. Idempotency check (same conversation + same tool already pending) prevents duplicate rows when an agent retries a blocked tool.
+
+201. **Approve does NOT mean auto-execute.** The API flips status to `"approved"` and returns the tool + params. A separate worker (or manual cron trigger) then picks up `status=approved` rows and runs them. This deferred pattern keeps the approval API safe for one-tap-from-iPhone use — a misclick during commute doesn't fire a money-spending action immediately.
+
+202. **`Float @default(0)` is the right Prisma type for accumulating cost.** Don't use `Decimal` (overkill for $0.0001 estimates) and don't use `Int` (truncates fractional cents). Float supports `{ increment: usd }` atomic updates that prevent race conditions when concurrent AI calls accumulate spend.
+
+203. **Don't migrate frameworks just because the marketing is impressive.** Paperclip's 67k stars are real validation of its PATTERNS — but Yalla London had 90% of those patterns already, audited across 30+ sessions. Selectively adopting the missing 10% (goal ancestry, per-task budget, approval persistence) is ~3 days of work. Migrating the whole stack would be 2 months for zero revenue improvement. Steal the patterns; keep what works.

@@ -4960,7 +4960,7 @@ model AgentTask {
   agentType       String   // ceo, cto
   taskType        String   // maintenance, security_review, customer_inquiry, follow_up, etc.
   priority        String   @default("medium") // low, medium, high, critical
-  status          String   @default("pending") // pending, running, completed, failed, needs_approval
+  status          String   @default("pending") // pending, running, completed, failed, needs_approval, rejected
   description     String   @db.Text
   input           Json?
   output          Json?
@@ -4977,9 +4977,24 @@ model AgentTask {
   createdAt       DateTime @default(now())
   completedAt     DateTime?
 
+  // Paperclip-inspired (May 24 2026):
+  // - parentTaskId: goal ancestry. A campaign-execute task can link to a
+  //   parent "CTR optimization Q2" task; the cockpit can show the full
+  //   goal tree instead of orphaned tasks.
+  // - budgetUsd / spentUsd: per-task cost cap. ceo-brain accumulates AI
+  //   spend per task; when spent >= budget, further AI calls under this
+  //   task fail-closed instead of cascading into runaway cost.
+  parentTaskId    String?
+  parent          AgentTask?  @relation("AgentTaskTree", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  children        AgentTask[] @relation("AgentTaskTree")
+  budgetUsd       Float?
+  spentUsd        Float       @default(0)
+
   @@index([agentType, status])
   @@index([siteId])
   @@index([dueAt, status])
+  @@index([parentTaskId])
+  @@index([status, createdAt])
   @@map("agent_tasks")
 }
 

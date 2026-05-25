@@ -413,9 +413,27 @@ export async function processCEOEvent(
         continue;
       }
 
-      // Handle tools that need human approval — queue instead of executing
+      // Handle tools that need human approval — queue instead of executing.
+      // Also PERSIST to AgentTask (status="needs_approval") so the approval
+      // survives the request/response cycle and shows in the cockpit Approvals
+      // queue. Fire-and-forget — never block the response on the persist.
       if (safetyCheck.requiresApproval) {
-        pendingApprovals.push({ tool: call.tool, params: call.params, reason: safetyCheck.reason || "Requires human approval" });
+        const approvalEntry = { tool: call.tool, params: call.params, reason: safetyCheck.reason || "Requires human approval" };
+        pendingApprovals.push(approvalEntry);
+        // Persist to DB so the cockpit /admin/cockpit/approvals page can list it.
+        const convoId = (event.metadata?.conversationId as string | undefined) || null;
+        import("@/lib/agents/task-helpers")
+          .then(({ persistPendingApproval }) =>
+            persistPendingApproval({
+              tool: call.tool,
+              params: call.params,
+              reason: approvalEntry.reason,
+              agentType: "ceo",
+              siteId: event.siteId,
+              conversationId: convoId,
+            }),
+          )
+          .catch((err) => console.warn("[ceo-brain] persistPendingApproval failed:", err instanceof Error ? err.message : err));
         toolResultsForRound.push(
           `Tool ${call.tool}: QUEUED FOR APPROVAL — ${safetyCheck.reason || "This action requires human review before execution."}`,
         );

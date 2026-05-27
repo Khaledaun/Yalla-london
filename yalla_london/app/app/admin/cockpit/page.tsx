@@ -1772,6 +1772,24 @@ function MissionTab({
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showIndexPanel, setShowIndexPanel] = useState(false);
+  // Pending agent-approval count for the Approvals nav card badge. Polled once
+  // on mount + on every parent refresh. Fails silently if the API is down.
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/agent/approvals?limit=200")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled || !j?.ok) return;
+        setPendingApprovalsCount(j.count ?? 0);
+      })
+      .catch(() => {
+        /* badge optional — no error toast */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const triggerAction = useCallback(
     async (endpoint: string, body: object, label: string) => {
@@ -2998,6 +3016,97 @@ function MissionTab({
                   </p>
                   <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#78716C" }}>
                     CEO + CTO agents, conversations, CRM pipeline
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4" style={{ color: "#A8A29E" }} />
+            </div>
+          </Card>
+        </Link>
+
+        {/* Approval Queue — pending CEO/CTO actions awaiting human review */}
+        <Link href="/admin/cockpit/approvals" className="block">
+          <Card className="transition-all active:scale-[0.98]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center relative"
+                  style={{
+                    backgroundColor:
+                      pendingApprovalsCount && pendingApprovalsCount > 0 ? "#FEF3C7" : "#FAF8F4",
+                    border:
+                      pendingApprovalsCount && pendingApprovalsCount > 0
+                        ? "1px solid rgba(217,119,6,0.4)"
+                        : "1px solid rgba(214,208,196,0.6)",
+                  }}
+                >
+                  <span style={{ color: "#D97706", fontSize: 16, fontWeight: 700 }}>!</span>
+                  {pendingApprovalsCount != null && pendingApprovalsCount > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center"
+                      style={{
+                        backgroundColor: "#DC2626",
+                        color: "white",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "0 4px",
+                      }}
+                    >
+                      {pendingApprovalsCount > 99 ? "99+" : pendingApprovalsCount}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#1C1917",
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    Approval Queue
+                  </p>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#78716C" }}>
+                    {pendingApprovalsCount == null
+                      ? "Pending agent actions awaiting review"
+                      : pendingApprovalsCount === 0
+                        ? "Nothing waiting — agents running clean"
+                        : `${pendingApprovalsCount} action${pendingApprovalsCount === 1 ? "" : "s"} waiting for your review`}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4" style={{ color: "#A8A29E" }} />
+            </div>
+          </Card>
+        </Link>
+
+        {/* Agent Tasks — tracked AgentTask rows with goal tree + per-task spend */}
+        <Link href="/admin/cockpit/tasks" className="block">
+          <Card className="transition-all active:scale-[0.98]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: "#F0FDF4", border: "1px solid rgba(34,197,94,0.3)" }}
+                >
+                  <span style={{ color: "#15803D", fontSize: 14, fontWeight: 700 }}>✓</span>
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#1C1917",
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    Agent Tasks
+                  </p>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#78716C" }}>
+                    What the CEO + CTO agents did — status, spend, goal tree
                   </p>
                 </div>
               </div>

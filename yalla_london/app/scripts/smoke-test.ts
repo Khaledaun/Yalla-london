@@ -2805,6 +2805,30 @@ test("Audit-May17-Regression", "ToolContext exposes agentTaskId to tools", () =>
     : { status: FAIL, details: "ToolContext missing agentTaskId — tools can't propagate budget" };
 });
 
+test("Audit-May17-Regression", "Agent Tasks page + API exist", () => {
+  return fileExists("app/admin/cockpit/tasks/page.tsx") &&
+    fileExists("app/api/admin/agent/tasks/route.ts")
+    ? { status: PASS, details: "/admin/cockpit/tasks + /api/admin/agent/tasks shipped" }
+    : { status: FAIL, details: "Tasks UI or API missing" };
+});
+
+test("Audit-May17-Regression", "Cockpit MissionTab links to Approvals + Tasks pages", () => {
+  const content = fs.readFileSync(
+    path.join(APP_DIR, "app/admin/cockpit/page.tsx"),
+    "utf-8",
+  );
+  const hasApprovalsLink = content.includes('href="/admin/cockpit/approvals"');
+  const hasTasksLink = content.includes('href="/admin/cockpit/tasks"');
+  const hasBadgeFetch = content.includes("pendingApprovalsCount") &&
+    content.includes("/api/admin/agent/approvals?limit=200");
+  return hasApprovalsLink && hasTasksLink && hasBadgeFetch
+    ? { status: PASS, details: "Cockpit surfaces agent infrastructure (Approvals + Tasks + badge count)" }
+    : {
+        status: FAIL,
+        details: `Links: approvals=${hasApprovalsLink} tasks=${hasTasksLink} badge=${hasBadgeFetch}`,
+      };
+});
+
 test("Audit-May17-Regression", "cto-brain creates AgentTask + finalizes per run", () => {
   const content = fs.readFileSync(
     path.join(APP_DIR, "lib/agents/cto-brain.ts"),

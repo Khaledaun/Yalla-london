@@ -56,7 +56,11 @@ export async function generateMetadata(): Promise<Metadata> {
         "London travel",
         "Maldives resorts",
       ],
-      alternates: { canonical: baseUrl },
+      // YL-2 hreflang patch: reuse the locale-aware rootAlternates helper so
+      // the parent-brand portal exposes en-GB/ar-SA + x-default like every
+      // other public page. Previously this returned canonical-only, hiding
+      // the AR landing from Google's hreflang graph entirely.
+      alternates: rootAlternates,
       openGraph: {
         title,
         description,

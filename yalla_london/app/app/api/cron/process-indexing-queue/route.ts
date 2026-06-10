@@ -96,14 +96,20 @@ async function handleProcessQueue(request: NextRequest) {
         }
 
         // ── 2. Find URLs that need submission ──
-        // Get "discovered" URLs that haven't been submitted via any channel yet
+        // Get "discovered" URLs that haven't been submitted via any channel yet.
+        //
+        // YL-2 fix: dropped `submitted_sitemap: false` from the WHERE clause.
+        // Sitemap submission goes to Google only and doesn't notify Bing/Yandex,
+        // so URLs flagged `submitted_sitemap: true` were silently excluded from
+        // the IndexNow push and never made it to Bing/Yandex — leaving ~476 URLs
+        // stranded. Direct IndexNow + Google Indexing API are still gated, so
+        // we won't re-submit URLs that already went through those channels.
         const pendingUrls = await prisma.uRLIndexingStatus.findMany({
           where: {
             site_id: siteId,
             status: { in: ["discovered", "pending"] },
             submitted_indexnow: false,
             submitted_google_api: false,
-            submitted_sitemap: false,
             submission_attempts: { lt: INDEXNOW_CHRONIC_FAILURE_CAP }, // Skip chronic failures — wastes crawl budget
           },
           select: { url: true, id: true },

@@ -1212,9 +1212,16 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
     let skippedEmpty = 0;
     for (const aff of rule.affiliates) {
       // Skip affiliates with empty tracking params (env var not set — we're not approved yet)
-      // This prevents showing partner names like "Booking.com" when we have no commission tracking
+      // This prevents showing partner names like "Booking.com" when we have no commission tracking.
+      //
+      // YL-2 hardening: also guard against multi-value param strings where ANY
+      // segment has an empty trailing value (e.g. `?aid=&utm_source=site` or
+      // `?cid=&sub=`). The original `endsWith("=")` check missed these, so a
+      // multi-param template with one unset env var still leaked through and
+      // produced a dead link.
       const paramValue = aff.param.split("=").pop() || "";
-      if (!paramValue || aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) {
+      const hasEmptySegment = /[?&][^=&]+=(?=$|&)/.test(aff.param);
+      if (!paramValue || aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""') || hasEmptySegment) {
         skippedEmpty++;
         continue;
       }

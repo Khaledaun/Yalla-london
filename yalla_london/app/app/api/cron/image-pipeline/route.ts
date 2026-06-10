@@ -206,6 +206,90 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── Step 1.7: Inline-image backfill for published articles ────────
+    // YL-2 image-pipeline extension. Many articles have a featured image but
+    // no inline <img> in the body — hurts dwell time, accessibility, and
+    // image-search discoverability. Each run picks up to 20 published posts
+    // whose body has zero <img> tags, fetches ONE topical Unsplash photo via
+    // the existing pipeline, and splices it after the first paragraph.
+    //
+    // Reuses searchPhotos + buildImageUrl + saveToLibrary — no new model
+    // integration. Stays within the existing 280s budget + Unsplash rate
+    // limit (cap = 20 across all sites per invocation).
+    let inlineBackfillCap = 20;
+    for (const siteId of activeSites) {
+      if (Date.now() - startTime > BUDGET_MS) break;
+      if (inlineBackfillCap <= 0) break;
+
+      const siteConfig = getSiteConfig(siteId);
+      const destination = siteConfig?.destination || "London";
+
+      // Heuristic: HTML bodies without "<img" almost certainly have no inline
+      // image. Featured-image hero is rendered separately in the layout, so a
+      // missing inline image leaves the body wall-of-text.
+      const candidates = await prisma.blogPost.findMany({
+        where: {
+          siteId,
+          published: true,
+          NOT: { content_en: { contains: "<img" } },
+        },
+        select: { id: true, slug: true, title_en: true, content_en: true },
+        take: inlineBackfillCap,
+        orderBy: { updated_at: "desc" },
+      });
+
+      for (const post of candidates) {
+        if (Date.now() - startTime > BUDGET_MS) break;
+        if (inlineBackfillCap <= 0) break;
+
+        try {
+          const query = `${destination} ${post.title_en.replace(/[^\w\s]/g, "")}`.substring(0, 80);
+          const photos = await searchPhotos(query, { perPage: 4, orientation: "landscape" });
+          if (photos.length === 0) continue;
+
+          const photo = photos[0];
+          const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });
+          const attribution = buildAttribution(photo);
+          const altText = (post.title_en || destination).slice(0, 120).replace(/"/g, "&quot;");
+          const figureHtml =
+            `
+<figure class="article-inline-image" style="margin: 1.5rem 0;">` +
+            `<img src="${imageUrl}" alt="${altText}" loading="lazy" style="width:100%;height:auto;border-radius:8px;" />` +
+            `<figcaption style="font-size:0.8rem;color:#6b7280;margin-top:0.4rem;">${attribution}</figcaption>` +
+            `</figure>
+`;
+
+          // Splice after the first </p> when present, else prepend.
+          const body = post.content_en || "";
+          const firstP = body.indexOf("</p>");
+          const updatedBody =
+            firstP >= 0
+              ? body.slice(0, firstP + 4) + figureHtml + body.slice(firstP + 4)
+              : figureHtml + body;
+
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: { content_en: updatedBody },
+          });
+
+          await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
+          imagesAdded++;
+          articlesUpdated++;
+          inlineBackfillCap--;
+
+          if (photo.downloadUrl) {
+            trackDownload(photo.downloadUrl).catch(() => {});
+          }
+        } catch (inlineErr) {
+          errors++;
+          console.warn(
+            `[image-pipeline] Inline backfill failed for ${post.slug}:`,
+            inlineErr instanceof Error ? inlineErr.message : String(inlineErr),
+          );
+        }
+      }
+    }
+
     // ── Step 2: Pre-stock library with per-site travel imagery ────────
     // Pick 1 random query per site per run (stays within rate limits)
     for (const siteId of activeSites) {

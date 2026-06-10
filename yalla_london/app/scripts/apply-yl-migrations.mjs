@@ -57,8 +57,23 @@ function buildSslConfig(connectionString) {
   const lower = connectionString.toLowerCase();
   const isLocal = lower.includes('localhost') || lower.includes('127.0.0.1');
   if (isLocal || lower.includes('sslmode=disable')) return false;
-  // Supabase / hosted Postgres require SSL; don't reject self-signed chain in the pooler.
+  // Supabase / hosted Postgres require SSL; don't reject the self-signed chain its
+  // pooler presents (Node's trust store doesn't include it).
   return { rejectUnauthorized: false };
+}
+
+/**
+ * Remove sslmode/ssl query params from the connection string. Under pg >= 8.18 a
+ * `sslmode=require` in DATABASE_URL re-enables certificate verification and overrides
+ * the explicit `ssl: { rejectUnauthorized: false }` Client option — Supabase then fails
+ * with "self-signed certificate in certificate chain". Stripping the param lets our
+ * explicit ssl config win. The password is left untouched (only the sslmode token goes).
+ */
+function stripSslParams(connectionString) {
+  let out = connectionString
+    .replace(/\bsslmode=[^&\s]*/gi, '')
+    .replace(/\bssl=[^&\s]*/gi, '');
+  return out.replace(/\?&/g, '?').replace(/&{2,}/g, '&').replace(/[?&]$/g, '');
 }
 
 async function main() {
@@ -73,7 +88,7 @@ async function main() {
   const dirs = listMigrationDirs();
 
   const client = new Client({
-    connectionString,
+    connectionString: stripSslParams(connectionString),
     ssl: buildSslConfig(connectionString),
     connectionTimeoutMillis: 15000,
     statement_timeout: 120000,

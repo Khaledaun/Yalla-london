@@ -329,6 +329,14 @@
     {
       "path": "/api/cron/agent-maintenance",
       "schedule": "30 6 * * 0"
+    },
+    {
+      "path": "/api/cron/affiliate-rebuild-dry",
+      "schedule": "0 0 29 2 *"
+    },
+    {
+      "path": "/api/cron/affiliate-rebuild-live",
+      "schedule": "0 0 29 2 *"
     }
   ]
 }

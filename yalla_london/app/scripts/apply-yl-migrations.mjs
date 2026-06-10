@@ -75,8 +75,23 @@ async function main() {
   const client = new Client({
     connectionString,
     ssl: buildSslConfig(connectionString),
+    connectionTimeoutMillis: 15000,
+    statement_timeout: 120000,
   });
-  await client.connect();
+
+  // Connection/environment failures (DB unreachable at build time) must NOT break the
+  // build — this project's Vercel build cannot always reach the database (the legacy
+  // deploy-migrations.sh is wrapped in `|| echo` for exactly this reason). We skip loudly
+  // and the migration will auto-apply on the next deploy where the DB is reachable.
+  // A genuine migration SQL failure (below) is different and DOES fail the build (exit 1).
+  try {
+    await client.connect();
+  } catch (err) {
+    const msg = err && err.message ? err.message : String(err);
+    log(`Could not connect to DATABASE_URL (${msg}) — skipping migration runner; will apply on a deploy with DB access`);
+    await client.end().catch(() => {});
+    return;
+  }
 
   try {
     // 1. Ensure bookkeeping table exists. Detect whether WE just created it.

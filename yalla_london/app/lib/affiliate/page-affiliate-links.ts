@@ -287,12 +287,7 @@ export function buildCjDeepLinkRaw(partner: string, destinationUrl: string, sid:
  * server uses CJ_PUBLISHER_CID links-format when available; client (and any
  * env-less context) uses the synced click-format IDs above.
  */
-function buildCjDeepLink(
-  destinationUrl: string,
-  siteId: string,
-  pageSlug: string,
-  partner?: string,
-): string | null {
+function buildCjDeepLink(destinationUrl: string, siteId: string, pageSlug: string, partner?: string): string | null {
   const sid = `${siteId}_${pageSlug}`.substring(0, 100);
   const publisherCid = typeof process !== "undefined" ? process.env?.CJ_PUBLISHER_CID : undefined;
   if (publisherCid) {
@@ -335,6 +330,20 @@ export function buildExpediaAffiliateUrl(
  * the literal fallback keeps links paying if the env var is ever dropped.
  */
 const TRAVELPAYOUTS_MARKER_FALLBACK = "510776";
+
+/**
+ * SportsEvents365 — live a_aid partner. The fallback AID is public (appears
+ * in production HTML). Client-safe: no server env needed.
+ */
+export function buildSportsEvents365Url(path: string, pageSlug: string, siteId: string = "yalla-london"): string {
+  const aid =
+    (typeof process !== "undefined" &&
+      (process.env?.NEXT_PUBLIC_SPORTSEVENTS365_AID || process.env?.SPORTSEVENTS365_AID)) ||
+    "6888b1173c266";
+  const dest = `https://www.sportsevents365.com${path}?a_aid=${aid}`;
+  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
+  return `/api/affiliate/click?url=${encodeURIComponent(dest)}&sid=${encodeURIComponent(sid)}&partner=sportsevents365&article=${encodeURIComponent(pageSlug)}`;
+}
 
 /**
  * Tracker-wrapped Travelpayouts link (Tiqets, TicketNetwork, Welcome Pickups).

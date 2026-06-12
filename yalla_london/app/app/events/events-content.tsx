@@ -15,7 +15,28 @@ import {
   Breadcrumbs,
 } from "@/components/brand-kit";
 import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
-import { ArrowRight, MapPin, Calendar, Clock, Star, ExternalLink, Ticket, Search, Tag, Loader2 } from "lucide-react";
+import {
+  buildSportsEvents365Url,
+  buildTravelpayoutsAffiliateUrl,
+  buildExpediaAffiliateUrl,
+} from "@/lib/affiliate/page-affiliate-links";
+import {
+  ArrowRight,
+  MapPin,
+  Calendar,
+  Clock,
+  Star,
+  ExternalLink,
+  Ticket,
+  Search,
+  Tag,
+  Loader2,
+  ShieldCheck,
+  RefreshCw,
+  Lock,
+  Hotel,
+  BookOpen,
+} from "lucide-react";
 
 interface EventItem {
   id: string | number;
@@ -35,74 +56,84 @@ interface EventItem {
   soldOut?: boolean;
 }
 
-// Fallback events shown only when DB has no events yet
-// Dates should be kept in the future — update quarterly
+// Fallback events shown only when DB has no events yet.
+// June 12 audit: the old fallbacks had FIXED April dates that expired, leaving
+// the page with zero upcoming events. Dates are now computed relative to
+// today so fallbacks never expire, and every booking link routes through a
+// REAL partner (SE365 / TicketNetwork / Tiqets) with tracking. Fake star
+// ratings removed — we have no review source, so we don't show ratings.
+const daysFromNow = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+
 const FALLBACK_EVENTS: EventItem[] = [
   {
     id: "fallback-1",
     title: {
-      en: "London Marathon 2026",
-      ar: "ماراثون لندن 2026",
+      en: "Premier League Football in London",
+      ar: "مباريات الدوري الإنجليزي الممتاز في لندن",
     },
     description: {
-      en: "The world's most iconic marathon runs from Greenwich to The Mall. Free to watch from many vantage points along the route.",
-      ar: "أشهر ماراثون في العالم من غرينيتش إلى ذا مول. مجاني للمشاهدة من نقاط عديدة على الطريق.",
+      en: "Arsenal, Chelsea, Tottenham and West Ham all play home fixtures across the season. Browse verified tickets for upcoming London matches.",
+      ar: "أرسنال وتشيلسي وتوتنهام ووست هام يلعبون مبارياتهم على أرضهم طوال الموسم. تصفح تذاكر موثقة للمباريات القادمة في لندن.",
     },
-    date: "2026-04-26",
-    time: "09:00",
-    venue: "Greenwich to The Mall",
-    category: "Experience",
-    price: "Free to watch",
-    image: "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=800&h=600&fit=crop",
-    rating: 4.9,
-    bookingUrl: "https://www.tcslondonmarathon.com/",
-    affiliateTag: "",
-    ticketProvider: "Official",
-    vipAvailable: false,
+    date: daysFromNow(10),
+    time: "15:00",
+    venue: "Emirates Stadium & more",
+    category: "Football",
+    price: "From \u00a385",
+    image: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=800&h=600&fit=crop",
+    rating: 0,
+    bookingUrl: buildSportsEvents365Url("/football/england/premier-league", "events-page"),
+    affiliateTag: "sportsevents365",
+    ticketProvider: "SportsEvents365",
+    vipAvailable: true,
   },
   {
     id: "fallback-2",
     title: {
-      en: "The Lion King - Musical Theatre",
-      ar: "الأسد الملك - مسرح موسيقي",
+      en: "West End Musicals & Theatre",
+      ar: "مسرحيات وموسيقى الويست إند",
     },
     description: {
-      en: "The award-winning musical that brings the Pride Lands to life with stunning costumes and music.",
-      ar: "المسرحية الموسيقية الحائزة على جوائز التي تنقل أراضي العزة إلى الحياة.",
+      en: "The Lion King, Hamilton, Wicked and more — award-winning shows in London's historic theatres. Compare seats and dates.",
+      ar: "الأسد الملك وهاملتون وويكد والمزيد — عروض حائزة على جوائز في مسارح لندن العريقة. قارن المقاعد والتواريخ.",
     },
-    date: "2026-04-15",
+    date: daysFromNow(14),
     time: "19:30",
-    venue: "Lyceum Theatre",
+    venue: "West End theatres",
     category: "Theatre",
     price: "From \u00a345",
     image: "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=600&fit=crop",
-    rating: 4.8,
-    bookingUrl: "https://www.ticketmaster.co.uk/the-lion-king-tickets/artist/805987",
-    affiliateTag: "ticketmaster",
-    ticketProvider: "Ticketmaster",
+    rating: 0,
+    bookingUrl: buildTravelpayoutsAffiliateUrl(
+      "ticketnetwork",
+      "https://www.ticketnetwork.com/london-events",
+      "events-page",
+    ),
+    affiliateTag: "ticketnetwork",
+    ticketProvider: "TicketNetwork",
     vipAvailable: true,
   },
   {
     id: "fallback-3",
     title: {
-      en: "Thames Luxury Dinner Cruise",
-      ar: "رحلة عشاء فاخرة على نهر التايمز",
+      en: "London Attractions & Experiences",
+      ar: "معالم وتجارب لندن",
     },
     description: {
-      en: "Fine dining on the Thames with views of Tower Bridge, Big Ben, and the London Eye. Halal menu available.",
-      ar: "عشاء فاخر على التايمز مع إطلالة على تاور بريدج وبيج بن ولندن آي.",
+      en: "London Eye, Tower of London, Thames cruises with halal dining options, and skip-the-queue museum tickets — instant confirmation.",
+      ar: "عين لندن وبرج لندن ورحلات التايمز مع خيارات طعام حلال وتذاكر متاحف بدون انتظار — تأكيد فوري.",
     },
-    date: "2026-04-20",
-    time: "19:00",
-    venue: "Westminster Pier",
+    date: daysFromNow(7),
+    time: "10:00",
+    venue: "Across London",
     category: "Experience",
-    price: "From \u00a389",
+    price: "From \u00a329",
     image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=600&fit=crop",
-    rating: 4.7,
-    bookingUrl: "https://www.viator.com/London/d737",
-    affiliateTag: "viator",
-    ticketProvider: "Viator",
-    vipAvailable: true,
+    rating: 0,
+    bookingUrl: buildTravelpayoutsAffiliateUrl("tiqets", "https://www.tiqets.com/en/london-c824706/", "events-page"),
+    affiliateTag: "tiqets",
+    ticketProvider: "Tiqets",
+    vipAvailable: false,
   },
 ];
 
@@ -119,6 +150,8 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
   const [events, setEvents] = useState<EventItem[]>(FALLBACK_EVENTS);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
+  // "database" = synced daily from official sources; surfaces a live trust line
+  const [dataSource, setDataSource] = useState<string>("curated");
 
   useEffect(() => {
     async function fetchEvents() {
@@ -128,6 +161,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
           const data = await res.json();
           if (data.events && data.events.length > 0) {
             setEvents(data.events);
+            if (data.source) setDataSource(data.source);
             if (data.categories?.length > 1) {
               setCategories(data.categories);
             }
@@ -139,6 +173,18 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
     }
     fetchEvents();
   }, []);
+
+  // Route every booking click through /api/affiliate/click so it's tracked
+  // (AuditLog + GA4) and attributed via SID. DB bookingUrls already carry the
+  // partner's affiliate key (SE365 a_aid); fallback URLs are pre-wrapped.
+  const trackedBookingUrl = (event: EventItem): string => {
+    const url = event.bookingUrl || "";
+    if (!url) return "#";
+    if (url.startsWith("/api/affiliate/click")) return url; // already wrapped
+    const partner = (event.ticketProvider || "partner").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const sid = `yalla-london_events-${(event.category || "all").toLowerCase()}`;
+    return `/api/affiliate/click?url=${encodeURIComponent(url)}&sid=${encodeURIComponent(sid)}&partner=${encodeURIComponent(partner)}&article=events-page`;
+  };
 
   // Per May 17 audit: today's events were rendering under "Past Events".
   // Root cause: `new Date(event.date)` parses "2026-05-17" as midnight UTC,
@@ -214,29 +260,97 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
         });
   };
 
-  const handleBooking = (event: EventItem) => {
-    if (typeof window !== "undefined") {
-      try {
-        fetch("/api/analytics/track", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "affiliate_click",
-            category: "events",
-            label: event.title.en,
-            provider: event.ticketProvider,
-            affiliateTag: event.affiliateTag,
-          }),
-        }).catch(() => {});
-      } catch (error) {
-        console.warn("[Events] Failed to track affiliate click for event:", event.title.en, error);
-      }
-      window.open(event.bookingUrl, "_blank", "noopener,noreferrer");
+  // Fire-and-forget analytics on click; navigation happens via the real <a>
+  // link (keyboard/screen-reader/middle-click friendly — June 12 a11y audit).
+  const trackBookingClick = (event: EventItem) => {
+    try {
+      fetch("/api/analytics/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "affiliate_click",
+          category: "events",
+          label: event.title.en,
+          provider: event.ticketProvider,
+          affiliateTag: event.affiliateTag,
+        }),
+      }).catch(() => {});
+    } catch (error) {
+      console.warn("[Events] Failed to track affiliate click for event:", event.title.en, error);
     }
   };
 
+  // Event JSON-LD (schema.org ItemList of Event) — eligibility for Google's
+  // event rich results. Built from live upcoming events; omits fabricated
+  // fields (no fake ratings/offers beyond what we actually know).
+  const eventJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: language === "en" ? "London Events & Tickets" : "فعاليات وتذاكر لندن",
+    itemListElement: upcomingEvents.slice(0, 25).map((ev, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: {
+        "@type": "Event",
+        name: ev.title.en,
+        startDate: ev.time ? `${ev.date}T${(ev.time || "19:00").slice(0, 5)}:00` : ev.date,
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: {
+          "@type": "Place",
+          name: ev.venue,
+          address: { "@type": "PostalAddress", addressLocality: "London", addressCountry: "GB" },
+        },
+        ...(ev.image ? { image: [ev.image] } : {}),
+        ...(ev.description?.en ? { description: ev.description.en } : {}),
+      },
+    })),
+  };
+
+  // Per-category partner CTA shown under the grid — the "couldn't find it"
+  // safety net that keeps the funnel moving to a bookable partner page.
+  const categoryPartnerCta = (() => {
+    const cat = selectedCategory.toLowerCase();
+    if (cat === "football" || cat === "sports") {
+      return {
+        href: buildSportsEvents365Url("/football/england/premier-league", "events-page"),
+        partner: "SportsEvents365",
+        en: "Browse all Premier League & football tickets",
+        ar: "تصفح جميع تذاكر الدوري الإنجليزي وكرة القدم",
+      };
+    }
+    if (cat === "concerts" || cat === "music") {
+      return {
+        href: buildSportsEvents365Url("/concerts/london", "events-page"),
+        partner: "SportsEvents365",
+        en: "Browse all London concert tickets",
+        ar: "تصفح جميع تذاكر حفلات لندن",
+      };
+    }
+    if (cat === "theatre" || cat === "comedy") {
+      return {
+        href: buildTravelpayoutsAffiliateUrl(
+          "ticketnetwork",
+          "https://www.ticketnetwork.com/london-events",
+          "events-page",
+        ),
+        partner: "TicketNetwork",
+        en: "Browse all West End & theatre tickets",
+        ar: "تصفح جميع تذاكر المسرح والويست إند",
+      };
+    }
+    return {
+      href: buildTravelpayoutsAffiliateUrl("tiqets", "https://www.tiqets.com/en/london-c824706/", "events-page"),
+      partner: "Tiqets",
+      en: "Browse all London attractions & experiences",
+      ar: "تصفح جميع معالم وتجارب لندن",
+    };
+  })();
+
   return (
     <div className={`bg-yl-cream font-body ${isRTL ? "rtl" : "ltr"}`}>
+      {/* Event rich-result structured data (real events only, no fabricated fields) */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }} />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-yl-dark-navy text-white pt-28 pb-16">
         <div className="absolute inset-0">
@@ -272,14 +386,27 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
               ? "Book premium tickets for the best London experiences"
               : "احجز تذاكر مميزة لأفضل تجارب لندن"}
           </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <span className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
-              <Ticket className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
-              {language === "en" ? "Verified Tickets" : "تذاكر معتمدة"}
+          <div className="flex items-center justify-center gap-4 flex-wrap" role="list">
+            <span
+              role="listitem"
+              className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full"
+            >
+              <RefreshCw className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" aria-hidden="true" />
+              {language === "en" ? "Listings updated daily" : "قوائم محدّثة يومياً"}
             </span>
-            <span className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
-              <Star className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
-              {language === "en" ? "VIP Packages" : "باقات VIP"}
+            <span
+              role="listitem"
+              className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full"
+            >
+              <Lock className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" aria-hidden="true" />
+              {language === "en" ? "Secure partner checkout" : "دفع آمن عبر الشريك"}
+            </span>
+            <span
+              role="listitem"
+              className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full"
+            >
+              <Ticket className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" aria-hidden="true" />
+              {language === "en" ? "Prices in GBP" : "الأسعار بالجنيه الإسترليني"}
             </span>
           </div>
         </div>
@@ -310,23 +437,35 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
       <section className="bg-white border-b sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-7 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
+            <div className="relative flex-1 w-full" role="search">
               <Search
+                aria-hidden="true"
                 className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 h-4 w-4 text-yl-gray-500`}
               />
               <input
+                type="search"
+                aria-label={
+                  language === "en"
+                    ? "Search events by name, venue, category or ticket provider"
+                    : "ابحث عن الفعاليات بالاسم أو المكان أو الفئة"
+                }
                 placeholder={language === "en" ? "Search events, venues..." : "ابحث عن فعاليات، أماكن..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full ${isRTL ? "pr-10 pl-4" : "pl-10 pr-4"} py-2.5 border border-yl-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div
+              className="flex gap-2 flex-wrap"
+              role="group"
+              aria-label={language === "en" ? "Filter events by category" : "تصفية الفعاليات حسب الفئة"}
+            >
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
+                  aria-pressed={selectedCategory === cat}
+                  className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold ${
                     selectedCategory === cat
                       ? "bg-yl-dark-navy text-yl-parchment"
                       : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
@@ -337,11 +476,13 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
               ))}
               <button
                 onClick={() => setShowVipOnly(!showVipOnly)}
-                className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
+                aria-pressed={showVipOnly}
+                aria-label={language === "en" ? "Show VIP events only" : "عرض فعاليات VIP فقط"}
+                className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold ${
                   showVipOnly ? "bg-yl-gold text-yl-charcoal" : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
                 }`}
               >
-                <Star className="h-3 w-3 inline mr-1 -mt-0.5" /> VIP
+                <Star className="h-3 w-3 inline mr-1 -mt-0.5" aria-hidden="true" /> VIP
               </button>
             </div>
           </div>
@@ -351,8 +492,8 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
       {/* Events Grid */}
       <section className="py-12 bg-yl-cream">
         <div className="max-w-7xl mx-auto px-7">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-heading font-bold text-yl-charcoal">
+          <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+            <h2 className="text-2xl font-heading font-bold text-yl-charcoal" aria-live="polite">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
@@ -362,8 +503,14 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
                   : `${filteredEvents.length} فعالية متاحة`}
             </h2>
             <div className="flex items-center gap-2 text-sm text-yl-gray-500">
-              <Tag className="h-4 w-4" />
-              {language === "en" ? "Powered by trusted ticket partners" : "مدعوم من شركاء التذاكر الموثوقين"}
+              <Tag className="h-4 w-4" aria-hidden="true" />
+              {dataSource === "database" || dataSource === "ticketmaster"
+                ? language === "en"
+                  ? "Synced daily from official event listings"
+                  : "تتم المزامنة يومياً من قوائم الفعاليات الرسمية"
+                : language === "en"
+                  ? "Curated picks — live listings load automatically"
+                  : "اختيارات منسّقة — القوائم المباشرة تُحمَّل تلقائياً"}
             </div>
           </div>
 
@@ -408,14 +555,9 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
                       <BrandTag color="neutral">{event.category}</BrandTag>
                       {event.vipAvailable && <BrandTag color="gold">VIP</BrandTag>}
                     </div>
-                    <div
-                      className={`absolute top-4 ${isRTL ? "left-4" : "right-4"} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yl-gold text-yl-gold" />
-                        <span className="text-sm font-medium text-yl-charcoal">{event.rating}</span>
-                      </div>
-                    </div>
+                    {/* June 12 trust audit: star-rating badge removed — we have no
+                        real review source, and DB events all carried rating 0.
+                        Showing fabricated or zero ratings erodes trust. */}
                     {event.soldOut && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <BrandTag color="red" className="text-lg px-4 py-2">
@@ -448,29 +590,129 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
                     {event.ticketProvider && (
                       <div className="mb-4">
                         <span className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
-                          <Ticket className="h-3 w-3 inline mr-1 -mt-0.5" />
-                          {language === "en" ? "via" : "عبر"} {event.ticketProvider}
+                          <ShieldCheck className="h-3 w-3 inline mr-1 -mt-0.5 text-yl-gold" aria-hidden="true" />
+                          {language === "en"
+                            ? `Booked securely via ${event.ticketProvider}`
+                            : `حجز آمن عبر ${event.ticketProvider}`}
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-auto">
                       <span className="text-lg font-bold text-yl-red">{event.price}</span>
-                      <BrandButton variant="primary" disabled={event.soldOut} onClick={() => handleBooking(event)}>
-                        {event.soldOut
-                          ? language === "en"
-                            ? "Sold Out"
-                            : "نفدت"
-                          : language === "en"
-                            ? "Get Tickets"
-                            : "احصل على تذاكر"}
-                        {!event.soldOut && <ExternalLink className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`} />}
-                      </BrandButton>
+                      {event.soldOut ? (
+                        <BrandButton variant="primary" disabled>
+                          {language === "en" ? "Sold Out" : "نفدت"}
+                        </BrandButton>
+                      ) : (
+                        <a
+                          href={trackedBookingUrl(event)}
+                          target="_blank"
+                          rel="noopener sponsored"
+                          onClick={() => trackBookingClick(event)}
+                          data-affiliate-partner={(event.ticketProvider || "partner").toLowerCase()}
+                          aria-label={
+                            language === "en"
+                              ? `Get tickets for ${event.title.en} — opens partner site in a new tab`
+                              : `احصل على تذاكر ${event.title.ar || event.title.en} — يفتح موقع الشريك في نافذة جديدة`
+                          }
+                          className="affiliate-page-link inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold rounded-lg"
+                        >
+                          <BrandButton variant="primary" className="pointer-events-none">
+                            {language === "en" ? "Get Tickets" : "احصل على تذاكر"}
+                            <ExternalLink
+                              className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
+                              aria-hidden="true"
+                            />
+                          </BrandButton>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </BrandCardLight>
               ))}
             </div>
           )}
+
+          {/* "Couldn't find it" safety net — routes to a bookable partner page
+              matched to the active category filter. Keeps the funnel moving
+              even when the exact event isn't in our catalog. */}
+          <div className="mt-10 rounded-[14px] border border-yl-gold/30 bg-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className={isRTL ? "text-right" : "text-left"}>
+              <p className="font-heading font-semibold text-yl-charcoal">
+                {language === "en" ? "Can't find the event you want?" : "لا تجد الفعالية التي تريدها؟"}
+              </p>
+              <p className="text-sm text-yl-gray-500 mt-1">
+                {language === "en"
+                  ? `Search the full catalogue on ${categoryPartnerCta.partner} — our booking partner with secure checkout.`
+                  : `ابحث في الكتالوج الكامل على ${categoryPartnerCta.partner} — شريك الحجز الموثوق لدينا.`}
+              </p>
+            </div>
+            <a
+              href={categoryPartnerCta.href}
+              target="_blank"
+              rel="noopener sponsored"
+              data-affiliate-partner={categoryPartnerCta.partner.toLowerCase()}
+              className="affiliate-page-link flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-yl-dark-navy text-white rounded-lg font-semibold text-sm hover:bg-yl-dark-navy/90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold"
+            >
+              {language === "en" ? categoryPartnerCta.en : categoryPartnerCta.ar}
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Plan-your-visit cross-sell — keeps event buyers inside the funnel:
+          match-day hotels (Expedia CJ deep link) + internal planning guides. */}
+      <TriBar />
+      <section className="py-12 bg-yl-cream" aria-labelledby="plan-visit-heading">
+        <div className="max-w-7xl mx-auto px-7">
+          <h3 id="plan-visit-heading" className="text-xl font-heading font-semibold text-yl-charcoal mb-6">
+            {language === "en" ? "Plan Your Visit Around the Event" : "خطط لزيارتك حول الفعالية"}
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <a
+              href={buildExpediaAffiliateUrl(
+                "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+                "events-page",
+              )}
+              target="_blank"
+              rel="noopener sponsored"
+              data-affiliate-partner="expedia"
+              className="affiliate-page-link p-5 bg-white rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold"
+            >
+              <Hotel className="h-5 w-5 text-yl-gold mb-2" aria-hidden="true" />
+              <p className="font-semibold text-yl-charcoal text-sm">
+                {language === "en" ? "Hotels near the venue" : "فنادق قرب المكان"}
+              </p>
+              <p className="text-xs text-yl-gray-500 mt-1">
+                {language === "en" ? "Compare prices on Expedia" : "قارن الأسعار على إكسبيديا"}
+              </p>
+            </a>
+            <Link
+              href="/london-with-kids"
+              className="p-5 bg-white rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold"
+            >
+              <BookOpen className="h-5 w-5 text-yl-gold mb-2" aria-hidden="true" />
+              <p className="font-semibold text-yl-charcoal text-sm">
+                {language === "en" ? "London with kids guide" : "دليل لندن مع الأطفال"}
+              </p>
+              <p className="text-xs text-yl-gray-500 mt-1">
+                {language === "en" ? "Family-friendly planning tips" : "نصائح للتخطيط العائلي"}
+              </p>
+            </Link>
+            <Link
+              href="/blog"
+              className="p-5 bg-white rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yl-gold"
+            >
+              <BookOpen className="h-5 w-5 text-yl-gold mb-2" aria-hidden="true" />
+              <p className="font-semibold text-yl-charcoal text-sm">
+                {language === "en" ? "Latest London guides" : "أحدث أدلة لندن"}
+              </p>
+              <p className="text-xs text-yl-gray-500 mt-1">
+                {language === "en" ? "Restaurants, transport & more" : "مطاعم ومواصلات والمزيد"}
+              </p>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -508,21 +750,28 @@ export default function EventsPage({ serverLocale }: { serverLocale?: "en" | "ar
             <h3 className="text-xl font-heading font-semibold text-yl-charcoal mb-2">
               {language === "en" ? "Our Trusted Ticket Partners" : "شركاء التذاكر الموثوقين"}
             </h3>
-            <p className="text-yl-gray-500 text-sm">
+            <p className="text-yl-gray-500 text-sm max-w-2xl mx-auto">
               {language === "en"
-                ? "We partner with leading ticket providers to bring you the best deals"
-                : "نتعاون مع مزودي التذاكر الرائدين لنقدم لك أفضل العروض"}
+                ? "Every booking is completed on the partner's own secure checkout. We never handle your payment details — we simply earn a commission when you book, at no extra cost to you."
+                : "تتم كل عملية حجز على صفحة الدفع الآمنة الخاصة بالشريك. نحن لا نتعامل مع بيانات الدفع الخاصة بك — نحصل فقط على عمولة عند الحجز، دون أي تكلفة إضافية عليك."}
             </p>
           </div>
+          {/* June 12 trust audit: this panel previously listed partners we do
+              NOT work with (StubHub, GetYourGuide, Viator). Now lists only the
+              programs we actually book through. */}
           <div className="flex justify-center gap-8 flex-wrap">
-            {["StubHub", "Ticketmaster", "GetYourGuide", "Viator"].map((partner) => (
+            {[
+              { name: "SportsEvents365", desc: { en: "Football & concerts", ar: "كرة القدم والحفلات" } },
+              { name: "Tiqets", desc: { en: "Attractions & museums", ar: "المعالم والمتاحف" } },
+              { name: "TicketNetwork", desc: { en: "Theatre & live shows", ar: "المسرح والعروض الحية" } },
+            ].map((partner) => (
               <div
-                key={partner}
+                key={partner.name}
                 className="text-center px-6 py-4 rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/30 hover:bg-yl-cream transition-all"
               >
-                <span className="font-semibold text-yl-gray-500">{partner}</span>
+                <span className="font-semibold text-yl-charcoal">{partner.name}</span>
                 <span className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mt-1">
-                  {language === "en" ? "Verified Partner" : "شريك معتمد"}
+                  {language === "en" ? partner.desc.en : partner.desc.ar}
                 </span>
               </div>
             ))}

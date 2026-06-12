@@ -2190,8 +2190,11 @@ Constraints:
       const { isEnhancementOwner, buildEnhancementLogEntry } = await import("@/lib/db/enhancement-log");
       const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
 
-      if (!isEnhancementOwner("content-auto-fix", "affiliate_links")) {
-        console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_links");
+      // June 12 audit: this section gated on "affiliate_links" (owned by
+      // affiliate-injection) and therefore NEVER ran — 230+ articles kept
+      // their broken links. Cleanup now has its own registered type.
+      if (!isEnhancementOwner("content-auto-fix", "affiliate_link_cleanup")) {
+        console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_link_cleanup");
       } else {
         // Tracking-param keys that produce REAL commission. utm_source / utm_medium
         // are campaign tags — they tell us "this came from yalla-london" but DO NOT
@@ -2203,6 +2206,10 @@ Constraints:
           "partner_id",
           "pid",
           "aid",
+          // SportsEvents365 pays via a_aid — June 12 audit: this key was missing,
+          // so the strip pass treated WORKING sports links as broken and removed
+          // them. Never remove a_aid from this list.
+          "a_aid",
           "cid",
           "gcid",
           "aff",
@@ -2248,10 +2255,7 @@ Constraints:
          * Pass partnerHostsPattern so this only runs against recognized affiliate
          * partners — editorial links (e.g. theritzlondon.com) shouldn't be stripped.
          */
-        function hasNoRealAffiliateKey(
-          decodedUrl: string,
-          partnerHostsPattern: RegExp,
-        ): boolean {
+        function hasNoRealAffiliateKey(decodedUrl: string, partnerHostsPattern: RegExp): boolean {
           try {
             const u = new URL(decodedUrl);
             if (!partnerHostsPattern.test(u.hostname)) return false;
@@ -2433,10 +2437,7 @@ Constraints:
 
             const enResult = stripBrokenAffiliates(post.content_en || "", post.slug, post.siteId);
             const arResult = stripBrokenAffiliates(post.content_ar || "", post.slug, post.siteId);
-            if (
-              enResult.stripped + enResult.converted === 0 &&
-              arResult.stripped + arResult.converted === 0
-            ) {
+            if (enResult.stripped + enResult.converted === 0 && arResult.stripped + arResult.converted === 0) {
               continue;
             }
 
@@ -2457,7 +2458,7 @@ Constraints:
                   if (curArResult.stripped + curArResult.converted > 0) updates.content_ar = curArResult.html;
                   updates.enhancement_log = buildEnhancementLogEntry(
                     current.enhancement_log,
-                    "affiliate_links",
+                    "affiliate_link_cleanup",
                     "content-auto-fix",
                     `Converted ${curEnResult.converted + curArResult.converted} Expedia link(s) to CJ deep links, stripped ${curEnResult.stripped + curArResult.stripped} dead affiliate link(s)`,
                   );
@@ -2503,9 +2504,7 @@ Constraints:
   // schema.org extraction, and copy-to-clipboard UX.
   if (Date.now() - cronStart < BUDGET_MS - 15_000) {
     try {
-      const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
-        "@/lib/markdown/pipe-tables"
-      );
+      const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import("@/lib/markdown/pipe-tables");
       const PIPE_CAP = 20;
       const candidates = await prisma.blogPost.findMany({
         where: {
@@ -2560,10 +2559,7 @@ Constraints:
           pipeFixed++;
           console.log(`[content-auto-fix:s27] ${post.slug}: pipe table → <table>`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s27] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s27] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
@@ -2636,18 +2632,13 @@ Constraints:
           placeholdersStripped++;
           console.log(`[content-auto-fix:s28] ${post.slug}: stripped bracket placeholders`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s28] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s28] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
       (results as Record<string, unknown>).bracketPlaceholdersStripped = placeholdersStripped;
       if (placeholdersStripped > 0) {
-        console.log(
-          `[content-auto-fix:s28] Stripped placeholders from ${placeholdersStripped} article(s)`,
-        );
+        console.log(`[content-auto-fix:s28] Stripped placeholders from ${placeholdersStripped} article(s)`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -2674,11 +2665,7 @@ Constraints:
       const blogCandidates = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
-          OR: [
-            { title_en: { contains: "Ã" } },
-            { title_ar: { contains: "Ã" } },
-            { title_en: { contains: "â€" } },
-          ],
+          OR: [{ title_en: { contains: "Ã" } }, { title_ar: { contains: "Ã" } }, { title_en: { contains: "â€" } }],
         },
         select: { id: true, slug: true, title_en: true, title_ar: true },
         orderBy: { updated_at: "asc" },
@@ -2716,10 +2703,7 @@ Constraints:
           blogRepaired++;
           console.log(`[content-auto-fix:s29] ${post.slug}: mojibake repaired in title`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s29] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s29] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
@@ -2767,9 +2751,7 @@ Constraints:
 
       (results as Record<string, unknown>).mojibakeRepaired = blogRepaired + eventRepaired;
       if (blogRepaired + eventRepaired > 0) {
-        console.log(
-          `[content-auto-fix:s29] Repaired ${blogRepaired} blog + ${eventRepaired} event mojibake records`,
-        );
+        console.log(`[content-auto-fix:s29] Repaired ${blogRepaired} blog + ${eventRepaired} event mojibake records`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

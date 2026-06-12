@@ -1092,7 +1092,18 @@ function getAffiliateRules(siteId: string) {
         },
       },
       {
-        kw: ["event", "match", "concert", "football", "theatre", "show"],
+        // SportsEvents365 — live partner approved May 16 2026 (a_aid program).
+        // The fallback AID is public — it already appears in production HTML.
+        // Listed before TicketNetwork so sports content prefers the direct partner.
+        kw: ["football", "premier league", "stadium", "match", "concert", "wembley"],
+        aff: {
+          name: "SportsEvents365",
+          url: "https://www.sportsevents365.com/london",
+          param: `?a_aid=${process.env.SPORTSEVENTS365_AID || "6888b1173c266"}`,
+        },
+      },
+      {
+        kw: ["event", "theatre", "show", "west end"],
         aff: {
           name: "TicketNetwork",
           url: "https://www.ticketnetwork.com/london-events",
@@ -1509,7 +1520,7 @@ export async function promoteToBlogPost(
   // INSTEAD of appending yet another v-tag.
   slug = slug
     .replace(/-\d{4}-\d{2}-\d{2}$/g, "") // Strip trailing date stamps (e.g., -2026-02-17)
-    .replace(/(?:-v\d+){1,}$/gi, "")    // Strip chained v-suffixes from the END only
+    .replace(/(?:-v\d+){1,}$/gi, "") // Strip chained v-suffixes from the END only
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "");
   // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")

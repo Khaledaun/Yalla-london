@@ -17,6 +17,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 import { createSnapshot } from "@/lib/affiliate/snapshot";
+import { buildCjDeepLinkRaw } from "@/lib/affiliate/page-affiliate-links";
 
 const BUDGET_MS = 280_000;
 
@@ -383,9 +384,15 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             category: "hotel",
           },
           {
+            // June 12 audit: utm-only Expedia URLs pay NOTHING — Expedia is a
+            // JOINED CJ advertiser and must be linked via the anrdoezrs deep link.
             name: "Expedia",
-            url: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
+            url: buildCjDeepLinkRaw(
+              "expedia",
+              "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+              `${siteId}_inject`,
+            ) as string,
+            param: "",
             category: "hotel",
           },
           {

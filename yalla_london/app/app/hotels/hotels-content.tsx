@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Star, MapPin, Search, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
-import { getPageAffiliateLink } from "@/lib/affiliate/page-affiliate-links";
+import { getPageAffiliateLink, buildExpediaAffiliateUrl } from "@/lib/affiliate/page-affiliate-links";
 import {
   TriBar,
   BrandButton,
@@ -889,8 +889,11 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, "hotel", "yalla-london", "hotels-page");
-                    // ALWAYS link to Expedia — no direct hotel URLs, every click earns commission
-                    const expediaUrl = `/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(hotel.name + " London")}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=hotels-page`;
+                    // ALWAYS link to Expedia via CJ deep link — utm-only URLs pay nothing (June 12 audit)
+                    const expediaUrl = buildExpediaAffiliateUrl(
+                      `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(hotel.name + " London")}`,
+                      "hotels-page",
+                    );
                     const href = affLink?.url || expediaUrl;
                     return (
                       <a

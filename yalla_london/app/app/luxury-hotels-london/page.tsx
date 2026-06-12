@@ -6,6 +6,7 @@ import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
 import { StructuredData } from '@/components/structured-data'
+import { buildExpediaAffiliateUrl, buildCjPartnerAffiliateUrl } from '@/lib/affiliate/page-affiliate-links'
 
 export const revalidate = 3600;
 
@@ -178,7 +179,7 @@ export default async function LuxuryHotelsLondonPage() {
                         {area.hotels.map((h) => (
                           <a
                             key={h}
-                            href={`/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(h + ' London')}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=luxury-hotels-london`}
+                            href={buildExpediaAffiliateUrl(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(h + ' London')}`, 'luxury-hotels-london')}
                             target="_blank"
                             rel="noopener sponsored"
                             className="text-xs font-medium bg-yl-gold/10 text-yl-gold-dark px-3 py-1 rounded-full hover:bg-yl-gold/20 transition-colors inline-flex items-center gap-1"
@@ -208,7 +209,7 @@ export default async function LuxuryHotelsLondonPage() {
           <p className="text-white/70 mb-8 max-w-2xl mx-auto">Compare prices across London&apos;s finest 5-star hotels. Best rates guaranteed when you book through our partner platforms.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="/api/affiliate/click?url=https%3A%2F%2Fwww.expedia.com%2FLondon-Hotels.d178279.Travel-Guide-Hotels&partner=expedia&article=luxury-hotels-london"
+              href={buildExpediaAffiliateUrl('https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels', 'luxury-hotels-london')}
               target="_blank"
               rel="noopener sponsored"
               className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
@@ -216,7 +217,7 @@ export default async function LuxuryHotelsLondonPage() {
               <Hotel className="w-5 h-5" /> Search Hotels on Expedia
             </a>
             <a
-              href="/api/affiliate/click?url=https%3A%2F%2Fwww.vrbo.com%2Fvacation-rentals%2Fengland%2Flondon&partner=vrbo&article=luxury-hotels-london"
+              href={buildCjPartnerAffiliateUrl('vrbo', 'https://www.vrbo.com/vacation-rentals/england/london', 'luxury-hotels-london')}
               target="_blank"
               rel="noopener sponsored"
               className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"

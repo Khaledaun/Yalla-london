@@ -255,15 +255,105 @@ const VENUE_MAPPINGS: VenueMapping[] = [
 // ---------------------------------------------------------------------------
 
 /**
- * Build CJ deep link for approved advertisers.
- * Vrbo (Expedia family) is our only approved hotel affiliate via CJ.
- * CJ Publisher CID from env var, Vrbo advertiser external ID: 9220803
+ * CJ click-link IDs synced from the CJ API (cj_links table, June 2026).
+ * Format: https://www.anrdoezrs.net/click-{WEBSITE_ID}-{LINK_ID}?url=DEST&sid=SID
+ * These are public values — they appear verbatim in the live site's HTML —
+ * so hardcoding them here is safe and lets CLIENT components build paying
+ * deep links. (June 12 audit: CJ_PUBLISHER_CID is server-only env, so every
+ * client-rendered CTA fell back to a raw partner URL with utm-only tags —
+ * 167 Expedia clicks in 30d earned $0 despite Expedia being a JOINED partner.)
  */
-function buildCjDeepLink(destinationUrl: string, siteId: string, pageSlug: string): string | null {
-  const publisherCid = typeof process !== "undefined" ? process.env?.CJ_PUBLISHER_CID : undefined;
-  if (!publisherCid) return null;
+const CJ_WEBSITE_ID = "7895467";
+export const CJ_LINK_IDS: Record<string, string> = {
+  expedia: "1874913",
+  vrbo: "2691607",
+  excellence: "7770014",
+  lastminute: "7195567",
+};
+
+/**
+ * Build a raw CJ deep link (anrdoezrs.net) for a JOINED partner.
+ * Returns null when the partner has no known CJ link.
+ */
+export function buildCjDeepLinkRaw(partner: string, destinationUrl: string, sid: string): string | null {
+  const linkId = CJ_LINK_IDS[partner];
+  if (!linkId) return null;
+  return `https://www.anrdoezrs.net/click-${CJ_WEBSITE_ID}-${linkId}?url=${encodeURIComponent(destinationUrl)}&sid=${encodeURIComponent(sid.substring(0, 100))}`;
+}
+
+/**
+ * Build CJ deep link for approved advertisers, wrapped in /api/affiliate/click
+ * for local click tracking. Works in BOTH server and client components:
+ * server uses CJ_PUBLISHER_CID links-format when available; client (and any
+ * env-less context) uses the synced click-format IDs above.
+ */
+function buildCjDeepLink(
+  destinationUrl: string,
+  siteId: string,
+  pageSlug: string,
+  partner?: string,
+): string | null {
   const sid = `${siteId}_${pageSlug}`.substring(0, 100);
-  return `/api/affiliate/click?url=${encodeURIComponent(`https://www.anrdoezrs.net/links/${publisherCid}/type/dlg/sid/${encodeURIComponent(sid)}/${destinationUrl}`)}&sid=${encodeURIComponent(sid)}`;
+  const publisherCid = typeof process !== "undefined" ? process.env?.CJ_PUBLISHER_CID : undefined;
+  if (publisherCid) {
+    return `/api/affiliate/click?url=${encodeURIComponent(`https://www.anrdoezrs.net/links/${publisherCid}/type/dlg/sid/${encodeURIComponent(sid)}/${destinationUrl}`)}&sid=${encodeURIComponent(sid)}${partner ? `&partner=${encodeURIComponent(partner)}` : ""}`;
+  }
+  // Client-side fallback: use synced CJ click-format links
+  const raw = partner ? buildCjDeepLinkRaw(partner, destinationUrl, sid) : null;
+  if (!raw) return null;
+  return `/api/affiliate/click?url=${encodeURIComponent(raw)}&sid=${encodeURIComponent(sid)}${partner ? `&partner=${encodeURIComponent(partner)}` : ""}`;
+}
+
+/**
+ * Tracker-wrapped CJ deep link for any JOINED partner destination URL.
+ * Use this instead of hand-rolling `partner.com?utm_source=...` URLs — utm
+ * tags pay NOTHING on CJ; only the anrdoezrs deep link earns commission.
+ */
+export function buildCjPartnerAffiliateUrl(
+  partner: keyof typeof CJ_LINK_IDS | string,
+  destinationUrl: string,
+  pageSlug: string,
+  siteId: string = "yalla-london",
+): string {
+  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
+  const raw = buildCjDeepLinkRaw(partner, destinationUrl, sid) || destinationUrl;
+  return `/api/affiliate/click?url=${encodeURIComponent(raw)}&sid=${encodeURIComponent(sid)}&partner=${encodeURIComponent(partner)}&article=${encodeURIComponent(pageSlug)}`;
+}
+
+/** Tracker-wrapped Expedia deep link for an arbitrary Expedia destination URL. */
+export function buildExpediaAffiliateUrl(
+  expediaDestinationUrl: string,
+  pageSlug: string,
+  siteId: string = "yalla-london",
+): string {
+  return buildCjPartnerAffiliateUrl("expedia", expediaDestinationUrl, pageSlug, siteId);
+}
+
+/**
+ * Travelpayouts marker (account 510776, public — already in live HTML via the
+ * TP verification script). NEXT_PUBLIC_ env is inlined for client components;
+ * the literal fallback keeps links paying if the env var is ever dropped.
+ */
+const TRAVELPAYOUTS_MARKER_FALLBACK = "510776";
+
+/**
+ * Tracker-wrapped Travelpayouts link (Tiqets, TicketNetwork, Welcome Pickups).
+ * Appends the TP marker — without it the click pays NOTHING.
+ */
+export function buildTravelpayoutsAffiliateUrl(
+  partner: string,
+  destinationUrl: string,
+  pageSlug: string,
+  siteId: string = "yalla-london",
+): string {
+  const marker =
+    (typeof process !== "undefined" &&
+      (process.env?.NEXT_PUBLIC_TRAVELPAYOUTS_MARKER || process.env?.TRAVELPAYOUTS_MARKER)) ||
+    TRAVELPAYOUTS_MARKER_FALLBACK;
+  const sep = destinationUrl.includes("?") ? "&" : "?";
+  const dest = `${destinationUrl}${sep}marker=${marker}&utm_source=${siteId}`;
+  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
+  return `/api/affiliate/click?url=${encodeURIComponent(dest)}&sid=${encodeURIComponent(sid)}&partner=${encodeURIComponent(partner)}&article=${encodeURIComponent(pageSlug)}`;
 }
 
 const GENERIC_SEARCH_URLS: Record<string, Record<string, string>> = {
@@ -460,7 +550,7 @@ const CJ_PARTNERS = new Set(["vrbo", "expedia", "excellence"]);
 function appendSid(url: string, siteId: string, pageSlug: string, partner?: string): string {
   // For CJ-approved partners, route through CJ deep link for actual commission tracking
   if (partner && CJ_PARTNERS.has(partner)) {
-    const cjLink = buildCjDeepLink(url, siteId, pageSlug);
+    const cjLink = buildCjDeepLink(url, siteId, pageSlug, partner);
     if (cjLink) return cjLink;
   }
 

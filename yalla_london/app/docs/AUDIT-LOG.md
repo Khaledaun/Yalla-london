@@ -1748,3 +1748,26 @@ Total test suite: 90 tests across 16 categories.
 - Never bake "| Yalla London" into a title — Google appends the site name automatically; the baked suffix gets cut to "…| Yalla" under length caps.
 - Internal-link TARGET selection is a ranking lever: link to GSC striking-distance pages (pos 4–20 with impressions), not arbitrary recent posts.
 - For a site already ranking, CTR (titles/meta) + cannibalization consolidation move the needle faster than more content.
+
+---
+
+## Session: June 13, 2026 (Batch 2) — Canonical Chain/Loop De-tangle + Dead-Winner Recovery
+
+**Found (live DB):** 117 multi-hop canonical redirect chains, 1 redirect LOOP (`london-luxury-hammam-spas` ⇄ `-v4-c6f3dfbf`), 13 "published" pages secretly 301-redirecting, and several high-value clusters (halal-restaurants-london ×40+ versions, london-eye-tickets, selfridges) where EVERY version was unpublished — so redirects pointed to dead pages and no live winner existed for top-volume queries.
+
+**Executed (DB, live):**
+- Broke the hammam loop; made the 2,972-word article the published winner.
+- Unpublished the 13 secret-redirect pages (they 301 correctly now, out of "published" queries/sitemap).
+- Collapsed all 117 multi-hop chains to single-hop via recursive resolver → **0 broken chains**.
+- Re-pointed 70+ dead-cluster redirects to their correct LIVE winners, transferring ranking equity: halal-restaurants→`best-halal-restaurants-london-for-muslims`, fine-dining/michelin/spas/novikov→existing live winners.
+- Revived clean-slug winners for commercial queries with no live page: `london-eye-tickets-fast-track`, `selfridges-annual-visitors-v2`.
+- Queued revived winners for re-crawl. Verified: affiliate coverage already strong on top pages; Article+Breadcrumb JSON-LD already rendered server-side (no gap).
+
+**Code (durable — prevents recurrence):** `cannibalization-resolver.ts` now (1) resolves every group to a VERIFIED PUBLISHED terminal winner (skips if none), (2) sets `canonical_slug` directly on the duplicate (the field the blog page actually 301s on — it previously only wrote a SeoRedirect row), and (3) re-points any existing redirect aimed at the duplicate to the winner (collapses chains at creation time). This is the root-cause fix for the 117-chain mess.
+
+**Result:** broken chains 117→0, secret-redirect published pages 13→0, redirect loops 1→0, published winners 321→327. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- The blog page 301s on `canonical_slug`, NOT the `SeoRedirect` table — any consolidation path MUST set `canonical_slug` or the redirect silently won't fire.
+- Consolidation must resolve to a VERIFIED PUBLISHED terminal and re-point existing inbound redirects, or it creates multi-hop chains / redirects-to-dead-pages that drop the whole cluster from the index.
+- After mass v-variant generation, a cluster can end up with ALL versions unpublished (no live winner) — losing a top-volume query entirely. Audit for "redirects to unpublished" and "published winner exists per cluster".

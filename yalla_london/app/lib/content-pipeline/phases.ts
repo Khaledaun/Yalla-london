@@ -488,7 +488,7 @@ MINIMUM words for this section: ${minWordsPerSection} — you MUST write at leas
 Key points to cover: ${JSON.stringify(section.keyPoints)}
 Keywords to include naturally: ${JSON.stringify(section.keywords)}
 ${section.linkOpportunities?.length ? `Internal link opportunities: ${JSON.stringify(section.linkOpportunities)}` : ""}
-${isIntro && intro ? `\nThis is the FIRST section. Start with this hook: "${intro.hook}"\nCRITICAL FOR AI SEARCH: Your FIRST paragraph (40-60 words) must directly answer the article's main question/topic. AI Overviews cite articles that answer immediately — no preamble, no "welcome to", no "in this guide". Example: "The Shard offers London's most dramatic dining at 800 feet, with three restaurants spanning floors 31-35. Prices range from £65 for lunch to £180 for dinner."` : ""}
+${isIntro && intro ? `\nThis is the FIRST section. Start with this hook: "${intro.hook}"\nCRITICAL FOR AI SEARCH: Your FIRST paragraph (40-60 words) must directly answer the article's main question/topic. AI Overviews cite articles that answer immediately — no preamble, no "welcome to", no "in this guide". Example: "The Shard offers London's most dramatic dining at 800 feet, with three restaurants spanning floors 31-35. Prices range from £65 for lunch to £180 for dinner."\nIf the title is phrased as a question (Is/Are/How/What/Why/Which/Does/Can…) OR a comparison ("X vs Y"), wrap that opening 40-60 word direct answer in: <p class="answer-capsule"><strong>Quick answer:</strong> …</p> — this is the exact block Google lifts for featured snippets and AI Overviews.` : ""}
 ${isLast && conclusion ? `\nThis is the LAST section. End with CTA: "${conclusion.callToAction}"` : ""}
 ${contextSections ? `\nPrevious sections for context:\n${contextSections}` : ""}
 
@@ -717,13 +717,9 @@ export async function phaseAssembly(
     // Convert any pipe tables that came through the raw drafting output.
     // Same logic as the AI assembly path below — ensures raw-fallback content
     // also gets proper <table> semantics.
-    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
-      "@/lib/markdown/pipe-tables"
-    );
+    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import("@/lib/markdown/pipe-tables");
     const fallbackUnwrapped = unwrapPipeParagraphs(fallbackHtml);
-    const fallbackNormalized = hasPipeTable(fallbackUnwrapped)
-      ? convertPipeTables(fallbackUnwrapped)
-      : fallbackHtml;
+    const fallbackNormalized = hasPipeTable(fallbackUnwrapped) ? convertPipeTables(fallbackUnwrapped) : fallbackHtml;
 
     const fallbackWords = fallbackNormalized
       .replace(/<[^>]+>/g, " ")
@@ -811,16 +807,12 @@ Return JSON:
     });
 
     const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
-    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
-      "@/lib/markdown/pipe-tables"
-    );
+    const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import("@/lib/markdown/pipe-tables");
     // Sanitize first (strips bracket placeholders + word counts), then convert pipe tables.
     // AI sometimes emits "<p>| Col | Col |</p>" — unwrapPipeParagraphs makes those detectable.
     const sanitizedHtml = sanitizeContentBody((result.html as string) || rawHtml);
     const unwrappedHtml = unwrapPipeParagraphs(sanitizedHtml);
-    const assembledHtml = hasPipeTable(unwrappedHtml)
-      ? convertPipeTables(unwrappedHtml)
-      : sanitizedHtml;
+    const assembledHtml = hasPipeTable(unwrappedHtml) ? convertPipeTables(unwrappedHtml) : sanitizedHtml;
     let assembledWordCount = (result.wordCount as number) || totalWords;
 
     // Verify actual word count (AI sometimes lies about wordCount in JSON)

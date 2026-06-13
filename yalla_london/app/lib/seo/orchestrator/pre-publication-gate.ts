@@ -65,7 +65,8 @@ export async function runPrePublicationGate(
   // ── Import SEO standards dynamically — single source of truth ──
   // When standards.ts is updated (e.g., after algorithm changes),
   // all enforcement thresholds in this gate update automatically.
-  const { CONTENT_QUALITY, EEAT_REQUIREMENTS, getThresholdsForUrl, getThresholdsForPageType } = await import("@/lib/seo/standards");
+  const { CONTENT_QUALITY, EEAT_REQUIREMENTS, getThresholdsForUrl, getThresholdsForPageType } =
+    await import("@/lib/seo/standards");
 
   // Per-content-type thresholds: news/information/guides have intentionally
   // shorter content than blog posts. Use page_type when available (more accurate
@@ -131,12 +132,8 @@ export async function runPrePublicationGate(
   // AI sometimes leaves unfilled bracket placeholders like [x], [TBD], [insert hotel name].
   // Title-level placeholders are publication blockers (visible in SERP, huge UX harm).
   // Body-level placeholders warn (content-auto-fix Section 28 strips them post-hoc).
-  const { hasBracketPlaceholder } = await import(
-    "@/lib/content-pipeline/title-sanitizer"
-  );
-  const placeholderFields: Array<
-    [string, string | null | undefined, "blocker" | "warning"]
-  > = [
+  const { hasBracketPlaceholder } = await import("@/lib/content-pipeline/title-sanitizer");
+  const placeholderFields: Array<[string, string | null | undefined, "blocker" | "warning"]> = [
     ["title_en", content.title_en, "blocker"],
     ["title_ar", content.title_ar, "blocker"],
     ["meta_description_en", content.meta_description_en, "warning"],
@@ -186,46 +183,43 @@ export async function runPrePublicationGate(
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)
   // Skipped during bulk audits (skipRouteCheck) to avoid slow HTTP calls
-  if (!options?.skipRouteCheck) try {
-    const fullUrl = targetUrl.startsWith("http")
-      ? targetUrl
-      : `${baseUrl}${targetUrl}`;
+  if (!options?.skipRouteCheck)
+    try {
+      const fullUrl = targetUrl.startsWith("http") ? targetUrl : `${baseUrl}${targetUrl}`;
 
-    // For new content, we can't check the exact URL (it doesn't exist yet).
-    // Instead, check the parent route pattern.
-    const parentPath = getParentRoute(targetUrl);
-    if (parentPath) {
-      const parentUrl = `${baseUrl}${parentPath}`;
-      const res = await fetch(parentUrl, {
-        method: "HEAD",
-        headers: { "User-Agent": "YallaLondon-PrePubGate/1.0" },
-        redirect: "manual",
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (res.status === 404) {
-        const check: GateCheck = {
-          name: "Route Existence",
-          passed: false,
-          message: `Parent route ${parentPath} returns 404 — content at ${targetUrl} will be unreachable`,
-          severity: "blocker",
-        };
-        checks.push(check);
-        blockers.push(check.message);
-      } else {
-        checks.push({
-          name: "Route Existence",
-          passed: true,
-          message: `Parent route ${parentPath} returns ${res.status}`,
-          severity: "info",
+      // For new content, we can't check the exact URL (it doesn't exist yet).
+      // Instead, check the parent route pattern.
+      const parentPath = getParentRoute(targetUrl);
+      if (parentPath) {
+        const parentUrl = `${baseUrl}${parentPath}`;
+        const res = await fetch(parentUrl, {
+          method: "HEAD",
+          headers: { "User-Agent": "YallaLondon-PrePubGate/1.0" },
+          redirect: "manual",
+          signal: AbortSignal.timeout(5000),
         });
+
+        if (res.status === 404) {
+          const check: GateCheck = {
+            name: "Route Existence",
+            passed: false,
+            message: `Parent route ${parentPath} returns 404 — content at ${targetUrl} will be unreachable`,
+            severity: "blocker",
+          };
+          checks.push(check);
+          blockers.push(check.message);
+        } else {
+          checks.push({
+            name: "Route Existence",
+            passed: true,
+            message: `Parent route ${parentPath} returns ${res.status}`,
+            severity: "info",
+          });
+        }
       }
+    } catch (e) {
+      warnings.push(`Could not verify route existence: ${(e as Error).message}`);
     }
-  } catch (e) {
-    warnings.push(
-      `Could not verify route existence: ${(e as Error).message}`
-    );
-  }
 
   // ── 2. Arabic route check ───────────────────────────────────────────
   // If publishing Arabic content, verify /ar/ routes work
@@ -244,8 +238,7 @@ export async function runPrePublicationGate(
         const check: GateCheck = {
           name: "Arabic Routes",
           passed: false,
-          message:
-            "Arabic routes (/ar/) return 404 — Arabic content will be unreachable. Fix i18n routing first.",
+          message: "Arabic routes (/ar/) return 404 — Arabic content will be unreachable. Fix i18n routing first.",
           severity: "blocker",
         };
         checks.push(check);
@@ -301,17 +294,16 @@ export async function runPrePublicationGate(
   }
 
   // Meta description: Google displays 120-160 chars. Thresholds from standards.ts.
-  if (
-    !content.meta_description_en ||
-    content.meta_description_en.length < metaDescriptionMin
-  ) {
+  if (!content.meta_description_en || content.meta_description_en.length < metaDescriptionMin) {
     checks.push({
       name: "Meta Description",
       passed: false,
       message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min ${metaDescriptionMin}, optimal ${metaDescriptionOptimal.min}-${metaDescriptionOptimal.max})`,
       severity: "warning",
     });
-    warnings.push(`Meta description should be ${metaDescriptionMin}-${metaDescriptionOptimal.max} characters for optimal SERP display`);
+    warnings.push(
+      `Meta description should be ${metaDescriptionMin}-${metaDescriptionOptimal.max} characters for optimal SERP display`,
+    );
   } else if (content.meta_description_en.length > metaDescriptionOptimal.max) {
     checks.push({
       name: "Meta Description (Max Length)",
@@ -319,7 +311,9 @@ export async function runPrePublicationGate(
       message: `Meta description too long (${content.meta_description_en.length} chars, max ${metaDescriptionOptimal.max}). Google truncates descriptions beyond ${metaDescriptionOptimal.max} chars in SERPs.`,
       severity: "warning",
     });
-    warnings.push(`Meta description is ${content.meta_description_en.length} chars — will be truncated in search results`);
+    warnings.push(
+      `Meta description is ${content.meta_description_en.length} chars — will be truncated in search results`,
+    );
   }
 
   if (!contentBody || contentBody.length < thinContentThreshold) {
@@ -586,7 +580,10 @@ export async function runPrePublicationGate(
         }
       }
     } catch (cannibErr) {
-      console.warn("[pre-pub-gate] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
+      console.warn(
+        "[pre-pub-gate] Cannibalization check failed (non-fatal):",
+        cannibErr instanceof Error ? cannibErr.message : cannibErr,
+      );
     }
   }
 
@@ -643,7 +640,10 @@ export async function runPrePublicationGate(
  * WARNING-only — surfaces improvements but never blocks publication.
  */
 function checkCitability(html: string): { check: GateCheck } {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const issues: string[] = [];
   let score = 0;
   const maxScore = 5;
@@ -651,11 +651,11 @@ function checkCitability(html: string): { check: GateCheck } {
   // Signal 1: Statistics / data points (numbers with context)
   // Look for patterns like "42%", "$150", "2.5 million", "3 out of 5", year references
   const statPatterns = [
-    /\d+(\.\d+)?%/g,                         // percentages: 42%, 3.5%
-    /[\$£€¥]\s?\d[\d,.]*/g,                  // currency: $150, £2,500
+    /\d+(\.\d+)?%/g, // percentages: 42%, 3.5%
+    /[\$£€¥]\s?\d[\d,.]*/g, // currency: $150, £2,500
     /\d[\d,]*\s?(million|billion|thousand)/gi, // large numbers
-    /\d+\s?out of\s?\d+/gi,                  // ratios: 3 out of 5
-    /\b(20[12]\d)\b/g,                        // year references: 2024, 2025, 2026
+    /\d+\s?out of\s?\d+/gi, // ratios: 3 out of 5
+    /\b(20[12]\d)\b/g, // year references: 2024, 2025, 2026
   ];
   let statCount = 0;
   for (const pattern of statPatterns) {
@@ -702,7 +702,9 @@ function checkCitability(html: string): { check: GateCheck } {
   if (substantiveParagraphs.length >= 3) {
     score++; // Good: 3+ well-sized extractable paragraphs
   } else {
-    issues.push(`${substantiveParagraphs.length} extractable paragraphs of 40-200 words (target: 3+ for AI extraction)`);
+    issues.push(
+      `${substantiveParagraphs.length} extractable paragraphs of 40-200 words (target: 3+ for AI extraction)`,
+    );
   }
 
   // Signal 4: Comparison or structured data (tables, lists with specifics)
@@ -751,11 +753,7 @@ function checkCitability(html: string): { check: GateCheck } {
  * - Headings must not skip levels (h2 → h4 without h3)
  * - Should have at least minH2 H2s for structured content (default 2)
  */
-function validateHeadingHierarchy(
-  html: string,
-  maxH1: number = 1,
-  minH2: number = 2,
-): { check: GateCheck } {
+function validateHeadingHierarchy(html: string, maxH1: number = 1, minH2: number = 2): { check: GateCheck } {
   const headingRegex = /<h([1-6])[^>]*>/gi;
   const headings: number[] = [];
   let match;
@@ -832,7 +830,10 @@ function validateHeadingHierarchy(
  * Count words in HTML content (strips tags first).
  */
 function countWords(html: string): number {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return text.split(/\s+/).filter((w) => w.length > 0).length;
 }
 
@@ -841,7 +842,8 @@ function countWords(html: string): number {
  * Dynamically builds regex from configured sites — no hardcoded domains.
  */
 async function countInternalLinks(html: string): Promise<number> {
-  let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand|zenithayachts|zenitha-yachts-med";
+  let domainPattern =
+    "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand|zenithayachts|zenitha-yachts-med";
   try {
     const { SITES } = await import("@/config/sites");
     const domains = Object.values(SITES)
@@ -857,7 +859,7 @@ async function countInternalLinks(html: string): Promise<number> {
   }
   const linkRegex = new RegExp(
     `<a[^>]+href=["'](?:\\/|https?:\\/\\/(?:www\\.)?(?:${domainPattern}))[^"']*["'][^>]*>`,
-    "gi"
+    "gi",
   );
   const matches = html.match(linkRegex);
   return matches ? matches.length : 0;
@@ -868,7 +870,10 @@ async function countInternalLinks(html: string): Promise<number> {
  * Lower grade = easier to read. Target: 8-12 for travel content.
  */
 function estimateReadability(html: string): { gradeLevel: number; readingEase: number } {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 5);
   const words = text.split(/\s+/).filter((w) => w.length > 0);
   const syllables = words.reduce((sum, word) => sum + countSyllables(word), 0);
@@ -927,7 +932,11 @@ function checkImageAltText(html: string): { totalImages: number; missingAlt: num
  * experience markers that signal genuine expertise.
  */
 function checkAuthenticitySignals(html: string): { check: GateCheck } {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 
   // Experience signals — phrases that indicate first-hand knowledge
   const experienceSignals = [
@@ -1015,7 +1024,10 @@ function checkAuthenticitySignals(html: string): { check: GateCheck } {
  * logic: need 3+ signals, ≤1 generic phrase.
  */
 function checkArabicAuthenticitySignals(html: string): { check: GateCheck } {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   // Arabic experience signals — phrases indicating first-hand knowledge
   const experienceSignals = [
@@ -1143,7 +1155,10 @@ function countAffiliateLinks(html: string): number {
  */
 function checkAIOReadiness(html: string): { check: GateCheck } {
   // Strip tags, collapse whitespace, get first 100 words as intro
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const words = text.split(/\s+/).filter((w) => w.length > 0);
   const introWords = words.slice(0, 100);
   const introText = introWords.join(" ").toLowerCase();
@@ -1163,7 +1178,12 @@ function checkAIOReadiness(html: string): { check: GateCheck } {
     // Yes/no answer opening
     /^(?:yes|no),?\s/,
   ];
-  const hasDirectAnswer = directAnswerPatterns.some((p) => p.test(introText));
+  // An explicit answer capsule (a highlighted "Quick answer:" box placed right
+  // after the title heading) is the strongest possible direct-answer signal —
+  // it's exactly what Google lifts for featured snippets / AI Overviews. Treat
+  // a capsule in the opening markup as satisfying the direct-answer requirement.
+  const hasAnswerCapsule = /class=["'][^"']*answer-capsule|quick answer:/i.test(html.slice(0, 800));
+  const hasDirectAnswer = hasAnswerCapsule || directAnswerPatterns.some((p) => p.test(introText));
 
   // ── Signal 2: Question-format H2 headings ─────────────────────────
   const questionH2Regex = /<h2[^>]*>[^<]*\?[^<]*<\/h2>/gi;

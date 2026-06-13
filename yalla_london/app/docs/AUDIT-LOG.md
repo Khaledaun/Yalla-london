@@ -1807,3 +1807,21 @@ Total test suite: 90 tests across 16 categories.
 **Critical Rules Learned:**
 - ItemList schema must extract items from a HIGH-PRECISION signal (numbered `<h2>N.`), not generic headings — an inaccurate ItemList is worse than none (Google can flag mismatched structured data).
 - Internal-link GROWTH is about concentration, not volume: identify high-impression pages with few INBOUND links (GSC impr + inbound count) and link to them from topically-matched authority pages. A page at position 9 with 512 impressions and 1 inbound link is the highest-ROI link target on the site.
+
+---
+
+## Session: June 13, 2026 (Batch 5) — Featured-Snippet Answer Capsules (AIO)
+
+**Context:** Final big AI-Overview lever. Audited the question-format pages (Is/Are/How/Why/Which… + "X vs Y") — ALL opened with flowery preamble ("Imagine stepping into…", "Two names dominate…") that buries the answer Google needs for featured snippets and AI Overviews.
+
+**Executed:**
+1. **Answer capsules (DB, live):** injected accurate, hand-written 40-60 word direct-answer capsules (`<p class="answer-capsule"><strong>Quick answer:</strong> …</p>`) immediately after the title heading on 8 high-value question pages: is-zuma-halal (129 impr, pos 4.6), are-there-halal-michelin (471 impr), harrods-vs-selfridges, london-travel-pass, london-pubs-close-early, dua-lipa-tickets, arsenal-liverpool-tickets, tube-strikes. Idempotent (guarded against re-injection), accurate answers (e.g., Zuma is NOT halal-certified — honest, snippet-worthy).
+2. **Gate recognition (code, `pre-publication-gate.ts`):** `checkAIOReadiness` now treats a leading `answer-capsule` / "Quick answer:" block as satisfying the direct-answer signal — the capsule is exactly what Google lifts.
+3. **Born answer-first (code, `phases.ts`):** drafting prompt now instructs that question-titled or comparison ("X vs Y") articles wrap their opening direct answer in `<p class="answer-capsule">` — so new content ships snippet-ready automatically.
+
+**Result:** 8 capsules live, gate + generation aligned, pages queued for re-crawl. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- Featured snippets / AI Overviews require the direct answer in a self-contained block at the TOP of the page, not buried after preamble — a 40-60 word "Quick answer:" capsule right after the title heading is the highest-yield format.
+- Answer capsules must be ACCURATE even when the answer is "no" — an honest "Zuma is not halal-certified" capsule wins the snippet and trust; a vague/wrong answer loses both.
+- Inject capsules after the FIRST `</h2>` via non-global `regexp_replace` (first match only) so the capsule lands once, right under the title.

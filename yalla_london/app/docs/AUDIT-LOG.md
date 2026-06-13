@@ -1791,3 +1791,19 @@ Total test suite: 90 tests across 16 categories.
 - The sitemap must exclude `canonical_slug IS NOT NULL`, not rely on the published flag alone — a published page that later gets a canonical would otherwise be advertised to Google while it 301s.
 - Canonical health needs a self-healing cron section, not just one-off fixes — the content pipeline's mass v-variant generation means chains/ghost-published pages re-accumulate; content-auto-fix now collapses them every run.
 - `prisma` accessed via dynamic import is loosely typed — `$queryRawUnsafe<T>()` generic args fail with TS2347; cast the result (`as Array<{...}>`) instead.
+
+---
+
+## Session: June 13, 2026 (Batch 4) — Growth: ItemList Schema + Inbound-Link Concentration
+
+**Context:** Batches 1–3 fixed/cleaned. Batch 4 shifts to GROWTH — pushing the ~219 page-1 pages (positions 4–10) toward the top 3. Diagnosis: content depth is adequate (most 1,000–1,900 words); the clearest lever is uneven internal-link distribution — top pages had only 1 inbound link (`best-halal-afternoon-tea` 512 impr → 1 link; `is-zuma-halal` 15 clicks → 1 link) while others had 25.
+
+**Executed:**
+1. **ItemList schema for listicles (code, `app/blog/[slug]/page.tsx`):** `generateStructuredData` now extracts numbered `<h2>N. Name</h2>` items (reliable — numeric prefix is a strong, low-false-positive signal; min 3 items) and emits `ItemList` JSON-LD alongside Article + BreadcrumbList. Earns list/carousel rich-result eligibility + stronger AI-Overview citation for the bulk of ranking pages (the "Best X in London" lists). Conditional render. 9 listicles qualify today; new ones get it automatically.
+2. **Inbound-link concentration (DB, live):** appended idempotent, topically-matched `Related:` links to under-linked high-value climbers — `best-halal-afternoon-tea` (1→3 inbound), `is-zuma-halal` (1→4), `best-halal-restaurants-london-for-muslims` (revived winner, now well-linked). Append-only `<p class="related-inline">`, guarded against duplicates, from hand-verified topical linker pages. Concentrates internal authority where it converts to rank gains.
+
+**Result:** ItemList schema live for 9 listicles (TypeScript 0 errors); 7 new inbound links on 3 climbers; changed pages queued for re-crawl. Companion: batch-1's striking-distance internal-link targeting (in seo-agent) keeps distributing authority to climbers on every run.
+
+**Critical Rules Learned:**
+- ItemList schema must extract items from a HIGH-PRECISION signal (numbered `<h2>N.`), not generic headings — an inaccurate ItemList is worse than none (Google can flag mismatched structured data).
+- Internal-link GROWTH is about concentration, not volume: identify high-impression pages with few INBOUND links (GSC impr + inbound count) and link to them from topically-matched authority pages. A page at position 9 with 512 impressions and 1 inbound link is the highest-ROI link target on the site.

@@ -617,7 +617,38 @@ function generateStructuredData(
     itemListElement: breadcrumbItems,
   };
 
-  return { articleSchema, breadcrumbSchema };
+  // ItemList schema for "best of" listicles. Items are authored as numbered
+  // H2 headings ("<h2>1. Aqua Spa</h2>"), so this extraction is reliable (the
+  // numeric prefix is a strong, low-false-positive signal). Earns list/carousel
+  // rich-result eligibility + stronger AI Overview citation for the bulk of the
+  // ranking pages (most are "Best X in London" lists). (June 13 2026 growth batch.)
+  let itemListSchema: Record<string, any> | null = null;
+  const listItems: { position: number; name: string }[] = [];
+  const seenPos = new Set<number>();
+  const h2Regex = /<h2[^>]*>\s*(\d{1,2})[.):]\s*([^<]{3,120}?)\s*<\/h2>/gi;
+  let lm: RegExpExecArray | null;
+  while ((lm = h2Regex.exec(contentHtml)) !== null) {
+    const pos = parseInt(lm[1], 10);
+    if (pos < 1 || pos > 50 || seenPos.has(pos)) continue;
+    const name = lm[2].replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+    if (!name) continue;
+    seenPos.add(pos);
+    listItems.push({ position: pos, name });
+  }
+  if (listItems.length >= 3) {
+    itemListSchema = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: headline,
+      numberOfItems: listItems.length,
+      itemListOrder: "https://schema.org/ItemListOrderDescending",
+      itemListElement: listItems
+        .sort((a, b) => a.position - b.position)
+        .map((it) => ({ "@type": "ListItem", position: it.position, name: it.name })),
+    };
+  }
+
+  return { articleSchema, breadcrumbSchema, itemListSchema };
 }
 
 // ─── Transform for client component ────────────────────────────────────────
@@ -812,6 +843,14 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
+      {structuredData.itemListSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData.itemListSchema),
+          }}
+        />
+      )}
       <BlogPostClient
         post={clientPost}
         serverLocale={locale as "en" | "ar"}

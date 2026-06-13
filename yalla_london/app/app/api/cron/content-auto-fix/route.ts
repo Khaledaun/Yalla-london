@@ -69,6 +69,7 @@ async function handleAutoFix(request: NextRequest) {
     seoBoostEnhanced: 0,
     affiliateDisclosuresInjected: 0,
     emptyParamAffiliatesStripped: 0,
+    expediaLinksConverted: 0,
     errors: [] as string[],
   };
 
@@ -2189,8 +2190,11 @@ Constraints:
       const { isEnhancementOwner, buildEnhancementLogEntry } = await import("@/lib/db/enhancement-log");
       const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
 
-      if (!isEnhancementOwner("content-auto-fix", "affiliate_links")) {
-        console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_links");
+      // June 12 audit: this section gated on "affiliate_links" (owned by
+      // affiliate-injection) and therefore NEVER ran — 230+ articles kept
+      // their broken links. Cleanup now has its own registered type.
+      if (!isEnhancementOwner("content-auto-fix", "affiliate_link_cleanup")) {
+        console.warn("[content-auto-fix] Section 26 skipped: not the registered owner of affiliate_link_cleanup");
       } else {
         // Tracking-param keys that produce REAL commission. utm_source / utm_medium
         // are campaign tags — they tell us "this came from yalla-london" but DO NOT
@@ -2202,6 +2206,10 @@ Constraints:
           "partner_id",
           "pid",
           "aid",
+          // SportsEvents365 pays via a_aid — June 12 audit: this key was missing,
+          // so the strip pass treated WORKING sports links as broken and removed
+          // them. Never remove a_aid from this list.
+          "a_aid",
           "cid",
           "gcid",
           "aff",
@@ -2247,10 +2255,7 @@ Constraints:
          * Pass partnerHostsPattern so this only runs against recognized affiliate
          * partners — editorial links (e.g. theritzlondon.com) shouldn't be stripped.
          */
-        function hasNoRealAffiliateKey(
-          decodedUrl: string,
-          partnerHostsPattern: RegExp,
-        ): boolean {
+        function hasNoRealAffiliateKey(decodedUrl: string, partnerHostsPattern: RegExp): boolean {
           try {
             const u = new URL(decodedUrl);
             if (!partnerHostsPattern.test(u.hostname)) return false;
@@ -2277,9 +2282,54 @@ Constraints:
           "i",
         );
 
-        function stripBrokenAffiliates(html: string): { html: string; stripped: number } {
-          if (!html) return { html, stripped: 0 };
+        // June 12 audit: Expedia is a JOINED CJ advertiser (EPC $61.44) but 97
+        // articles carried expedia.com links with utm-only tags (often malformed
+        // with a double "?"). Stripping those throws away monetizable intent —
+        // CONVERT them to the CJ deep link instead. Other dead partners
+        // (booking.com empty aid, GetYourGuide no ID) still get stripped.
+        const { buildCjDeepLinkRaw } = await import("@/lib/affiliate/page-affiliate-links");
+
+        function cleanExpediaDestination(url: string): string {
+          // Cut at the first utm_ param — also repairs the "?x=1?utm_source=" malformation
+          const firstUtm = url.search(/[?&]utm_/i);
+          return firstUtm === -1 ? url : url.slice(0, firstUtm);
+        }
+
+        function buildExpediaReplacement(partnerUrl: string, slug: string, siteId: string): string | null {
+          const dest = cleanExpediaDestination(partnerUrl);
+          const sid = `${siteId}_${slug}`.substring(0, 100);
+          const raw = buildCjDeepLinkRaw("expedia", dest, sid);
+          if (!raw) return null;
+          return `/api/affiliate/click?url=${encodeURIComponent(raw)}&sid=${encodeURIComponent(sid)}&partner=expedia&article=${encodeURIComponent(slug)}`;
+        }
+
+        function stripBrokenAffiliates(
+          html: string,
+          slug: string,
+          siteId: string,
+        ): { html: string; stripped: number; converted: number } {
+          if (!html) return { html, stripped: 0, converted: 0 };
           let stripped = 0;
+          let converted = 0;
+
+          function fixOrStrip(full: string, hrefAttr: string, inner: string, partnerUrl: string): string {
+            // Expedia → convert to paying CJ deep link (keep anchor + text)
+            try {
+              if (/(^|\.)expedia\.com$/i.test(new URL(partnerUrl).hostname)) {
+                const replacement = buildExpediaReplacement(partnerUrl, slug, siteId);
+                if (replacement) {
+                  converted++;
+                  // Function replacer so "$" in the URL is never treated as a pattern token
+                  return full.replace(hrefAttr, () => replacement);
+                }
+              }
+            } catch {
+              // fall through to strip
+            }
+            stripped++;
+            return inner;
+          }
+
           // ── Pass 1: tracked-redirect links (/api/affiliate/click?url=...) ──
           let cleaned = html.replace(TRACKED_LINK_RE, (full, hrefAttr: string, inner: string) => {
             // Parse the click-tracker URL to extract the partner URL
@@ -2302,12 +2352,9 @@ Constraints:
               return full;
             }
 
-            // Strip if EITHER: empty tracking key OR partner URL with no real affiliate key
+            // Fix/strip if EITHER: empty tracking key OR partner URL with no real affiliate key
             if (hasEmptyTrackingParam(partnerUrl) || hasNoRealAffiliateKey(partnerUrl, PARTNER_HOSTS)) {
-              stripped++;
-              // Replace the <a>...</a> with just the inner text. Preserves
-              // the prose so readers still see the venue/hotel name in context.
-              return inner;
+              return fixOrStrip(full, hrefAttr, inner, partnerUrl);
             }
 
             return full;
@@ -2326,15 +2373,14 @@ Constraints:
             if (!PARTNER_HOSTS.test(hrefAttr)) return full;
             // Decode &amp; → & for URL parsing
             const normalized = hrefAttr.replace(/&amp;/g, "&");
-            // Strip if EITHER empty key OR no real affiliate key at all (utm-only / no params)
+            // Fix/strip if EITHER empty key OR no real affiliate key at all (utm-only / no params)
             if (!hasEmptyTrackingParam(normalized) && !hasNoRealAffiliateKey(normalized, PARTNER_HOSTS)) {
               return full;
             }
-            stripped++;
-            return inner;
+            return fixOrStrip(full, hrefAttr, inner, normalized);
           });
 
-          return { html: cleaned, stripped };
+          return { html: cleaned, stripped, converted };
         }
 
         // Limit scope: scan up to 50 posts per run, max 10 mutations per run.
@@ -2361,63 +2407,85 @@ Constraints:
               { content_en: { contains: "eticketing.co.uk" } },
             ],
           },
-          select: { id: true, slug: true, content_en: true, content_ar: true },
+          // June 12 audit: id+slug only — content is fetched per-chunk below.
+          // The old `take: 50` + orderBy updated_at window STARVED: clean
+          // articles never leave the window (their updated_at never changes),
+          // so broken articles beyond position 50 were never scanned. 230+
+          // articles with dead links accumulated. Now ALL candidates are
+          // covered every run, bounded by budget + mutation cap.
+          select: { id: true, slug: true, siteId: true },
           orderBy: { updated_at: "asc" },
-          take: 50,
         });
 
-        const MAX_MUTATIONS = 10;
+        const MAX_MUTATIONS = 25;
+        const CHUNK = 25;
         let mutations = 0;
         let totalStripped = 0;
+        let totalConverted = 0;
 
-        for (const post of candidates) {
-          if (mutations >= MAX_MUTATIONS) break;
-          if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        for (let i = 0; i < candidates.length && mutations < MAX_MUTATIONS; i += CHUNK) {
+          if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+          const chunk = candidates.slice(i, i + CHUNK);
+          const posts = await prisma.blogPost.findMany({
+            where: { id: { in: chunk.map((c) => c.id) } },
+            select: { id: true, slug: true, siteId: true, content_en: true, content_ar: true },
+          });
 
-          const enResult = stripBrokenAffiliates(post.content_en || "");
-          const arResult = stripBrokenAffiliates(post.content_ar || "");
-          if (enResult.stripped === 0 && arResult.stripped === 0) continue;
+          for (const post of posts) {
+            if (mutations >= MAX_MUTATIONS) break;
+            if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
 
-          try {
-            await optimisticBlogPostUpdate(
-              post.id,
-              (current) => {
-                const curEn = (current.content_en as string) || "";
-                const curAr = (current.content_ar as string) || "";
-                const curEnResult = stripBrokenAffiliates(curEn);
-                const curArResult = stripBrokenAffiliates(curAr);
-                if (curEnResult.stripped === 0 && curArResult.stripped === 0) return null;
+            const enResult = stripBrokenAffiliates(post.content_en || "", post.slug, post.siteId);
+            const arResult = stripBrokenAffiliates(post.content_ar || "", post.slug, post.siteId);
+            if (enResult.stripped + enResult.converted === 0 && arResult.stripped + arResult.converted === 0) {
+              continue;
+            }
 
-                const updates: Record<string, unknown> = {};
-                if (curEnResult.stripped > 0) updates.content_en = curEnResult.html;
-                if (curArResult.stripped > 0) updates.content_ar = curArResult.html;
-                updates.enhancement_log = buildEnhancementLogEntry(
-                  current.enhancement_log,
-                  "affiliate_links",
-                  "content-auto-fix",
-                  `Stripped ${curEnResult.stripped + curArResult.stripped} affiliate link(s) with empty tracking params`,
-                );
-                return updates;
-              },
-              { tag: "[content-auto-fix:section-26]" },
-            );
-            mutations++;
-            totalStripped += enResult.stripped + arResult.stripped;
-            console.log(
-              `[content-auto-fix:s26] ${post.slug}: stripped ${enResult.stripped + arResult.stripped} broken affiliate(s)`,
-            );
-          } catch (err) {
-            console.warn(
-              `[content-auto-fix:s26] ${post.slug} update failed:`,
-              err instanceof Error ? err.message : err,
-            );
+            try {
+              await optimisticBlogPostUpdate(
+                post.id,
+                (current) => {
+                  const curEn = (current.content_en as string) || "";
+                  const curAr = (current.content_ar as string) || "";
+                  const curEnResult = stripBrokenAffiliates(curEn, post.slug, post.siteId);
+                  const curArResult = stripBrokenAffiliates(curAr, post.slug, post.siteId);
+                  const totalChanges =
+                    curEnResult.stripped + curEnResult.converted + curArResult.stripped + curArResult.converted;
+                  if (totalChanges === 0) return null;
+
+                  const updates: Record<string, unknown> = {};
+                  if (curEnResult.stripped + curEnResult.converted > 0) updates.content_en = curEnResult.html;
+                  if (curArResult.stripped + curArResult.converted > 0) updates.content_ar = curArResult.html;
+                  updates.enhancement_log = buildEnhancementLogEntry(
+                    current.enhancement_log,
+                    "affiliate_link_cleanup",
+                    "content-auto-fix",
+                    `Converted ${curEnResult.converted + curArResult.converted} Expedia link(s) to CJ deep links, stripped ${curEnResult.stripped + curArResult.stripped} dead affiliate link(s)`,
+                  );
+                  return updates;
+                },
+                { tag: "[content-auto-fix:section-26]" },
+              );
+              mutations++;
+              totalStripped += enResult.stripped + arResult.stripped;
+              totalConverted += enResult.converted + arResult.converted;
+              console.log(
+                `[content-auto-fix:s26] ${post.slug}: converted ${enResult.converted + arResult.converted}, stripped ${enResult.stripped + arResult.stripped} affiliate link(s)`,
+              );
+            } catch (err) {
+              console.warn(
+                `[content-auto-fix:s26] ${post.slug} update failed:`,
+                err instanceof Error ? err.message : err,
+              );
+            }
           }
         }
 
         results.emptyParamAffiliatesStripped = totalStripped;
-        if (totalStripped > 0) {
+        results.expediaLinksConverted = totalConverted;
+        if (totalStripped + totalConverted > 0) {
           console.log(
-            `[content-auto-fix:s26] Stripped ${totalStripped} broken affiliate link(s) across ${mutations} article(s)`,
+            `[content-auto-fix:s26] Converted ${totalConverted} + stripped ${totalStripped} affiliate link(s) across ${mutations} article(s)`,
           );
         }
       }
@@ -2436,9 +2504,7 @@ Constraints:
   // schema.org extraction, and copy-to-clipboard UX.
   if (Date.now() - cronStart < BUDGET_MS - 15_000) {
     try {
-      const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import(
-        "@/lib/markdown/pipe-tables"
-      );
+      const { convertPipeTables, hasPipeTable, unwrapPipeParagraphs } = await import("@/lib/markdown/pipe-tables");
       const PIPE_CAP = 20;
       const candidates = await prisma.blogPost.findMany({
         where: {
@@ -2493,10 +2559,7 @@ Constraints:
           pipeFixed++;
           console.log(`[content-auto-fix:s27] ${post.slug}: pipe table → <table>`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s27] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s27] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
@@ -2569,18 +2632,13 @@ Constraints:
           placeholdersStripped++;
           console.log(`[content-auto-fix:s28] ${post.slug}: stripped bracket placeholders`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s28] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s28] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
       (results as Record<string, unknown>).bracketPlaceholdersStripped = placeholdersStripped;
       if (placeholdersStripped > 0) {
-        console.log(
-          `[content-auto-fix:s28] Stripped placeholders from ${placeholdersStripped} article(s)`,
-        );
+        console.log(`[content-auto-fix:s28] Stripped placeholders from ${placeholdersStripped} article(s)`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -2607,11 +2665,7 @@ Constraints:
       const blogCandidates = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
-          OR: [
-            { title_en: { contains: "Ã" } },
-            { title_ar: { contains: "Ã" } },
-            { title_en: { contains: "â€" } },
-          ],
+          OR: [{ title_en: { contains: "Ã" } }, { title_ar: { contains: "Ã" } }, { title_en: { contains: "â€" } }],
         },
         select: { id: true, slug: true, title_en: true, title_ar: true },
         orderBy: { updated_at: "asc" },
@@ -2649,10 +2703,7 @@ Constraints:
           blogRepaired++;
           console.log(`[content-auto-fix:s29] ${post.slug}: mojibake repaired in title`);
         } catch (err) {
-          console.warn(
-            `[content-auto-fix:s29] ${post.slug} update failed:`,
-            err instanceof Error ? err.message : err,
-          );
+          console.warn(`[content-auto-fix:s29] ${post.slug} update failed:`, err instanceof Error ? err.message : err);
         }
       }
 
@@ -2700,9 +2751,7 @@ Constraints:
 
       (results as Record<string, unknown>).mojibakeRepaired = blogRepaired + eventRepaired;
       if (blogRepaired + eventRepaired > 0) {
-        console.log(
-          `[content-auto-fix:s29] Repaired ${blogRepaired} blog + ${eventRepaired} event mojibake records`,
-        );
+        console.log(`[content-auto-fix:s29] Repaired ${blogRepaired} blog + ${eventRepaired} event mojibake records`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

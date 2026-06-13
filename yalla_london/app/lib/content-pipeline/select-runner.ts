@@ -29,6 +29,7 @@ import {
   PROMOTING_REVERT_MS,
 } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { buildCjDeepLinkRaw } from "@/lib/affiliate/page-affiliate-links";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 10; // publish up to 10 per run — drain overflowing reservoir (368 articles, cap 80)
@@ -1050,49 +1051,71 @@ export async function runContentSelector(options: { timeoutMs?: number } = {}): 
 
 function getAffiliateRules(siteId: string) {
   const SITE_AFFILIATES: Record<string, Array<{ kw: string[]; aff: { name: string; url: string; param: string } }>> = {
+    // June 12 audit: the old yalla-london rules injected links built from EMPTY
+    // env vars (booking.com?aid=, getyourguide?partner_id=, stubhub?gcid=) plus
+    // utm-only Harrods — 230+ published articles ended up with links that pay
+    // NOTHING. Rules below use ONLY working programs: Expedia/Vrbo via synced CJ
+    // deep links and Tiqets/TicketNetwork/Welcome Pickups via the Travelpayouts
+    // marker. The empty-param filter at the injection site guards other sites'
+    // rules that still reference unset env vars.
     "yalla-london": [
       {
         kw: ["hotel", "accommodation", "stay", "resort"],
         aff: {
-          name: "Booking.com",
-          url: "https://www.booking.com/city/gb/london.html",
-          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+          name: "Expedia",
+          url: buildCjDeepLinkRaw(
+            "expedia",
+            "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+            "yalla-london_pipeline",
+          ) as string,
+          param: "",
         },
       },
       {
-        kw: ["restaurant", "dining", "food", "halal"],
+        kw: ["apartment", "villa", "vacation rental", "family stay"],
         aff: {
-          name: "TheFork",
-          url: "https://www.thefork.co.uk/london",
-          param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`,
+          name: "Vrbo",
+          url: buildCjDeepLinkRaw(
+            "vrbo",
+            "https://www.vrbo.com/vacation-rentals/england/london",
+            "yalla-london_pipeline",
+          ) as string,
+          param: "",
         },
       },
       {
-        kw: ["tour", "experience", "activity", "attraction"],
+        kw: ["tour", "experience", "activity", "attraction", "museum", "ticket"],
         aff: {
-          name: "GetYourGuide",
-          url: "https://www.getyourguide.com/london-l57/",
-          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+          name: "Tiqets",
+          url: "https://www.tiqets.com/en/london-c824706/",
+          param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=yalla-london`,
         },
       },
       {
-        kw: ["ticket", "event", "match", "concert", "football"],
+        // SportsEvents365 — live partner approved May 16 2026 (a_aid program).
+        // The fallback AID is public — it already appears in production HTML.
+        // Listed before TicketNetwork so sports content prefers the direct partner.
+        kw: ["football", "premier league", "stadium", "match", "concert", "wembley"],
         aff: {
-          name: "StubHub",
-          url: "https://www.stubhub.co.uk",
-          param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`,
+          name: "SportsEvents365",
+          url: "https://www.sportsevents365.com/london",
+          param: `?a_aid=${process.env.SPORTSEVENTS365_AID || "6888b1173c266"}`,
         },
       },
       {
-        kw: ["shopping", "shop", "luxury", "Harrods"],
-        aff: { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon" },
+        kw: ["event", "theatre", "show", "west end"],
+        aff: {
+          name: "TicketNetwork",
+          url: "https://www.ticketnetwork.com/london-events",
+          param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=yalla-london`,
+        },
       },
       {
-        kw: ["transfer", "airport", "taxi", "transport"],
+        kw: ["transfer", "airport", "taxi", "transport", "heathrow", "gatwick"],
         aff: {
-          name: "Blacklane",
-          url: "https://www.blacklane.com/en/london",
-          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+          name: "Welcome Pickups",
+          url: "https://www.welcomepickups.com/london/",
+          param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=yalla-london`,
         },
       },
     ],
@@ -1497,7 +1520,7 @@ export async function promoteToBlogPost(
   // INSTEAD of appending yet another v-tag.
   slug = slug
     .replace(/-\d{4}-\d{2}-\d{2}$/g, "") // Strip trailing date stamps (e.g., -2026-02-17)
-    .replace(/(?:-v\d+){1,}$/gi, "")    // Strip chained v-suffixes from the END only
+    .replace(/(?:-v\d+){1,}$/gi, "") // Strip chained v-suffixes from the END only
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "");
   // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")
@@ -2282,10 +2305,16 @@ export async function promoteToBlogPost(
     const AFF_RULES = getAffiliateRules(siteId);
     const matched = AFF_RULES.filter((r) => r.kw.some((k) => contentLower.includes(k)))
       .map((r) => r.aff)
+      // Never inject links whose tracking param resolved to an empty value
+      // (unset env var) — they ship readers to partners with $0 attribution.
+      .filter((a) => !`${a.url}${a.param}`.match(/[?&][a-z_]+=(&|$)/i))
       .slice(0, 3);
 
     if (matched.length > 0) {
-      const partnersHtml = `\n<div class="affiliate-partners-section" style="margin-top:2rem;padding:1.5rem;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;"><h3 style="margin:0 0 1rem;color:#1f2937;">Recommended Partners</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${matched.map((m) => `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display:block;padding:1rem;background:white;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;color:inherit;"><strong style="color:#7c3aed;">${m.name}</strong></a>`).join("")}</div></div>`;
+      // NOTE: no encodeURI here — rule URLs are pre-built (CJ deep links contain
+      // %-encoded url params) and encodeURI double-encodes "%" → broken links.
+      const htmlSafeHref = (u: string) => u.replace(/"/g, "&quot;");
+      const partnersHtml = `\n<div class="affiliate-partners-section" style="margin-top:2rem;padding:1.5rem;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;"><h3 style="margin:0 0 1rem;color:#1f2937;">Recommended Partners</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${matched.map((m) => `<a href="${htmlSafeHref(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display:block;padding:1rem;background:white;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;color:inherit;"><strong style="color:#7c3aed;">${m.name}</strong></a>`).join("")}</div></div>`;
       const cleanEn = (enHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
       const cleanAr = (arHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
       await optimisticBlogPostUpdate(

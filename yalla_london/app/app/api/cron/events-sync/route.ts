@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     let skipped = 0;
 
     try {
-      const tmEvents = await getUpcomingEvents(siteId, { limit: 20 });
+      const tmEvents = await getUpcomingEvents(siteId, { limit: 30, spread: true });
 
       if (tmEvents.length > 0) {
         const { prisma } = await import("@/lib/db");

@@ -19,7 +19,11 @@ import {
   Train,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
-import { getPageAffiliateLink, type AffiliateCategory } from "@/lib/affiliate/page-affiliate-links";
+import {
+  getPageAffiliateLink,
+  buildExpediaAffiliateUrl,
+  type AffiliateCategory,
+} from "@/lib/affiliate/page-affiliate-links";
 import {
   TriBar,
   BrandButton,
@@ -726,8 +730,11 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: "
                     "yalla-london",
                     "recommendations",
                   );
-                  // ALL bookable items → Expedia affiliate link. No "Official Site" buttons — every click earns commission.
-                  const expediaSearch = `/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(item.name_en + " London")}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=recommendations`;
+                  // ALL bookable items → Expedia CJ deep link. utm-only URLs pay nothing (June 12 audit).
+                  const expediaSearch = buildExpediaAffiliateUrl(
+                    `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(item.name_en + " London")}`,
+                    "recommendations",
+                  );
                   const bookingUrl = affLink?.url || expediaSearch;
                   const bookingLabel =
                     affLink?.label ||

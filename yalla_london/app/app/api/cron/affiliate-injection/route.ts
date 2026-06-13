@@ -17,6 +17,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 import { createSnapshot } from "@/lib/affiliate/snapshot";
+import { buildCjDeepLinkRaw } from "@/lib/affiliate/page-affiliate-links";
 
 const BUDGET_MS = 280_000;
 
@@ -383,9 +384,15 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
             category: "hotel",
           },
           {
+            // June 12 audit: utm-only Expedia URLs pay NOTHING — Expedia is a
+            // JOINED CJ advertiser and must be linked via the anrdoezrs deep link.
             name: "Expedia",
-            url: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
-            param: `?utm_source=${utmSource}&utm_medium=affiliate`,
+            url: buildCjDeepLinkRaw(
+              "expedia",
+              "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+              `${siteId}_inject`,
+            ) as string,
+            param: "",
             category: "hotel",
           },
           {
@@ -472,19 +479,19 @@ export function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
           {
             name: "SportsEvents365",
             url: "https://www.sportsevents365.com/london",
-            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || "6888b1173c266"}`,
             category: "tickets",
           },
           {
             name: "SportsEvents365 Football",
             url: "https://www.sportsevents365.com/football/england/premier-league",
-            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || "6888b1173c266"}`,
             category: "tickets",
           },
           {
             name: "SportsEvents365 Concerts",
             url: "https://www.sportsevents365.com/concerts/london",
-            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || ""}`,
+            param: `?a_aid=${process.env.SPORTSEVENTS365_AID || "6888b1173c266"}`,
             category: "tickets",
           },
           {
@@ -1221,7 +1228,13 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
       // produced a dead link.
       const paramValue = aff.param.split("=").pop() || "";
       const hasEmptySegment = /[?&][^=&]+=(?=$|&)/.test(aff.param);
-      if (!paramValue || aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""') || hasEmptySegment) {
+      if (
+        !paramValue ||
+        aff.param.endsWith("=") ||
+        aff.param.endsWith("=''") ||
+        aff.param.endsWith('=""') ||
+        hasEmptySegment
+      ) {
         skippedEmpty++;
         continue;
       }
@@ -1749,6 +1762,104 @@ async function handleAffiliateInjection(request: NextRequest) {
       }
     }
 
+    // ── Sports affiliate backfill (June 12 2026) ──────────────────────────────
+    // SportsEvents365 is a live a_aid partner, but only ~73 of ~151 sports/event
+    // articles carry its link — the main loop skips posts that already have ANY
+    // affiliate, so sports articles monetized with a hotel link never get the
+    // sports CTA. This section continuously tops up: published posts with strong
+    // sports/event signals and NO sportsevents365 link get a targeted CTA box.
+    let sportsBackfilled = 0;
+    if (Date.now() - startTime < BUDGET_MS - 15_000) {
+      try {
+        const SPORTS_AID = process.env.SPORTSEVENTS365_AID || "6888b1173c266";
+        const SPORTS_RE =
+          /\b(football|premier league|stadium|wembley|arsenal|chelsea|tottenham|west ham|concert|theatre|west end|matchday|match day)\b/i;
+        const sportsCandidates = (await prisma.blogPost.findMany({
+          where: {
+            siteId: "yalla-london",
+            published: true,
+            deletedAt: null,
+            NOT: { content_en: { contains: "sportsevents365" } },
+            OR: [
+              { content_en: { contains: "football" } },
+              { content_en: { contains: "Premier League" } },
+              { content_en: { contains: "stadium" } },
+              { content_en: { contains: "Wembley" } },
+              { content_en: { contains: "concert" } },
+              { content_en: { contains: "theatre" } },
+              { content_en: { contains: "West End" } },
+            ],
+          },
+          select: { id: true, slug: true, content_en: true },
+          orderBy: { created_at: "desc" },
+          take: 60,
+        })) as Array<{ id: string; slug: string; content_en: string | null }>;
+
+        const SPORTS_BACKFILL_CAP = 15;
+        for (const post of sportsCandidates) {
+          if (sportsBackfilled >= SPORTS_BACKFILL_CAP) break;
+          if (Date.now() - startTime > BUDGET_MS - 8_000) break;
+          const body = post.content_en || "";
+          if (!SPORTS_RE.test(body)) continue;
+
+          // Pick the most relevant SportsEvents365 vertical for this article
+          const isFootball =
+            /\b(football|premier league|arsenal|chelsea|tottenham|west ham|wembley|matchday|match day)\b/i.test(body);
+          const isConcert = /\b(concert|gig|live music)\b/i.test(body);
+          const destUrl = isFootball
+            ? "https://www.sportsevents365.com/football/england/premier-league"
+            : isConcert
+              ? "https://www.sportsevents365.com/concerts/london"
+              : "https://www.sportsevents365.com/london";
+          const label = isFootball
+            ? "Premier League & football tickets"
+            : isConcert
+              ? "London concert tickets"
+              : "London sports & event tickets";
+          const sid = `yalla-london_${post.slug}`.substring(0, 100);
+          const sportsUrl = `${destUrl}?a_aid=${SPORTS_AID}`;
+          const trackedUrl = `/api/affiliate/click?url=${encodeURIComponent(sportsUrl)}&sid=${encodeURIComponent(sid)}&partner=sportsevents365&article=${encodeURIComponent(post.slug)}`;
+          const ctaBox = `\n<div class="affiliate-recommendation" data-affiliate="SportsEvents365" data-affiliate-partner="sportsevents365" style="margin:1.5rem 0;padding:1rem 1.5rem;background:linear-gradient(135deg,#f0f7ff,#fff8e1);border-left:4px solid #1d4ed8;border-radius:8px;"><p style="margin:0 0 0.5rem 0;font-weight:600;color:#1e3a8a;">Going to a match or show?</p><p style="margin:0 0 0.75rem 0;color:#6b7280;font-size:0.9rem;">Secure ${label} through our trusted partner — instant confirmation.</p><a href="${trackedUrl}" target="_blank" rel="noopener sponsored" style="display:inline-block;padding:0.5rem 1.5rem;background:#1d4ed8;color:white;border-radius:6px;text-decoration:none;font-weight:500;">Browse tickets on SportsEvents365 &rarr;</a></div>`;
+
+          try {
+            await optimisticBlogPostUpdate(
+              post.id,
+              (current) => {
+                const curEn = (current.content_en as string) || "";
+                if (curEn.includes("sportsevents365")) return null; // already added concurrently
+                return {
+                  content_en: curEn + ctaBox,
+                  enhancement_log: buildEnhancementLogEntry(
+                    current.enhancement_log,
+                    "affiliate_links",
+                    "affiliate-injection",
+                    `Sports backfill: added SportsEvents365 CTA (${label})`,
+                  ),
+                };
+              },
+              { tag: "[affiliate-injection:sports-backfill]" },
+            );
+            sportsBackfilled++;
+          } catch (sportsErr) {
+            console.warn(
+              `[affiliate-injection] Sports backfill failed for ${post.slug}:`,
+              sportsErr instanceof Error ? sportsErr.message : sportsErr,
+            );
+          }
+        }
+        if (sportsBackfilled > 0) {
+          console.log(
+            `[affiliate-injection] Sports backfill: added SportsEvents365 CTA to ${sportsBackfilled} articles`,
+          );
+        }
+      } catch (sportsSectionErr) {
+        console.warn(
+          "[affiliate-injection] Sports backfill section failed:",
+          sportsSectionErr instanceof Error ? sportsSectionErr.message : sportsSectionErr,
+        );
+      }
+    }
+
     const duration = Date.now() - startTime;
 
     // Tally distinct partner names actually injected this run + per-partner count
@@ -1795,6 +1906,7 @@ async function handleAffiliateInjection(request: NextRequest) {
         skippedSuppressed,
         skippedNoMatch,
         diagnosticSamples,
+        sportsBackfilled,
         // New: visibility into WHICH partners got injected + which JOINED CJ
         // advertisers were available as candidates this run.
         advertisersUsed,

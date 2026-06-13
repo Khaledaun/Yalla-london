@@ -6,6 +6,7 @@ import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
 import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
 import { StructuredData } from '@/components/structured-data'
+import { buildExpediaAffiliateUrl, buildTravelpayoutsAffiliateUrl } from '@/lib/affiliate/page-affiliate-links'
 
 export const revalidate = 3600;
 
@@ -217,7 +218,7 @@ export default async function LondonWithKidsPage() {
           <p className="text-white/70 mb-8 max-w-2xl mx-auto">Skip the queues and save 10-20% by booking London attraction tickets online before you arrive.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="/api/affiliate/click?url=https%3A%2F%2Fwww.tiqets.com%2Fen%2Flondon-attractions-c81338&partner=tiqets&article=london-with-kids"
+              href={buildTravelpayoutsAffiliateUrl('tiqets', 'https://www.tiqets.com/en/london-attractions-c81338', 'london-with-kids')}
               target="_blank"
               rel="noopener sponsored"
               className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
@@ -225,7 +226,7 @@ export default async function LondonWithKidsPage() {
               <Ticket className="w-5 h-5" /> Browse Attractions on Tiqets
             </a>
             <a
-              href="/api/affiliate/click?url=https%3A%2F%2Fwww.expedia.com%2FLondon-Hotels.d178279.Travel-Guide-Hotels&partner=expedia&article=london-with-kids"
+              href={buildExpediaAffiliateUrl('https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels', 'london-with-kids')}
               target="_blank"
               rel="noopener sponsored"
               className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"

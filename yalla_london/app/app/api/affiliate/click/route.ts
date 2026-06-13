@@ -40,20 +40,24 @@ export async function GET(request: NextRequest) {
       const { prisma } = await import("@/lib/db");
       const siteId = sid?.split("_")[0] || undefined;
       const partner = detectPartner(directUrl);
-      await prisma.auditLog.create({
-        data: {
-          action: "AFFILIATE_CLICK_DIRECT",
-          details: {
-            affiliateUrl: directUrl,
-            partner,
-            pageUrl: request.headers.get("referer") || "",
-            device: detectDevice(request.headers.get("user-agent") || ""),
-            country: request.headers.get("x-vercel-ip-country") || null,
-            sessionId: sid || null,
-            siteId: siteId || null,
+      await prisma.auditLog
+        .create({
+          data: {
+            action: "AFFILIATE_CLICK_DIRECT",
+            details: {
+              affiliateUrl: directUrl,
+              partner,
+              pageUrl: request.headers.get("referer") || "",
+              device: detectDevice(request.headers.get("user-agent") || ""),
+              country: request.headers.get("x-vercel-ip-country") || null,
+              sessionId: sid || null,
+              siteId: siteId || null,
+            },
           },
-        },
-      }).catch(err => console.warn("[affiliate-click] DB record failed:", err instanceof Error ? err.message : String(err)));
+        })
+        .catch((err) =>
+          console.warn("[affiliate-click] DB record failed:", err instanceof Error ? err.message : String(err)),
+        );
     } catch (err) {
       console.warn("[affiliate-click] Direct track failed:", err instanceof Error ? err.message : String(err));
     }
@@ -147,15 +151,11 @@ async function fireGA4ClickEvent(opts: {
   country?: string;
 }): Promise<void> {
   try {
-    const { fireAffiliateClickEvent } = await import(
-      "@/lib/analytics/ga4-measurement-protocol"
-    );
+    const { fireAffiliateClickEvent } = await import("@/lib/analytics/ga4-measurement-protocol");
 
     // Parse SID (format: siteId_articleSlug)
     const siteId = opts.sid?.includes("_") ? opts.sid.split("_")[0] : undefined;
-    const articleSlug = opts.sid?.includes("_")
-      ? opts.sid.split("_").slice(1).join("_")
-      : undefined;
+    const articleSlug = opts.sid?.includes("_") ? opts.sid.split("_").slice(1).join("_") : undefined;
 
     // Detect partner from affiliate URL
     const partner = detectPartner(opts.affiliateUrl);
@@ -190,9 +190,20 @@ export const POST = GET;
 
 function detectPartner(url: string): string {
   if (!url) return "unknown";
-  const lower = url.toLowerCase();
+  let lower = url.toLowerCase();
+  // CJ deep links (anrdoezrs.net) carry the real partner in the encoded url=
+  // param — decode it so Expedia/Vrbo/lastminute clicks aren't all labelled
+  // "vrbo" (pre-June-12 behaviour) in the revenue dashboard.
+  if (lower.includes("anrdoezrs.net")) {
+    try {
+      const inner = new URL(url).searchParams.get("url");
+      if (inner) lower = decodeURIComponent(inner).toLowerCase();
+    } catch {
+      // keep outer URL
+    }
+  }
   if (lower.includes("booking.com")) return "booking.com";
-  if (lower.includes("vrbo.com") || lower.includes("anrdoezrs.net")) return "vrbo";
+  if (lower.includes("vrbo.com")) return "vrbo";
   if (lower.includes("agoda.com")) return "agoda";
   if (lower.includes("halalbooking.com")) return "halalbooking";
   if (lower.includes("getyourguide.com")) return "getyourguide";
@@ -202,5 +213,12 @@ function detectPartner(url: string): string {
   if (lower.includes("expedia.com")) return "expedia";
   if (lower.includes("tripadvisor.com")) return "tripadvisor";
   if (lower.includes("boatbookings.com")) return "boatbookings";
+  if (lower.includes("sportsevents365.com")) return "sportsevents365";
+  if (lower.includes("tiqets.com")) return "tiqets";
+  if (lower.includes("ticketnetwork.com")) return "ticketnetwork";
+  if (lower.includes("welcomepickups.com")) return "welcomepickups";
+  if (lower.includes("lastminute.com")) return "lastminute";
+  if (lower.includes("excellenceresorts.com")) return "excellence";
+  if (lower.includes("thefork.")) return "thefork";
   return "cj-other";
 }

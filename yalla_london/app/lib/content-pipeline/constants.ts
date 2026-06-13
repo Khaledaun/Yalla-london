@@ -231,6 +231,13 @@ export const ENHANCEMENT_OWNERS: Record<string, string> = {
   mojibake_repair: "content-auto-fix",
   title_resanitization: "content-auto-fix-lite",
   event_dedup: "content-auto-fix-lite",
+  // June 12 2026 audit additions
+  // Cleanup of broken/dead affiliate links is DISTINCT from injection of new
+  // ones (affiliate_links → affiliate-injection). Section 26 of content-auto-fix
+  // was silently disabled for weeks because it gated on "affiliate_links" and
+  // failed the ownership check — never reuse an owned type for a different job.
+  affiliate_link_cleanup: "content-auto-fix",
+  stale_year_refresh: "content-auto-fix-lite",
 };
 
 // ─── Escalation Policy ──────────────────────────────────────────────────────

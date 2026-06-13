@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { getUpcomingEvents, formatEventPrice } = await import("@/lib/apis/events");
-  const tmEvents = await getUpcomingEvents(siteId, { limit: target });
+  const tmEvents = await getUpcomingEvents(siteId, { limit: target, spread: true });
 
   if (tmEvents.length === 0) {
     return NextResponse.json({
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Fetch upcoming events from Ticketmaster
-  const tmRaw = await getUpcomingEvents(siteId, { limit: target });
+  const tmRaw = await getUpcomingEvents(siteId, { limit: target, spread: true });
   // Pre-filter: only write events whose actual start time is in the future.
   // Ticketmaster's `startDateTime` query param filters by CALENDAR DAY, so
   // events earlier-today (e.g. 15:00 BST when it's 23:30 BST) still come

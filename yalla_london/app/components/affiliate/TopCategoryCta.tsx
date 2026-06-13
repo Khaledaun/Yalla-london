@@ -21,6 +21,7 @@
  */
 
 import React from "react";
+import { buildExpediaAffiliateUrl, buildTravelpayoutsAffiliateUrl } from "@/lib/affiliate/page-affiliate-links";
 
 type Variant = "hotel" | "experience" | "restaurant" | "all";
 
@@ -112,18 +113,27 @@ function buildAffiliateUrl(variant: Variant, pageSlug: string, siteId: string): 
   const sid = `${siteId}_${pageSlug}-hero`;
 
   if (variant === "hotel" || variant === "all") {
+    // CJ deep link — utm-only Expedia URLs pay nothing (June 12 audit)
     const dest = encodeURIComponent("London, United Kingdom");
-    const target = `https://www.expedia.com/Hotel-Search?destination=${dest}&utm_source=${siteId}&utm_medium=affiliate&utm_campaign=${pageSlug}-hero`;
     return {
-      url: `/api/affiliate/click?url=${encodeURIComponent(target)}&partner=expedia&article=${encodeURIComponent(pageSlug + "-hero")}&sid=${encodeURIComponent(sid)}`,
+      url: buildExpediaAffiliateUrl(
+        `https://www.expedia.com/Hotel-Search?destination=${dest}`,
+        `${pageSlug}-hero`,
+        siteId,
+      ),
       partner: "expedia",
     };
   }
 
   if (variant === "experience") {
-    const target = `https://www.tiqets.com/en/london-c70972/?partner=${siteId}&utm_source=${siteId}&utm_medium=affiliate&utm_campaign=${pageSlug}-hero`;
+    // Travelpayouts marker — without it the Tiqets click pays nothing
     return {
-      url: `/api/affiliate/click?url=${encodeURIComponent(target)}&partner=tiqets&article=${encodeURIComponent(pageSlug + "-hero")}&sid=${encodeURIComponent(sid)}`,
+      url: buildTravelpayoutsAffiliateUrl(
+        "tiqets",
+        "https://www.tiqets.com/en/london-c70972/",
+        `${pageSlug}-hero`,
+        siteId,
+      ),
       partner: "tiqets",
     };
   }

@@ -79,6 +79,8 @@ async function handleAutoFixLite(request: NextRequest) {
     // May 17 2026 re-audit additions
     titlesResanitized: 0,
     duplicateEventsUnpublished: 0,
+    // June 12 2026 audit addition
+    staleYearsRefreshed: 0,
     errors: [] as string[],
   };
 
@@ -937,7 +939,10 @@ async function handleAutoFixLite(request: NextRequest) {
         const inboundLinksBySlug = new Map<string, number>();
         for (const slug of allSlugs) {
           let count = 0;
-          const linkPattern = new RegExp(`href=["']\\/(?:ar\\/)?blog\\/${slug.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}["']`, "g");
+          const linkPattern = new RegExp(
+            `href=["']\\/(?:ar\\/)?blog\\/${slug.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}["']`,
+            "g",
+          );
           for (const post of allPublishedContent) {
             const matches = (post.content_en || "").match(linkPattern);
             if (matches) count += matches.length;
@@ -954,13 +959,14 @@ async function handleAutoFixLite(request: NextRequest) {
           const gsc = gscByUrl.get(url) || { clicks: 0, impressions: 0 };
           const indexStatus = indexStatusByUrl.get(url) || "";
           const inbound = inboundLinksBySlug.get(p.slug) || 0;
-          const wordCount = (p.content_en || "").replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+          const wordCount = (p.content_en || "")
+            .replace(/<[^>]*>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
 
           // Slug cleanliness (clean canonical slug always wins over -v7-v4-v8 chains)
           const cleanSlug =
-            !/(?:-v\d+){1,}$/i.test(p.slug) &&
-            !/-[0-9a-f]{6,}$/.test(p.slug) &&
-            !/-\d{4}-\d{2}-\d{2}$/.test(p.slug);
+            !/(?:-v\d+){1,}$/i.test(p.slug) && !/-[0-9a-f]{6,}$/.test(p.slug) && !/-\d{4}-\d{2}-\d{2}$/.test(p.slug);
 
           // Title cleanliness (no bracket placeholders, V2/V3 leaks, trailing punctuation)
           const cleanTitle =
@@ -1175,9 +1181,7 @@ async function handleAutoFixLite(request: NextRequest) {
   // these patterns. 24h cooldown so we don't fight fresh AI runs.
   if (Date.now() - cronStart < BUDGET_MS - 8_000) {
     try {
-      const { sanitizeTitle, sanitizeMetaDescription } = await import(
-        "@/lib/content-pipeline/title-sanitizer"
-      );
+      const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
       const TITLE_CAP = 50;
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const candidates = await prisma.blogPost.findMany({
@@ -1307,14 +1311,104 @@ async function handleAutoFixLite(request: NextRequest) {
           data: { published: false },
         });
         duplicateEventsUnpublished = updateResult.count;
-        console.log(
-          `[content-auto-fix-lite:s19] Unpublished ${duplicateEventsUnpublished} duplicate event(s)`,
-        );
+        console.log(`[content-auto-fix-lite:s19] Unpublished ${duplicateEventsUnpublished} duplicate event(s)`);
       }
       results.duplicateEventsUnpublished = duplicateEventsUnpublished;
     } catch (e) {
       results.errors.push(`event-dedup: ${e instanceof Error ? e.message : e}`);
       console.warn("[content-auto-fix-lite:s19] Section 19 failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // ── Section 20: Stale-year refresh in titles & metas (June 12 2026) ────
+  // Audit found 43 published Arabic titles + 46 Arabic metas still saying
+  // 2024/2025 (EN titles had years stripped, AR translations kept them).
+  // Stale years in SERP titles depress CTR and signal dead content. Mirror
+  // the EN convention: STRIP any year older than the current year from
+  // title/meta fields (Latin AND Arabic-Indic digits). Never touches the
+  // body (years there can be factual) and never touches the slug (URL equity).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const curYear = new Date().getFullYear();
+      const toArabicDigits = (s: string) => s.replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+      const staleYears: string[] = [];
+      for (let y = 2020; y < curYear; y++) {
+        staleYears.push(String(y), toArabicDigits(String(y)));
+      }
+      // Strip the year plus an optional leading "of-the-year" connector word.
+      // Digit lookarounds prevent eating parts of longer numbers.
+      const yearAlt = staleYears.join("|");
+      const stripRe = new RegExp(`\\s*(?:لعام|لربيع|عام)?\\s*(?<![0-9٠-٩])(?:${yearAlt})(?![0-9٠-٩])`, "g");
+      const stripStaleYears = (text: string | null): string | null => {
+        if (!text) return text;
+        if (!staleYears.some((y) => text.includes(y))) return text;
+        return text
+          .replace(stripRe, "")
+          .replace(/\s{2,}/g, " ")
+          .replace(/\s+([|،:؟!,.])/g, "$1")
+          .replace(/[\s|،\-–]+$/g, "")
+          .trim();
+      };
+
+      // Prisma can't express regex — raw SQL pre-filter for candidate IDs
+      const sqlAlt = staleYears.join("|");
+      const staleIds = (await prisma.$queryRawUnsafe(
+        `SELECT id FROM "BlogPost"
+         WHERE published = true AND "deletedAt" IS NULL
+           AND (title_en ~ '(${sqlAlt})' OR title_ar ~ '(${sqlAlt})'
+                OR meta_title_en ~ '(${sqlAlt})' OR meta_title_ar ~ '(${sqlAlt})'
+                OR meta_description_en ~ '(${sqlAlt})' OR meta_description_ar ~ '(${sqlAlt})')
+         LIMIT 30`,
+      )) as Array<{ id: string }>;
+
+      let staleYearsRefreshed = 0;
+      for (const { id } of staleIds) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        try {
+          await optimisticBlogPostUpdate(
+            id,
+            (current) => {
+              const fields = [
+                "title_en",
+                "title_ar",
+                "meta_title_en",
+                "meta_title_ar",
+                "meta_description_en",
+                "meta_description_ar",
+              ] as const;
+              const updates: Record<string, unknown> = {};
+              for (const f of fields) {
+                const before = (current[f] as string | null) ?? null;
+                const after = stripStaleYears(before);
+                // Guard: never blank out a field — keep original if strip empties it
+                if (after !== before && after && after.length >= 5) updates[f] = after;
+              }
+              if (Object.keys(updates).length === 0) return null;
+              updates.enhancement_log = buildEnhancementLogEntry(
+                current.enhancement_log,
+                "stale_year_refresh",
+                "content-auto-fix-lite",
+                `Stale-year refresh: stripped pre-${curYear} years from ${Object.keys(updates).length} title/meta field(s)`,
+              );
+              return updates;
+            },
+            { tag: "[content-auto-fix-lite:s20]" },
+          );
+          staleYearsRefreshed++;
+        } catch (yrErr) {
+          console.warn(
+            `[content-auto-fix-lite:s20] Year refresh failed for ${id}:`,
+            yrErr instanceof Error ? yrErr.message : yrErr,
+          );
+        }
+      }
+      results.staleYearsRefreshed = staleYearsRefreshed;
+      if (staleYearsRefreshed > 0) {
+        console.log(`[content-auto-fix-lite:s20] Refreshed stale years on ${staleYearsRefreshed} article(s)`);
+      }
+    } catch (e) {
+      results.errors.push(`stale-year-refresh: ${e instanceof Error ? e.message : e}`);
+      console.warn("[content-auto-fix-lite:s20] Section 20 failed:", e instanceof Error ? e.message : e);
     }
   }
 
@@ -1333,7 +1427,8 @@ async function handleAutoFixLite(request: NextRequest) {
     badImagesFixed +
     affiliateBlocksCleaned +
     results.duplicatesUnpublished +
-    results.imageAltsFixed;
+    results.imageAltsFixed +
+    results.staleYearsRefreshed;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {

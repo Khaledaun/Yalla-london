@@ -422,9 +422,15 @@ export class AutoSEOService {
     if (title.length <= maxLength) {
       return title;
     }
-    
-    // Truncate and add ellipsis
-    return title.substring(0, maxLength - 3) + '...';
+
+    // Truncate at the last word boundary (never mid-word, never an ellipsis —
+    // ellipsis + mid-word cuts read as broken in the SERP and suppress CTR).
+    const cut = title.substring(0, maxLength);
+    const lastSpace = cut.lastIndexOf(' ');
+    let out = lastSpace > maxLength * 0.5 ? cut.substring(0, lastSpace) : cut;
+    // Strip a trailing connective left by the cut ("...Guide for" → "...Guide")
+    out = out.replace(/\s+(?:for|to|in|and|with|the|of|a|an|by|on|at|from|or)$/i, '').trim();
+    return out.replace(/\s*[|–:,-]\s*$/, '').trim();
   }
 
   /**

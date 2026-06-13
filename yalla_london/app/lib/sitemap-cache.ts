@@ -228,7 +228,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
       const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      for (const post of allStaticPosts.filter(p => p.published)) {
+      for (const post of allStaticPosts.filter((p) => p.published)) {
         const isRecent = post.updated_at.getTime() > sevenDaysAgoMs;
         entries.push({
           url: `${baseUrl}/blog/${post.slug}`,
@@ -251,16 +251,29 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       }
 
       // Information hub
-      const { informationSections, informationArticles: baseInfoArticles, } = await import("@/data/information-hub-content");
+      const { informationSections, informationArticles: baseInfoArticles } =
+        await import("@/data/information-hub-content");
       const { extendedInformationArticles } = await import("@/data/information-hub-articles-extended");
       const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
       entries.push(
-        { url: `${baseUrl}/information`, lastModified: staticDate, changeFrequency: "weekly", priority: 0.9, alternates: hreflang("/information") },
-        { url: `${baseUrl}/information/articles`, lastModified: staticDate, changeFrequency: "weekly", priority: 0.8, alternates: hreflang("/information/articles") },
+        {
+          url: `${baseUrl}/information`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.9,
+          alternates: hreflang("/information"),
+        },
+        {
+          url: `${baseUrl}/information/articles`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/information/articles"),
+        },
       );
 
-      for (const section of informationSections.filter(s => s.published)) {
+      for (const section of informationSections.filter((s) => s.published)) {
         entries.push({
           url: `${baseUrl}/information/${section.slug}`,
           lastModified: staticDate,
@@ -270,7 +283,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
         });
       }
 
-      for (const article of allInfoArticles.filter(a => a.published)) {
+      for (const article of allInfoArticles.filter((a) => a.published)) {
         entries.push({
           url: `${baseUrl}/information/articles/${article.slug}`,
           lastModified: article.updated_at.toISOString(),
@@ -307,21 +320,23 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
 
   const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   // Track static slugs to avoid duplicates
-  const existingSlugs = new Set(entries.filter(e => e.url.includes("/blog/")).map(e => {
-    const parts = e.url.split("/blog/");
-    return parts[1] || "";
-  }));
+  const existingSlugs = new Set(
+    entries
+      .filter((e) => e.url.includes("/blog/"))
+      .map((e) => {
+        const parts = e.url.split("/blog/");
+        return parts[1] || "";
+      }),
+  );
 
   // Blog posts from DB — filter out slugs that are in BLOG_REDIRECTS.
   // Listing a redirected URL in the sitemap triggers GSC "Page redirects" warnings
   // and wastes Google's crawl budget on a 301 bounce.
   try {
     const { BLOG_REDIRECTS } = await import("@/lib/seo/redirect-map");
-    const redirectedSlugs = new Set<string>(
-      Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, ""))
-    );
+    const redirectedSlugs = new Set<string>(Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, "")));
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, siteId },
+      where: { published: true, deletedAt: null, siteId, canonical_slug: null },
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 500,
@@ -479,20 +494,20 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
 
   // Find the most recent blog post date and update the /blog listing page
   const latestBlogEntry = entries
-    .filter(e => e.url.includes("/blog/") && !e.url.includes("/category/"))
+    .filter((e) => e.url.includes("/blog/") && !e.url.includes("/category/"))
     .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())[0];
 
   if (latestBlogEntry) {
-    const blogListing = entries.find(e => e.url === `${baseUrl}/blog`);
+    const blogListing = entries.find((e) => e.url === `${baseUrl}/blog`);
     if (blogListing) blogListing.lastModified = latestBlogEntry.lastModified;
   }
 
   const latestNewsEntry = entries
-    .filter(e => e.url.includes("/news/"))
+    .filter((e) => e.url.includes("/news/"))
     .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())[0];
 
   if (latestNewsEntry) {
-    const newsListing = entries.find(e => e.url === `${baseUrl}/news`);
+    const newsListing = entries.find((e) => e.url === `${baseUrl}/news`);
     if (newsListing) newsListing.lastModified = latestNewsEntry.lastModified;
   }
 
@@ -521,7 +536,9 @@ export function invalidateSitemapCache(siteId: string): void {
 
 // ── Regenerate for all active sites ──────────────────────────────────────────
 
-export async function regenerateAllSitemapCaches(): Promise<{ sites: Array<{ siteId: string; urlCount: number; durationMs: number }> }> {
+export async function regenerateAllSitemapCaches(): Promise<{
+  sites: Array<{ siteId: string; urlCount: number; durationMs: number }>;
+}> {
   const activeSites = getActiveSiteIds();
   const results: Array<{ siteId: string; urlCount: number; durationMs: number }> = [];
 

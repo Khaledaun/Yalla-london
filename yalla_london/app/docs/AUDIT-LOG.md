@@ -1771,3 +1771,23 @@ Total test suite: 90 tests across 16 categories.
 - The blog page 301s on `canonical_slug`, NOT the `SeoRedirect` table — any consolidation path MUST set `canonical_slug` or the redirect silently won't fire.
 - Consolidation must resolve to a VERIFIED PUBLISHED terminal and re-point existing inbound redirects, or it creates multi-hop chains / redirects-to-dead-pages that drop the whole cluster from the index.
 - After mass v-variant generation, a cluster can end up with ALL versions unpublished (no live winner) — losing a top-volume query entirely. Audit for "redirects to unpublished" and "published winner exists per cluster".
+
+---
+
+## Session: June 13, 2026 (Batch 3) — Infrastructural Hardening: Sitemap, Self-Heal, Monitoring
+
+**Context:** Verified Arabic SSR is already wired correctly (serverLocale → effectiveLanguage → Arabic initial HTML; conditional hreflang) — KG-032 effectively resolved. All 328 published posts have real Arabic content. Focus shifted to durable infrastructure so the canonical/redirect mess (batch 2) can never silently rebuild.
+
+**Executed:**
+1. **Arabic title/meta hygiene (DB):** stripped baked "| Yalla[ London]" suffixes, past years, and literal newlines from `title_ar`/`meta_title_ar`/`meta_description_ar`. 0 issues remaining.
+2. **Sitemap hardening (code):** added `canonical_slug: null` to the published-post query in BOTH `app/sitemap.ts` and `lib/sitemap-cache.ts`. Previously redirecting pages were only kept out by the published flag + a static redirect map — DB `canonical_slug` redirects could leak into the sitemap. Now guaranteed excluded.
+3. **Canonical-health self-heal (code):** new zero-AI, idempotent section in `content-auto-fix` cron that runs every cycle: (a) unpublishes any page that is `published=true` with a `canonical_slug` (ghost-published 301s), (b) collapses multi-hop canonical chains to the terminal PUBLISHED winner via a loop-safe recursive CTE. This is the permanent fix for the 117-chain / redirect-loop class of bug.
+4. **Canonical-health monitoring (code):** cycle-health Check 25 surfaces ghost-published pages, multi-hop chains, and dead-end redirects on the dashboard with a one-tap "Fix Canonical Health" action (calls content-auto-fix).
+5. **Index-bloat cleanup (DB):** marked redirecting-loser URLs as `status='redirected'` so the indexing crons stop wasting IndexNow/crawl budget re-submitting pages that 301.
+
+**Result:** 0 ghost-published, 0 broken chains, 0 Arabic title issues, 328 clean published winners. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- The sitemap must exclude `canonical_slug IS NOT NULL`, not rely on the published flag alone — a published page that later gets a canonical would otherwise be advertised to Google while it 301s.
+- Canonical health needs a self-healing cron section, not just one-off fixes — the content pipeline's mass v-variant generation means chains/ghost-published pages re-accumulate; content-auto-fix now collapses them every run.
+- `prisma` accessed via dynamic import is loosely typed — `$queryRawUnsafe<T>()` generic args fail with TS2347; cast the result (`as Array<{...}>`) instead.

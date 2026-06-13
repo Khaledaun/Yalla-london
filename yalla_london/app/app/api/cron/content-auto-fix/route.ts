@@ -70,8 +70,55 @@ async function handleAutoFix(request: NextRequest) {
     affiliateDisclosuresInjected: 0,
     emptyParamAffiliatesStripped: 0,
     expediaLinksConverted: 0,
+    canonicalHealthFixed: 0,
     errors: [] as string[],
   };
+
+  // ── CANONICAL HEALTH SELF-HEAL (zero AI, idempotent, runs first) ──────────
+  // June 13 2026 audit found 117 multi-hop canonical chains, a redirect LOOP,
+  // and 13 "published" pages that secretly 301-redirect (canonical_slug set).
+  // These silently drop whole clusters from Google's index. This section keeps
+  // canonical state healthy on every run so the mess never rebuilds:
+  //   (a) a page that is published MUST NOT carry a canonical_slug (it would
+  //       301 away while still counting as live) → unpublish it.
+  //   (b) collapse multi-hop chains so every redirect points DIRECTLY at its
+  //       terminal published winner (one hop — Google gives up after ~5).
+  try {
+    // (a) Published pages must not redirect.
+    const fixedPublished = await prisma.$executeRawUnsafe(
+      `UPDATE "BlogPost" SET published = false, updated_at = NOW()
+       WHERE published = true AND canonical_slug IS NOT NULL`,
+    );
+    // (b) Collapse chains to terminal published winner (max 12 hops, loop-safe).
+    const fixedChains = await prisma.$executeRawUnsafe(
+      `WITH RECURSIVE walk AS (
+         SELECT slug AS origin, canonical_slug AS nxt, 0 AS d
+           FROM "BlogPost" WHERE canonical_slug IS NOT NULL
+         UNION ALL
+         SELECT w.origin, b.canonical_slug, w.d + 1
+           FROM walk w JOIN "BlogPost" b ON b.slug = w.nxt
+           WHERE b.canonical_slug IS NOT NULL AND w.d < 12 AND b.slug <> w.origin
+       ),
+       terminal AS (
+         SELECT w.origin, b.slug AS winner
+         FROM walk w JOIN "BlogPost" b ON b.slug = w.nxt
+         WHERE b.canonical_slug IS NULL AND b.published = true
+       )
+       UPDATE "BlogPost" p SET canonical_slug = t.winner, updated_at = NOW()
+       FROM terminal t
+       WHERE p.slug = t.origin AND p.canonical_slug <> t.winner AND p.slug <> t.winner`,
+    );
+    results.canonicalHealthFixed = Number(fixedPublished) + Number(fixedChains);
+    if (results.canonicalHealthFixed > 0) {
+      console.warn(
+        `[content-auto-fix] Canonical health: unpublished ${Number(fixedPublished)} published-with-canonical, collapsed ${Number(fixedChains)} chain hops`,
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    results.errors.push(`canonical-health: ${msg}`);
+    console.warn("[content-auto-fix] Canonical health self-heal failed:", msg);
+  }
 
   // NOTE: Sections 1 (stuck recovery), 2 (heading fix) moved to content-auto-fix-lite
 

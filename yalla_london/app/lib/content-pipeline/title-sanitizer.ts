@@ -61,6 +61,21 @@ const TRAILING_COLON = /\s*:\s*$/;
 // Trailing comma/semicolon (Marathon: "Training,") — May 17 2026 re-audit
 const TRAILING_PUNCTUATION = /\s*[,;]+\s*$/;
 
+// Brand suffix the AI sometimes bakes into the title. Google appends the site
+// name automatically, so "Title | Yalla London" shows as "Title | Yalla London
+// | Yalla London" in the SERP, AND when titles are length-capped the brand text
+// gets cut to "...| Yalla" — a CTR killer. Strip any trailing Yalla[ London].
+// (June 13 2026 audit: 40+ live titles ended in "| Yalla" or "| Yalla London".)
+const TRAILING_BRAND = /\s*[|–-]\s*Yalla(\s+London)?\s*$/i;
+
+// Dangling connective/stopword left at the end after a hard length truncation,
+// e.g. "...Luxury Guide for", "...Authentic Rituals in", "...Need to". These
+// read as broken/incomplete in the SERP and suppress CTR. Strip the trailing
+// orphan word (run twice to catch "...Guide for the" → "...Guide").
+// (June 13 2026 audit root cause: daily-content-generate hard-sliced at 60 chars
+// mid-word; this is the safety net so the artifact never ships again.)
+const TRAILING_DANGLING_WORD = /\s+(?:for|to|in|and|with|the|of|a|an|your|like|by|on|at|from|that|as|or|but|into|about)$/i;
+
 // Versioning slugs leaked from content-strategy ("V2", "V3", "(v2)", "-v3", "Version 2")
 // Lookahead keeps colon-separated subtitles intact: matches " V2" only before ":" or end-of-string.
 // Examples stripped: "Best London Hotels V2: Ultimate", "Guide v3", "Title (V2)"
@@ -143,7 +158,16 @@ export function sanitizeTitle(title: string): string {
   // Re-collapse whitespace after stripping (placeholders may leave double spaces)
   cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
 
+  // Strip baked-in brand suffix ("| Yalla London") — Google adds it automatically
+  cleaned = cleaned.replace(TRAILING_BRAND, "").trim();
+
   // Strip trailing punctuation artifacts (e.g., " -" or " |" left after stripping)
+  cleaned = cleaned.replace(/\s*[|–-]\s*$/, "").trim();
+
+  // Strip a dangling connective word left by an upstream hard truncation
+  // (twice, to unwind "...Guide for the" → "...Guide")
+  cleaned = cleaned.replace(TRAILING_DANGLING_WORD, "").trim();
+  cleaned = cleaned.replace(TRAILING_DANGLING_WORD, "").trim();
   cleaned = cleaned.replace(/\s*[|–-]\s*$/, "").trim();
 
   // Collapse duplicated subtitle ("Best Hotels - Best Hotels Guide" → "Best Hotels")
@@ -152,11 +176,15 @@ export function sanitizeTitle(title: string): string {
     cleaned = dupMatch[1].trim();
   }
 
-  // Enforce max 60 chars (truncate at word boundary)
+  // Enforce max 60 chars (truncate at word boundary, never mid-word)
   if (cleaned.length > 60) {
-    const truncated = cleaned.substring(0, 57);
+    const truncated = cleaned.substring(0, 60);
     const lastSpace = truncated.lastIndexOf(" ");
     cleaned = lastSpace > 20 ? truncated.substring(0, lastSpace) : truncated;
+    // A word-boundary cut can leave a dangling connective ("...Guide for") —
+    // strip it so the capped title still reads as a complete phrase.
+    cleaned = cleaned.replace(TRAILING_DANGLING_WORD, "").trim();
+    cleaned = cleaned.replace(/\s*[|–:,-]\s*$/, "").trim();
   }
 
   return cleaned;
@@ -275,6 +303,9 @@ export function hasTitleArtifacts(title: string): boolean {
     TRAILING_PUNCTUATION.test(title) ||
     VERSION_SUFFIX.test(title) ||
     BRACKET_PLACEHOLDER.test(title) ||
+    // June 13 2026 audit: baked-in brand suffix + truncation artifacts
+    TRAILING_BRAND.test(title) ||
+    TRAILING_DANGLING_WORD.test(title) ||
     // Starts with "EXPAND:" leak from content-strategy
     /^EXPAND:\s*/i.test(title)
   );

@@ -1722,3 +1722,29 @@ Total test suite: 90 tests across 16 categories.
 - **Updated by:** Claude Code during each audit session
 - **Referenced by:** CLAUDE.md, future audit runs
 - **Format:** Each audit gets a section with numbered findings (A{audit#}-{seq})
+
+---
+
+## Session: June 13, 2026 — SEO/AIO Performance Audit & 10-Improvement Sprint
+
+**Diagnosis (from live GSC + DB, last 28d):** Site is NOT failing to rank — 238 pages sit on page 1 (19 at pos 1–3, 219 at pos 4–10), avg position 12.6, 367 pages with impressions, 20,112 impressions / 409 clicks. The real bottlenecks were **CTR (2.0% vs expected 5–8% for these positions)** and **topical dilution**, not indexing.
+
+**Root causes found:**
+1. Systemic title truncation — `daily-content-generate` + `auto-seo-service` cut titles mid-word ("…Luxury Guide for", "…Rituals in") and `sanitizeTitle` left dangling stopwords after its 60-char cut.
+2. Baked-in "| Yalla London" brand suffix → SERP shows "…| Yalla" when length-capped.
+3. Stale dates in 39 titles (2024/2025) + 25 month references suppressing CTR.
+4. Live cannibalization clusters (afternoon-tea, novikov, spas, fine-dining, ajwa, edgware, ramadan, islamic-heritage) splitting impressions.
+5. Wrong meta titles (breakfast page → "Fine Dining", edgware → "Novikov") + 7 posts with English text in `title_ar`.
+6. `#1 impression page` (`which-tube-lines…-v2`, 4,521 impr, pos 8.7) stuck at 0.58% CTR on a stale "May…Luxury Guide" title.
+
+**Executed (10 improvements):**
+- **DB (immediate, measurable in GSC within days):** consolidated 15 duplicates → 7 winners via `canonical_slug` 301; cleaned stale years/brand suffixes/truncations on all titles + meta titles; hand-rewrote CTR titles + fixed meta mismatches on top 7 pages; translated 7 English `title_ar` to Arabic + fixed edgware meta leak; cleaned 63 meta descriptions (literal newlines, stale years); queued changed URLs for IndexNow re-crawl.
+- **Code (durable, prevents regression):** hardened `sanitizeTitle` (TRAILING_BRAND + TRAILING_DANGLING_WORD, word-boundary truncation) + `hasTitleArtifacts` detection (feeds pre-pub gate); replaced ellipsis/mid-word truncation in `auto-seo-service.optimizeTitle`; **seo-agent internal-link targets now prioritize striking-distance pages (GSC pos 4–20 w/ impressions)** so internal authority pushes near-page-1 pages upward.
+
+**Verification:** 0 stale-year titles, 0 brand/dangling titles, 0 `title_ar` Latin contamination, 0 newline meta descriptions remaining. TypeScript: 0 errors repo-wide.
+
+**Critical Rules Learned:**
+- Title truncation has TWO sources — hard `slice(0,60)` in generators AND word-boundary cuts that leave dangling stopwords. The shared `sanitizeTitle` must strip trailing connectives after ANY cut; generators must route through it.
+- Never bake "| Yalla London" into a title — Google appends the site name automatically; the baked suffix gets cut to "…| Yalla" under length caps.
+- Internal-link TARGET selection is a ranking lever: link to GSC striking-distance pages (pos 4–20 with impressions), not arbitrary recent posts.
+- For a site already ranking, CTR (titles/meta) + cannibalization consolidation move the needle faster than more content.

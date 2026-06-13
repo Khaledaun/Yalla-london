@@ -355,11 +355,51 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           .filter((p: { slug: string | null }) => p.slug)
           .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
 
+        // June 13 2026 audit: internal links should flow to STRIKING-DISTANCE
+        // pages (avg position 4–20 with real impressions) — those are one push
+        // from page 1 / top 3, so an inbound link there converts to a measurable
+        // rank gain. Previously targets were arbitrary recent/old posts. Build a
+        // priority set from the last 28 days of GSC data and link to those first.
+        const strikingSlugs = new Set<string>();
+        try {
+          const gscRows = await prisma.gscPagePerformance.findMany({
+            where: {
+              site_id: siteId,
+              date: { gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) },
+            },
+            select: { url: true, impressions: true, position: true },
+          });
+          const agg = new Map<string, { impr: number; posSum: number; n: number }>();
+          for (const r of gscRows as Array<{ url: string; impressions: number; position: number }>) {
+            const m = r.url.match(/\/blog\/([^/?#]+)/);
+            if (!m || r.url.includes("/ar/")) continue;
+            const cur = agg.get(m[1]) || { impr: 0, posSum: 0, n: 0 };
+            cur.impr += r.impressions || 0;
+            cur.posSum += (r.position || 0) * (r.impressions || 1);
+            cur.n += r.impressions || 1;
+            agg.set(m[1], cur);
+          }
+          for (const [slug, v] of agg) {
+            const avgPos = v.posSum / Math.max(1, v.n);
+            if (v.impr >= 10 && avgPos > 3.5 && avgPos <= 20) strikingSlugs.add(slug);
+          }
+        } catch (gscErr) {
+          console.warn("[seo-agent] striking-distance target query failed (non-fatal):", (gscErr as Error).message);
+        }
+
         for (const post of needsLinks.slice(0, 25)) {
           if (!post.content_en || post.content_en.length < 200) continue;
 
-          // Find 3 related posts (different slug, has title)
-          const relatedCandidates = publishedSlugs.filter((p: { slug: string }) => p.slug !== post.slug).slice(0, 6);
+          // Find 3 related posts (different slug, has title) — striking-distance
+          // targets first so internal authority pushes near-page-1 pages upward.
+          const relatedCandidates = publishedSlugs
+            .filter((p: { slug: string }) => p.slug !== post.slug)
+            .sort((a: { slug: string }, b: { slug: string }) => {
+              const aPri = strikingSlugs.has(a.slug) ? 0 : 1;
+              const bPri = strikingSlugs.has(b.slug) ? 0 : 1;
+              return aPri - bPri;
+            })
+            .slice(0, 6);
 
           if (relatedCandidates.length < 2) continue;
 

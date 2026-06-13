@@ -1748,3 +1748,80 @@ Total test suite: 90 tests across 16 categories.
 - Never bake "| Yalla London" into a title — Google appends the site name automatically; the baked suffix gets cut to "…| Yalla" under length caps.
 - Internal-link TARGET selection is a ranking lever: link to GSC striking-distance pages (pos 4–20 with impressions), not arbitrary recent posts.
 - For a site already ranking, CTR (titles/meta) + cannibalization consolidation move the needle faster than more content.
+
+---
+
+## Session: June 13, 2026 (Batch 2) — Canonical Chain/Loop De-tangle + Dead-Winner Recovery
+
+**Found (live DB):** 117 multi-hop canonical redirect chains, 1 redirect LOOP (`london-luxury-hammam-spas` ⇄ `-v4-c6f3dfbf`), 13 "published" pages secretly 301-redirecting, and several high-value clusters (halal-restaurants-london ×40+ versions, london-eye-tickets, selfridges) where EVERY version was unpublished — so redirects pointed to dead pages and no live winner existed for top-volume queries.
+
+**Executed (DB, live):**
+- Broke the hammam loop; made the 2,972-word article the published winner.
+- Unpublished the 13 secret-redirect pages (they 301 correctly now, out of "published" queries/sitemap).
+- Collapsed all 117 multi-hop chains to single-hop via recursive resolver → **0 broken chains**.
+- Re-pointed 70+ dead-cluster redirects to their correct LIVE winners, transferring ranking equity: halal-restaurants→`best-halal-restaurants-london-for-muslims`, fine-dining/michelin/spas/novikov→existing live winners.
+- Revived clean-slug winners for commercial queries with no live page: `london-eye-tickets-fast-track`, `selfridges-annual-visitors-v2`.
+- Queued revived winners for re-crawl. Verified: affiliate coverage already strong on top pages; Article+Breadcrumb JSON-LD already rendered server-side (no gap).
+
+**Code (durable — prevents recurrence):** `cannibalization-resolver.ts` now (1) resolves every group to a VERIFIED PUBLISHED terminal winner (skips if none), (2) sets `canonical_slug` directly on the duplicate (the field the blog page actually 301s on — it previously only wrote a SeoRedirect row), and (3) re-points any existing redirect aimed at the duplicate to the winner (collapses chains at creation time). This is the root-cause fix for the 117-chain mess.
+
+**Result:** broken chains 117→0, secret-redirect published pages 13→0, redirect loops 1→0, published winners 321→327. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- The blog page 301s on `canonical_slug`, NOT the `SeoRedirect` table — any consolidation path MUST set `canonical_slug` or the redirect silently won't fire.
+- Consolidation must resolve to a VERIFIED PUBLISHED terminal and re-point existing inbound redirects, or it creates multi-hop chains / redirects-to-dead-pages that drop the whole cluster from the index.
+- After mass v-variant generation, a cluster can end up with ALL versions unpublished (no live winner) — losing a top-volume query entirely. Audit for "redirects to unpublished" and "published winner exists per cluster".
+
+---
+
+## Session: June 13, 2026 (Batch 3) — Infrastructural Hardening: Sitemap, Self-Heal, Monitoring
+
+**Context:** Verified Arabic SSR is already wired correctly (serverLocale → effectiveLanguage → Arabic initial HTML; conditional hreflang) — KG-032 effectively resolved. All 328 published posts have real Arabic content. Focus shifted to durable infrastructure so the canonical/redirect mess (batch 2) can never silently rebuild.
+
+**Executed:**
+1. **Arabic title/meta hygiene (DB):** stripped baked "| Yalla[ London]" suffixes, past years, and literal newlines from `title_ar`/`meta_title_ar`/`meta_description_ar`. 0 issues remaining.
+2. **Sitemap hardening (code):** added `canonical_slug: null` to the published-post query in BOTH `app/sitemap.ts` and `lib/sitemap-cache.ts`. Previously redirecting pages were only kept out by the published flag + a static redirect map — DB `canonical_slug` redirects could leak into the sitemap. Now guaranteed excluded.
+3. **Canonical-health self-heal (code):** new zero-AI, idempotent section in `content-auto-fix` cron that runs every cycle: (a) unpublishes any page that is `published=true` with a `canonical_slug` (ghost-published 301s), (b) collapses multi-hop canonical chains to the terminal PUBLISHED winner via a loop-safe recursive CTE. This is the permanent fix for the 117-chain / redirect-loop class of bug.
+4. **Canonical-health monitoring (code):** cycle-health Check 25 surfaces ghost-published pages, multi-hop chains, and dead-end redirects on the dashboard with a one-tap "Fix Canonical Health" action (calls content-auto-fix).
+5. **Index-bloat cleanup (DB):** marked redirecting-loser URLs as `status='redirected'` so the indexing crons stop wasting IndexNow/crawl budget re-submitting pages that 301.
+
+**Result:** 0 ghost-published, 0 broken chains, 0 Arabic title issues, 328 clean published winners. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- The sitemap must exclude `canonical_slug IS NOT NULL`, not rely on the published flag alone — a published page that later gets a canonical would otherwise be advertised to Google while it 301s.
+- Canonical health needs a self-healing cron section, not just one-off fixes — the content pipeline's mass v-variant generation means chains/ghost-published pages re-accumulate; content-auto-fix now collapses them every run.
+- `prisma` accessed via dynamic import is loosely typed — `$queryRawUnsafe<T>()` generic args fail with TS2347; cast the result (`as Array<{...}>`) instead.
+
+---
+
+## Session: June 13, 2026 (Batch 4) — Growth: ItemList Schema + Inbound-Link Concentration
+
+**Context:** Batches 1–3 fixed/cleaned. Batch 4 shifts to GROWTH — pushing the ~219 page-1 pages (positions 4–10) toward the top 3. Diagnosis: content depth is adequate (most 1,000–1,900 words); the clearest lever is uneven internal-link distribution — top pages had only 1 inbound link (`best-halal-afternoon-tea` 512 impr → 1 link; `is-zuma-halal` 15 clicks → 1 link) while others had 25.
+
+**Executed:**
+1. **ItemList schema for listicles (code, `app/blog/[slug]/page.tsx`):** `generateStructuredData` now extracts numbered `<h2>N. Name</h2>` items (reliable — numeric prefix is a strong, low-false-positive signal; min 3 items) and emits `ItemList` JSON-LD alongside Article + BreadcrumbList. Earns list/carousel rich-result eligibility + stronger AI-Overview citation for the bulk of ranking pages (the "Best X in London" lists). Conditional render. 9 listicles qualify today; new ones get it automatically.
+2. **Inbound-link concentration (DB, live):** appended idempotent, topically-matched `Related:` links to under-linked high-value climbers — `best-halal-afternoon-tea` (1→3 inbound), `is-zuma-halal` (1→4), `best-halal-restaurants-london-for-muslims` (revived winner, now well-linked). Append-only `<p class="related-inline">`, guarded against duplicates, from hand-verified topical linker pages. Concentrates internal authority where it converts to rank gains.
+
+**Result:** ItemList schema live for 9 listicles (TypeScript 0 errors); 7 new inbound links on 3 climbers; changed pages queued for re-crawl. Companion: batch-1's striking-distance internal-link targeting (in seo-agent) keeps distributing authority to climbers on every run.
+
+**Critical Rules Learned:**
+- ItemList schema must extract items from a HIGH-PRECISION signal (numbered `<h2>N.`), not generic headings — an inaccurate ItemList is worse than none (Google can flag mismatched structured data).
+- Internal-link GROWTH is about concentration, not volume: identify high-impression pages with few INBOUND links (GSC impr + inbound count) and link to them from topically-matched authority pages. A page at position 9 with 512 impressions and 1 inbound link is the highest-ROI link target on the site.
+
+---
+
+## Session: June 13, 2026 (Batch 5) — Featured-Snippet Answer Capsules (AIO)
+
+**Context:** Final big AI-Overview lever. Audited the question-format pages (Is/Are/How/Why/Which… + "X vs Y") — ALL opened with flowery preamble ("Imagine stepping into…", "Two names dominate…") that buries the answer Google needs for featured snippets and AI Overviews.
+
+**Executed:**
+1. **Answer capsules (DB, live):** injected accurate, hand-written 40-60 word direct-answer capsules (`<p class="answer-capsule"><strong>Quick answer:</strong> …</p>`) immediately after the title heading on 8 high-value question pages: is-zuma-halal (129 impr, pos 4.6), are-there-halal-michelin (471 impr), harrods-vs-selfridges, london-travel-pass, london-pubs-close-early, dua-lipa-tickets, arsenal-liverpool-tickets, tube-strikes. Idempotent (guarded against re-injection), accurate answers (e.g., Zuma is NOT halal-certified — honest, snippet-worthy).
+2. **Gate recognition (code, `pre-publication-gate.ts`):** `checkAIOReadiness` now treats a leading `answer-capsule` / "Quick answer:" block as satisfying the direct-answer signal — the capsule is exactly what Google lifts.
+3. **Born answer-first (code, `phases.ts`):** drafting prompt now instructs that question-titled or comparison ("X vs Y") articles wrap their opening direct answer in `<p class="answer-capsule">` — so new content ships snippet-ready automatically.
+
+**Result:** 8 capsules live, gate + generation aligned, pages queued for re-crawl. TypeScript: 0 errors.
+
+**Critical Rules Learned:**
+- Featured snippets / AI Overviews require the direct answer in a self-contained block at the TOP of the page, not buried after preamble — a 40-60 word "Quick answer:" capsule right after the title heading is the highest-yield format.
+- Answer capsules must be ACCURATE even when the answer is "no" — an honest "Zuma is not halal-certified" capsule wins the snippet and trust; a vague/wrong answer loses both.
+- Inject capsules after the FIRST `</h2>` via non-global `regexp_replace` (first match only) so the capsule lands once, right under the title.

@@ -103,10 +103,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, report });
   } catch (error) {
     console.error("[cycle-health] Report generation failed:", error instanceof Error ? error.message : error);
-    return NextResponse.json(
-      { success: false, error: "Failed to generate cycle health report" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: "Failed to generate cycle health report" }, { status: 500 });
   }
 }
 
@@ -154,7 +151,9 @@ export async function POST(request: NextRequest) {
         data: { current_phase: "reservoir", updated_at: new Date() },
       });
       results.promotingFixed = fixed.count;
-    } catch { results.promotingFixed = 0; }
+    } catch {
+      results.promotingFixed = 0;
+    }
 
     // Run diagnostic agent
     try {
@@ -205,8 +204,12 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
       },
       select: {
-        job_name: true, status: true, error_message: true,
-        started_at: true, duration_ms: true, items_processed: true,
+        job_name: true,
+        status: true,
+        error_message: true,
+        started_at: true,
+        duration_ms: true,
+        items_processed: true,
       },
       orderBy: { started_at: "desc" },
       take: 500,
@@ -230,8 +233,13 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         ],
       },
       select: {
-        id: true, keyword: true, current_phase: true,
-        phase_attempts: true, last_error: true, phase_started_at: true, locale: true,
+        id: true,
+        keyword: true,
+        current_phase: true,
+        phase_attempts: true,
+        last_error: true,
+        phase_started_at: true,
+        locale: true,
       },
       take: 50,
       orderBy: { phase_attempts: "desc" },
@@ -256,18 +264,22 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     }),
 
     // 7. Indexing stats
-    (prisma.$queryRawUnsafe(
-      `SELECT status, COUNT(*) as count FROM url_indexing_status WHERE site_id = $1 GROUP BY status`,
-      siteId,
-    ) as Promise<Array<{ status: string; count: bigint }>>).catch(() => []),
+    (
+      prisma.$queryRawUnsafe(
+        `SELECT status, COUNT(*) as count FROM url_indexing_status WHERE site_id = $1 GROUP BY status`,
+        siteId,
+      ) as Promise<Array<{ status: string; count: bigint }>>
+    ).catch(() => []),
 
     // 8. AI usage in period
-    prisma.apiUsageLog.groupBy({
-      by: ["provider"],
-      where: { createdAt: { gte: periodStart }, siteId },
-      _sum: { totalTokens: true, estimatedCostUsd: true },
-      _count: true,
-    }).catch(() => []),
+    prisma.apiUsageLog
+      .groupBy({
+        by: ["provider"],
+        where: { createdAt: { gte: periodStart }, siteId },
+        _sum: { totalTokens: true, estimatedCostUsd: true },
+        _count: true,
+      })
+      .catch(() => []),
 
     // 9. Auto-fix logs in period
     prisma.autoFixLog.findMany({
@@ -296,8 +308,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
   ]);
 
   // ── Safe extractors ──
-  const safe = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
-    r.status === "fulfilled" ? r.value : fallback;
+  const safe = <T>(r: PromiseSettledResult<T>, fallback: T): T => (r.status === "fulfilled" ? r.value : fallback);
 
   const cronData = safe(cronLogs, []);
   const phases = safe(draftsByPhase, []);
@@ -315,13 +326,14 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
   const cronSuccess = cronData.filter((c) => c.status === "completed").length;
   const cronFail = cronData.filter((c) => c.status === "failed" || c.status === "error").length;
   const cronTotal = cronData.length;
-  const avgDuration = cronTotal > 0
-    ? Math.round(cronData.reduce((sum, c) => sum + (c.duration_ms || 0), 0) / cronTotal)
-    : 0;
+  const avgDuration =
+    cronTotal > 0 ? Math.round(cronData.reduce((sum, c) => sum + (c.duration_ms || 0), 0) / cronTotal) : 0;
 
   const aiTotal = (ai as Array<{ _count: number }>).reduce((s, a) => s + a._count, 0);
-  const aiCost = (ai as Array<{ _sum: { estimatedCostUsd: number | null } }>)
-    .reduce((s, a) => s + (a._sum.estimatedCostUsd || 0), 0);
+  const aiCost = (ai as Array<{ _sum: { estimatedCostUsd: number | null } }>).reduce(
+    (s, a) => s + (a._sum.estimatedCostUsd || 0),
+    0,
+  );
 
   const draftsInPipeline = phases
     .filter((p) => !["reservoir", "rejected", "published"].includes(p.current_phase))
@@ -376,7 +388,10 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       const avgAttempts = Math.round(drafts.reduce((s, d) => s + (d.phase_attempts || 0), 0) / drafts.length);
       const errors = drafts.map((d) => d.last_error).filter(Boolean);
       const commonError = findMostCommon(errors as string[]);
-      const keywords = drafts.slice(0, 3).map((d) => `"${d.keyword}"`).join(", ");
+      const keywords = drafts
+        .slice(0, 3)
+        .map((d) => `"${d.keyword}"`)
+        .join(", ");
 
       issues.push({
         id: `stuck-${phase}`,
@@ -386,9 +401,10 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         why: commonError
           ? `Most common error: "${truncate(commonError, 100)}". Average ${avgAttempts} attempts per draft.`
           : `Drafts averaging ${avgAttempts} attempts without advancing. Likely timeout or provider issues.`,
-        fix: phase === "assembly"
-          ? "Run Diagnose to force raw assembly fallback (skips AI, concatenates sections directly)"
-          : `Run Diagnose to reset attempt counters and unlock these drafts for retry`,
+        fix:
+          phase === "assembly"
+            ? "Run Diagnose to force raw assembly fallback (skips AI, concatenates sections directly)"
+            : `Run Diagnose to reset attempt counters and unlock these drafts for retry`,
         fixAction: {
           method: "POST",
           endpoint: "/api/admin/cycle-health",
@@ -402,7 +418,8 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
           avgAttempts,
           commonError: commonError ? truncate(commonError, 200) : null,
           drafts: drafts.slice(0, 5).map((d) => ({
-            keyword: d.keyword, attempts: d.phase_attempts,
+            keyword: d.keyword,
+            attempts: d.phase_attempts,
             error: truncate(d.last_error || "", 120),
             locale: d.locale,
           })),
@@ -438,13 +455,15 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       what: `"${name}" cron failing — ${successRate}% success rate (${failures.length}/${logs.length} failed)`,
       why: interpreted.plain + (interpreted.severity === "critical" ? " — this blocks downstream operations." : ""),
       fix: interpreted.fix,
-      fixAction: interpreted.fixAction ? {
-        method: "POST",
-        endpoint: "/api/admin/cycle-health",
-        payload: { action: "fix", issueId: `cron-${name}`, siteId: "" },
-        label: "Run Diagnostic Fix",
-        description: `Runs diagnostic agent to fix downstream effects of ${name} failures`,
-      } : null,
+      fixAction: interpreted.fixAction
+        ? {
+            method: "POST",
+            endpoint: "/api/admin/cycle-health",
+            payload: { action: "fix", issueId: `cron-${name}`, siteId: "" },
+            label: "Run Diagnostic Fix",
+            description: `Runs diagnostic agent to fix downstream effects of ${name} failures`,
+          }
+        : null,
       evidence: {
         jobName: name,
         totalRuns: logs.length,
@@ -477,13 +496,15 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         : hasDrafts
           ? "Wait for pipeline to complete, or run Diagnose to unstick any blocked drafts"
           : "Run Gen Topics to seed the pipeline, then run Build to start drafting",
-      fixAction: hasReservoir ? {
-        method: "POST",
-        endpoint: "/api/admin/cycle-health",
-        payload: { action: "fix", issueId: "no-published", siteId: "" },
-        label: "Publish Top Reservoir Article",
-        description: "Runs content-selector to promote the best reservoir article to published",
-      } : null,
+      fixAction: hasReservoir
+        ? {
+            method: "POST",
+            endpoint: "/api/admin/cycle-health",
+            payload: { action: "fix", issueId: "no-published", siteId: "" },
+            label: "Publish Top Reservoir Article",
+            description: "Runs content-selector to promote the best reservoir article to published",
+          }
+        : null,
       evidence: {
         publishedInPeriod: 0,
         reservoir,
@@ -654,11 +675,19 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: `${oscillatingDrafts} draft${oscillatingDrafts > 1 ? "s" : ""} may be oscillating between recovery systems`,
         why: "Drafts with 3-4 attempts and diagnostic-agent-reset errors that haven't progressed in 4+ hours are likely stuck in a reduce/increment cycle.",
         fix: "Run Diagnose to force-reject these drafts. They'll never recover automatically.",
-        fixAction: { endpoint: "/api/admin/cycle-health", method: "POST", payload: { action: "diagnose" }, label: "Force Reject", description: "Permanently reject oscillating drafts" },
+        fixAction: {
+          endpoint: "/api/admin/cycle-health",
+          method: "POST",
+          payload: { action: "diagnose" },
+          label: "Force Reject",
+          description: "Permanently reject oscillating drafts",
+        },
         evidence: { oscillatingDrafts },
       });
     }
-  } catch { /* ArticleDraft table may not exist */ }
+  } catch {
+    /* ArticleDraft table may not exist */
+  }
 
   // ── 12. FRAGILITY DETECTION: Orphaned "promoting" drafts (atomic claim leaked) ──
   try {
@@ -676,11 +705,19 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: `${promotingDrafts} draft${promotingDrafts > 1 ? "s" : ""} stuck in "promoting" phase for 30+ minutes`,
         why: "Drafts are atomically claimed as 'promoting' during content-selector. If the process crashed mid-promotion, they're orphaned.",
         fix: "Reset these drafts back to 'reservoir' so they can be promoted on the next run.",
-        fixAction: { endpoint: "/api/admin/cycle-health", method: "POST", payload: { action: "diagnose" }, label: "Reset to Reservoir", description: "Revert orphaned promoting drafts back to reservoir" },
+        fixAction: {
+          endpoint: "/api/admin/cycle-health",
+          method: "POST",
+          payload: { action: "diagnose" },
+          label: "Reset to Reservoir",
+          description: "Revert orphaned promoting drafts back to reservoir",
+        },
         evidence: { promotingDrafts },
       });
     }
-  } catch { /* ArticleDraft table may not exist */ }
+  } catch {
+    /* ArticleDraft table may not exist */
+  }
 
   // ── 13. FRAGILITY DETECTION: Duplicate Related sections on BlogPosts ──
   try {
@@ -703,13 +740,17 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         evidence: { postsWithDuplicateRelated },
       });
     }
-  } catch { /* BlogPost table may not exist */ }
+  } catch {
+    /* BlogPost table may not exist */
+  }
 
   // ── 14. FRAGILITY DETECTION: Campaign items targeting unpublished articles ──
   try {
-    const wastedCampaignItems = await (prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as count FROM "CampaignItem" ci JOIN "BlogPost" bp ON ci."targetId" = bp.id WHERE ci.status IN ('pending', 'processing') AND bp.published = false`
-    ) as Promise<Array<{ count: bigint }>>).catch(() => [{ count: BigInt(0) }]);
+    const wastedCampaignItems = await (
+      prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) as count FROM "CampaignItem" ci JOIN "BlogPost" bp ON ci."targetId" = bp.id WHERE ci.status IN ('pending', 'processing') AND bp.published = false`,
+      ) as Promise<Array<{ count: bigint }>>
+    ).catch(() => [{ count: BigInt(0) }]);
     const wastedCount = Number(wastedCampaignItems[0]?.count || 0);
     if (wastedCount > 0) {
       issues.push({
@@ -723,7 +764,9 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         evidence: { wastedCampaignItems: wastedCount },
       });
     }
-  } catch { /* CampaignItem/BlogPost table may not exist */ }
+  } catch {
+    /* CampaignItem/BlogPost table may not exist */
+  }
 
   // ── 15. AFFILIATE: CJ sync staleness ──
   try {
@@ -743,12 +786,20 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
           what: `CJ advertiser sync is ${Math.round(hoursSinceSync)}h stale`,
           why: `Last sync was ${lastAdvSync.createdAt.toISOString()} (status: ${lastAdvSync.status}). Expected every 6h.`,
           fix: "Run affiliate-sync-advertisers cron from Departures Board or check if CJ feature flags are disabled.",
-          fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-advertisers", payload: {}, label: "Sync Advertisers", description: "Run CJ advertiser sync cron" },
+          fixAction: {
+            method: "POST",
+            endpoint: "/api/affiliate/cron/sync-advertisers",
+            payload: {},
+            label: "Sync Advertisers",
+            description: "Run CJ advertiser sync cron",
+          },
           evidence: { hoursSinceSync: Math.round(hoursSinceSync), lastStatus: lastAdvSync.status },
         });
       }
     }
-  } catch { /* CJ tables may not exist yet */ }
+  } catch {
+    /* CJ tables may not exist yet */
+  }
 
   // ── 16. AFFILIATE: Zero coverage articles ──
   try {
@@ -760,7 +811,9 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     if (totalPublished > 5) {
       const withAffiliates = await prisma.blogPost.count({
         where: {
-          published: true, deletedAt: null, siteId: targetSiteId,
+          published: true,
+          deletedAt: null,
+          siteId: targetSiteId,
           OR: [
             { content_en: { contains: 'rel="sponsored' } },
             { content_en: { contains: "affiliate-recommendation" } },
@@ -783,7 +836,9 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         });
       }
     }
-  } catch { /* BlogPost table may not exist */ }
+  } catch {
+    /* BlogPost table may not exist */
+  }
 
   // ── 17. AFFILIATE: Commission sync errors ──
   try {
@@ -802,11 +857,19 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: `Last commission sync ${lastCommSync.status.toLowerCase()} with ${errorCount} error${errorCount !== 1 ? "s" : ""}`,
         why: `Commission sync ran at ${lastCommSync.createdAt.toISOString()} but encountered errors. Revenue data may be incomplete.`,
         fix: "Check CJ API credentials and run sync-commissions cron manually.",
-        fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-commissions", payload: {}, label: "Sync Commissions", description: "Run CJ commission sync cron" },
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/affiliate/cron/sync-commissions",
+          payload: {},
+          label: "Sync Commissions",
+          description: "Run CJ commission sync cron",
+        },
         evidence: { status: lastCommSync.status, errorCount, lastRun: lastCommSync.createdAt },
       });
     }
-  } catch { /* CJ tables may not exist yet */ }
+  } catch {
+    /* CJ tables may not exist yet */
+  }
 
   // ── Check 18: Markdown content in published posts (rendering bug) ──
   try {
@@ -824,11 +887,17 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       issues.push({
         id: "markdown-content-in-posts",
         category: "content",
-        severity: markdownPosts >= 5 ? "critical" as const : "warning" as const,
+        severity: markdownPosts >= 5 ? ("critical" as const) : ("warning" as const),
         what: `${markdownPosts} published article${markdownPosts > 1 ? "s" : ""} contain${markdownPosts === 1 ? "s" : ""} raw markdown instead of HTML`,
         why: "These articles show raw '# Heading' text to visitors instead of proper formatted headings. The content pipeline generated markdown instead of HTML.",
         fix: "Run content-auto-fix-lite cron to auto-convert markdown to HTML, or manually re-run the assembly phase for these drafts.",
-        fixAction: { method: "POST", endpoint: "/api/cron/content-auto-fix-lite", payload: {}, label: "Fix Markdown", description: "Run lite auto-fix to convert markdown to HTML" },
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/cron/content-auto-fix-lite",
+          payload: {},
+          label: "Fix Markdown",
+          description: "Run lite auto-fix to convert markdown to HTML",
+        },
         evidence: { markdownPostCount: markdownPosts },
       });
     }
@@ -855,7 +924,13 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: "No published news items found",
         why: "The news carousel on the homepage will show seed/placeholder data instead of real news. The london-news cron may not be running or may be failing.",
         fix: "Run the london-news cron manually from Departures Board, or check that it's enabled in feature flags.",
-        fixAction: { method: "POST", endpoint: "/api/cron/london-news", payload: {}, label: "Generate News", description: "Run london-news cron to generate fresh news items" },
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/cron/london-news",
+          payload: {},
+          label: "Generate News",
+          description: "Run london-news cron to generate fresh news items",
+        },
         evidence: { publishedNewsCount: 0 },
       });
     } else if (latestNews.published_at) {
@@ -864,12 +939,21 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         issues.push({
           id: "news-stale",
           category: "content",
-          severity: hoursSinceLastNews > 168 ? "critical" as const : "warning" as const,
+          severity: hoursSinceLastNews > 168 ? ("critical" as const) : ("warning" as const),
           what: `News is ${Math.round(hoursSinceLastNews / 24)} days old — last: "${(latestNews.headline_en || "").slice(0, 60)}"`,
           why: "Stale news makes the site look abandoned to visitors. The london-news cron runs daily at 6:20 UTC — it may be failing or disabled.",
           fix: "Run london-news cron manually or check CronJobLog for errors. Ensure XAI_API_KEY is set for Grok live news.",
-          fixAction: { method: "POST", endpoint: "/api/cron/london-news", payload: {}, label: "Generate News", description: "Run london-news cron for fresh content" },
-          evidence: { hoursSinceLastNews: Math.round(hoursSinceLastNews), lastHeadline: (latestNews.headline_en || "").slice(0, 80) },
+          fixAction: {
+            method: "POST",
+            endpoint: "/api/cron/london-news",
+            payload: {},
+            label: "Generate News",
+            description: "Run london-news cron for fresh content",
+          },
+          evidence: {
+            hoursSinceLastNews: Math.round(hoursSinceLastNews),
+            lastHeadline: (latestNews.headline_en || "").slice(0, 80),
+          },
         });
       }
     }
@@ -909,12 +993,18 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       issues.push({
         id: "pipeline-drafting-backlog",
         category: "pipeline",
-        severity: draftingCount > 150 ? "critical" as const : "warning" as const,
+        severity: draftingCount > 150 ? ("critical" as const) : ("warning" as const),
         what: `${draftingCount} drafts stuck in drafting phase`,
         why: "Content builder processes ONE drafting draft per 15-min run. At this backlog size, each draft waits days for its turn. Most will never complete.",
         fix: "The diagnostic agent will auto-reject drafts stuck >36h. To clear immediately: reject old drafts and create fresh ones from topic research.",
-        fixAction: { method: "POST", endpoint: "/api/admin/departures", payload: { path: "/api/cron/diagnostic-sweep" }, label: "Run Diagnostic", description: "Clear stuck drafting backlog" },
-        evidence: { draftingCount, estimatedClearTimeHours: Math.round(draftingCount * 15 / 60) },
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/admin/departures",
+          payload: { path: "/api/cron/diagnostic-sweep" },
+          label: "Run Diagnostic",
+          description: "Clear stuck drafting backlog",
+        },
+        evidence: { draftingCount, estimatedClearTimeHours: Math.round((draftingCount * 15) / 60) },
       });
     }
   } catch (err) {
@@ -979,7 +1069,12 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         why: "More drafts are being rejected than completing. This may indicate AI provider issues, bad topic quality, or recovery agent conflicts.",
         fix: "Check AI cost dashboard for timeout rates. Review rejected draft keywords for garbage entries.",
         fixAction: null,
-        evidence: { rejectedLast24h, reservoirLast24h, publishedLast24h, ratio: rejectedLast24h / Math.max(reservoirLast24h, 1) },
+        evidence: {
+          rejectedLast24h,
+          reservoirLast24h,
+          publishedLast24h,
+          ratio: rejectedLast24h / Math.max(reservoirLast24h, 1),
+        },
       });
     }
   } catch (err) {
@@ -1002,12 +1097,17 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     const draftTouches = new Map<string, Set<string>>();
     for (const log of recoveryLogs) {
       const summary = log.result_summary as Record<string, unknown> | null;
-      if (summary?.target && typeof summary.target === "string" && !summary.target.startsWith("garbage-") && !summary.target.startsWith("topic-")) {
+      if (
+        summary?.target &&
+        typeof summary.target === "string" &&
+        !summary.target.startsWith("garbage-") &&
+        !summary.target.startsWith("topic-")
+      ) {
         if (!draftTouches.has(summary.target)) draftTouches.set(summary.target, new Set<string>());
         draftTouches.get(summary.target)!.add(log.job_name);
       }
     }
-    const conflictCount = [...draftTouches.values()].filter(agents => agents.size >= 2).length;
+    const conflictCount = [...draftTouches.values()].filter((agents) => agents.size >= 2).length;
     if (conflictCount >= 3) {
       issues.push({
         id: "recovery-conflicts",
@@ -1038,7 +1138,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       take: 24,
       orderBy: { started_at: "desc" },
     });
-    const skippedRuns = createLogs.filter(log => {
+    const skippedRuns = createLogs.filter((log) => {
       const summary = log.result_summary as Record<string, unknown> | null;
       if (!summary) return false;
       const created = (summary.draftsCreated as number) || 0;
@@ -1082,12 +1182,12 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       take: 20,
     });
     // Filter out dedup markers (empty result_summary)
-    const realRuns = builderRuns.filter(r => {
+    const realRuns = builderRuns.filter((r) => {
       const summary = r.result_summary as Record<string, unknown> | null;
       return !summary || !summary.dedup_marker;
     });
     if (realRuns.length >= 5) {
-      const successCount = realRuns.filter(r => r.status === "completed").length;
+      const successCount = realRuns.filter((r) => r.status === "completed").length;
       const successRate = successCount / realRuns.length;
       if (successRate < ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE) {
         issues.push({
@@ -1097,8 +1197,19 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
           what: `Pipeline circuit breaker OPEN — ${(successRate * 100).toFixed(0)}% success rate (${successCount}/${realRuns.length} runs)`,
           why: `Content-builder success rate over ${ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS}h is below ${(ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE * 100).toFixed(0)}% threshold. Pipeline auto-paused to prevent AI budget waste.`,
           fix: "Check AI provider health, resolve root cause failures, then restart content-builder cron manually.",
-          fixAction: { method: "POST", endpoint: "/api/cron/diagnostic-sweep", payload: {}, label: "Run Diagnostics", description: "Run diagnostic agent to clear stuck drafts" },
-          evidence: { successRate, successCount, totalRuns: realRuns.length, windowHours: ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS },
+          fixAction: {
+            method: "POST",
+            endpoint: "/api/cron/diagnostic-sweep",
+            payload: {},
+            label: "Run Diagnostics",
+            description: "Run diagnostic agent to clear stuck drafts",
+          },
+          evidence: {
+            successRate,
+            successCount,
+            totalRuns: realRuns.length,
+            windowHours: ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS,
+          },
         });
       }
     }
@@ -1122,12 +1233,64 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: "No consumable topics available — pipeline will starve",
         why: "Zero topics with status ready/queued/planned/proposed. schedule-executor and content-builder-create have nothing to process.",
         fix: "Run weekly-topics cron or use Cockpit → Content → Research & Create to add topics.",
-        fixAction: { method: "POST", endpoint: "/api/cron/weekly-topics", payload: {}, label: "Generate Topics", description: "Run weekly topic research" },
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/cron/weekly-topics",
+          payload: {},
+          label: "Generate Topics",
+          description: "Run weekly topic research",
+        },
         evidence: { consumableTopics, activeDrafts },
       });
     }
   } catch (err) {
     console.warn("[cycle-health] Topic starvation check failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Check 25: Canonical health — redirect chains, loops, ghost-published ──
+  // Detects the SEO-killing patterns the June 13 2026 audit fixed: pages that
+  // are published yet carry a canonical_slug (301 away while counting as live),
+  // multi-hop redirect chains (Google quits after ~5 hops → page de-indexed),
+  // and redirects pointing at unpublished pages (dead-end redirects).
+  try {
+    const [ghostPublished, brokenChains, deadRedirects] = await Promise.all([
+      prisma.blogPost.count({ where: { published: true, canonical_slug: { not: null } } }),
+      prisma.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS n FROM "BlogPost" a
+         WHERE a.canonical_slug IS NOT NULL AND EXISTS (
+           SELECT 1 FROM "BlogPost" b WHERE b.slug = a.canonical_slug AND b.canonical_slug IS NOT NULL)`,
+      ),
+      prisma.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS n FROM "BlogPost" a
+         WHERE a.canonical_slug IS NOT NULL AND EXISTS (
+           SELECT 1 FROM "BlogPost" b WHERE b.slug = a.canonical_slug AND b.published = false AND b.canonical_slug IS NULL)`,
+      ),
+    ]);
+    const chainRows = brokenChains as Array<{ n: bigint }>;
+    const deadRows = deadRedirects as Array<{ n: bigint }>;
+    const chainCount = Number(chainRows?.[0]?.n ?? 0);
+    const deadCount = Number(deadRows?.[0]?.n ?? 0);
+    const total = ghostPublished + chainCount + deadCount;
+    if (total > 0) {
+      issues.push({
+        id: "canonical-health",
+        category: "seo",
+        severity: (ghostPublished > 0 || chainCount > 5 ? "critical" : "warning") as "critical" | "warning",
+        what: `${total} canonical-redirect problems (${ghostPublished} ghost-published, ${chainCount} multi-hop chains, ${deadCount} dead-end redirects)`,
+        why: "Pages that 301 while published, or redirect through chains/loops, get dropped from Google's index and waste crawl budget — entire topic clusters can disappear from search.",
+        fix: "Run content-auto-fix (its canonical-health self-heal unpublishes ghost-published pages and collapses chains to the published winner).",
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/cron/content-auto-fix",
+          payload: {},
+          label: "Fix Canonical Health",
+          description: "Self-heal redirect chains, loops, and ghost-published pages",
+        },
+        evidence: { ghostPublished, multiHopChains: chainCount, deadEndRedirects: deadCount },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Canonical health check failed:", err instanceof Error ? err.message : err);
   }
 
   // ── Calculate grade ──
@@ -1143,24 +1306,29 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 40 ? "D" : "F";
 
   const gradeExplanation =
-    grade === "A" ? "Platform operating smoothly. All systems healthy."
-    : grade === "B" ? "Minor issues detected but nothing blocking content production."
-    : grade === "C" ? "Several issues need attention. Content velocity may be impacted."
-    : grade === "D" ? "Significant problems detected. Content pipeline is partially blocked."
-    : "Critical failures. Content production is halted.";
+    grade === "A"
+      ? "Platform operating smoothly. All systems healthy."
+      : grade === "B"
+        ? "Minor issues detected but nothing blocking content production."
+        : grade === "C"
+          ? "Several issues need attention. Content velocity may be impacted."
+          : grade === "D"
+            ? "Significant problems detected. Content pipeline is partially blocked."
+            : "Critical failures. Content production is halted.";
 
   // ── Recommendations ──
   const recommendations: string[] = [];
   if (metrics.contentVelocity < 1 && periodHours >= 24)
     recommendations.push("Content velocity below 1/day — run Gen Topics + Build to feed the pipeline");
   if (metrics.cronSuccessRate < 90)
-    recommendations.push(`Cron success rate at ${metrics.cronSuccessRate}% — check Settings for misconfigured env vars`);
+    recommendations.push(
+      `Cron success rate at ${metrics.cronSuccessRate}% — check Settings for misconfigured env vars`,
+    );
   if (metrics.stuckDrafts > 3)
     recommendations.push("Multiple stuck drafts — run Diagnose to auto-fix or reject beyond-repair items");
   if (metrics.avgSeoScore < 60 && metrics.avgSeoScore > 0)
     recommendations.push(`Average SEO score ${metrics.avgSeoScore} — below 70 threshold. Run content-auto-fix.`);
-  if (issues.length === 0)
-    recommendations.push("All clear! System is operating within healthy parameters.");
+  if (issues.length === 0) recommendations.push("All clear! System is operating within healthy parameters.");
 
   return {
     generatedAt: now.toISOString(),
@@ -1304,7 +1472,12 @@ async function executeFix(request: NextRequest, issueId: string, siteId: string)
       const diagResult = await runDiagnosticSweep(resolvedSiteId);
       addStep("Diagnostic sweep complete", "done", diagResult.summary);
 
-      return NextResponse.json({ success: true, issueId, steps, result: { sweeper: json, diagnostic: diagResult.summary } });
+      return NextResponse.json({
+        success: true,
+        issueId,
+        steps,
+        result: { sweeper: json, diagnostic: diagResult.summary },
+      });
     }
 
     if (issueId === "cj-commission-sync-error") {
@@ -1331,7 +1504,12 @@ async function executeFix(request: NextRequest, issueId: string, siteId: string)
       const comJson = await comRes.json().catch(() => ({}));
       addStep("Commission sync", comRes.ok ? "done" : "failed", JSON.stringify(comJson).substring(0, 200));
 
-      return NextResponse.json({ success: comRes.ok, issueId, steps, result: { advertisers: advJson, commissions: comJson } });
+      return NextResponse.json({
+        success: comRes.ok,
+        issueId,
+        steps,
+        result: { advertisers: advJson, commissions: comJson },
+      });
     }
 
     if (issueId === "pipeline-drafting-backlog") {
@@ -1353,7 +1531,12 @@ async function executeFix(request: NextRequest, issueId: string, siteId: string)
       const json = await res.json().catch(() => ({}));
       addStep("Content builder complete", res.ok ? "done" : "failed", JSON.stringify(json).substring(0, 200));
 
-      return NextResponse.json({ success: true, issueId, steps, result: { diagnostic: result.summary, builder: json } });
+      return NextResponse.json({
+        success: true,
+        issueId,
+        steps,
+        result: { diagnostic: result.summary, builder: json },
+      });
     }
 
     if (issueId.startsWith("cron-")) {
@@ -1440,7 +1623,10 @@ function findMostCommon(arr: string[]): string | null {
   let maxCount = 0;
   let maxKey = arr[0];
   for (const [key, count] of counts) {
-    if (count > maxCount) { maxCount = count; maxKey = key; }
+    if (count > maxCount) {
+      maxCount = count;
+      maxKey = key;
+    }
   }
   return maxKey;
 }

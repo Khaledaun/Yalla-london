@@ -2131,17 +2131,28 @@ Constraints:
         const AFFILIATE_LINK_RE =
           /(<a\b[^>]*\bhref="[^"]*\/api\/affiliate\/click[^"]*"[^>]*>)|(<a\b[^>]*\brel="[^"]*\bsponsored\b[^"]*"[^>]*>)|(<a\b[^>]*\bhref="https?:\/\/(?:[^"\/]*\.)?(?:booking\.com|expedia\.com|hotels\.com|agoda\.com|getyourguide\.com|viator\.com|thefork\.|opentable\.|tripadvisor\.|stubhub\.|blacklane\.com|welcomepickups\.com|tiqets\.com|ticketnetwork\.com|klook\.com|skyscanner\.|sportsevents365\.com|halalbooking\.com|universe\.com|eticketing\.co\.uk|travelpayouts\.com|tp\.media|stay22\.com)[^"]*"[^>]*>)/i;
 
-        const candidates = await prisma.blogPost.findMany({
-          where: {
-            siteId: { in: activeSiteIds },
-            published: true,
-            deletedAt: null,
-            content_en: { not: "" },
-          },
-          select: { id: true, slug: true, siteId: true, content_en: true, content_ar: true },
-          orderBy: { updated_at: "desc" },
-          take: 50,
-        });
+        // Two-pass scan (newest 50 + oldest 50, deduped) so the disclosure
+        // backlog on OLDER articles actually drains — a single newest-first
+        // window churns over recently-touched posts and never reaches them
+        // (June 14 2026 briefing flagged 25 older pages missing disclosure).
+        const [discNewest, discOldest] = await Promise.all([
+          prisma.blogPost.findMany({
+            where: { siteId: { in: activeSiteIds }, published: true, deletedAt: null, content_en: { not: "" } },
+            select: { id: true, slug: true, siteId: true, content_en: true, content_ar: true },
+            orderBy: { updated_at: "desc" },
+            take: 50,
+          }),
+          prisma.blogPost.findMany({
+            where: { siteId: { in: activeSiteIds }, published: true, deletedAt: null, content_en: { not: "" } },
+            select: { id: true, slug: true, siteId: true, content_en: true, content_ar: true },
+            orderBy: { updated_at: "asc" },
+            take: 50,
+          }),
+        ]);
+        const discSeen = new Set<string>();
+        const candidates = [...discNewest, ...discOldest].filter((p) =>
+          discSeen.has(p.id) ? false : (discSeen.add(p.id), true),
+        );
 
         const MAX_DISCLOSURE_INJECTIONS = 20;
         let injected = 0;

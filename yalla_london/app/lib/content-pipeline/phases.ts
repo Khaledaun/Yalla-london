@@ -130,6 +130,28 @@ function getLocaleLabel(locale: string): string {
   return isArabic(locale) ? "Arabic (original, not translated)" : "English";
 }
 
+/**
+ * Returns a concise expert-persona prefix derived from the site's configured
+ * systemPrompt (the credential/role statement). Best-in-class content is written
+ * in a CREDENTIALED EXPERT voice with a clear audience — not a generic "travel
+ * writer". The 8-phase pipeline previously used hardcoded generic personas and
+ * ignored the rich per-site personas in config/sites.ts; this wires them in.
+ * Kept to the first 1-2 sentences so timeout-sensitive prompts don't bloat.
+ */
+function getExpertPersona(site: SiteConfig, locale: string): string {
+  const full = (isArabic(locale) ? site.systemPromptAR : site.systemPromptEN) || "";
+  const trimmed = full
+    .split(/(?<=[.!؟])\s+/)
+    .slice(0, 2)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (
+    trimmed ||
+    `You are a senior ${site.destination} travel expert writing for ${site.name} with genuine first-hand local knowledge.`
+  );
+}
+
 // ─── Phase 1: Research ───────────────────────────────────────────────────────
 
 export async function phaseResearch(
@@ -204,7 +226,7 @@ Return JSON:
   try {
     const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a travel SEO researcher for the ${site.destination} market targeting all international visitors and tourists. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
+      systemPrompt: `${getExpertPersona(site, draft.locale)} Acting as an SEO research analyst, map the search intent, the salient subtopics/entities a topical authority must cover, and the real questions searchers ask. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 3500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
@@ -314,6 +336,13 @@ The compared entities will likely come from: ${longTails.slice(0, 3).join(", ") 
 
 Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".${enrichment}${comparisonAddendum}
 
+BEST-IN-CLASS STRUCTURE (mandatory — model the top-ranking, AI-Overview-cited pages):
+1. FIRST detect the dominant SEARCH INTENT behind "${draft.keyword}" (informational / commercial-comparison / transactional-booking / local) and match the format to it — a buyer's-guide for commercial intent, a how-to for informational, a ranked list for "best" queries.
+2. OPENING SECTION must be "Key Takeaways" — 3-5 scannable bullet points that answer the query up front (AI Overviews and snippets lift these). Place it before any prose.
+3. Cover the SALIENT SUBTOPICS/ENTITIES a topical authority would (e.g., for restaurants: cuisines, neighbourhoods, price tiers, booking, what-to-order) — breadth signals topical authority to Google's NLP.
+4. Include a dedicated "Frequently Asked Questions" section near the end answering the 3-5 real questions${questions.length ? ` (use: ${questions.slice(0, 5).join("; ")})` : " people also ask about this topic"} — each answer a self-contained 40-60 word paragraph (these win "People Also Ask" + AIO citations).
+5. Every H2 phrased as a clear sub-question or specific claim; each opens with a 40-60 word direct answer.
+
 Research: ${JSON.stringify(research).substring(0, 2000)}
 
 Return JSON:
@@ -352,7 +381,7 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
   try {
     const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 12_000) : 35_000;
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines with 6-10 sections targeting 1500-2500 words, 3+ internal links, 2+ affiliate placements. Never include years in titles — keep them evergreen. Each H2 must open with a 40-60 word direct answer (essential for AI search citations).
+      systemPrompt: `${getExpertPersona(site, draft.locale)} Acting as a content architect, create structured, search-intent-matched, SEO-optimized outlines with 6-10 sections targeting 1500-2500 words, 3+ internal links, 2+ affiliate placements. Lead with a "Key Takeaways" section and include a "Frequently Asked Questions" section. Never include years in titles — keep them evergreen. Each H2 must open with a 40-60 word direct answer (essential for AI search citations).
 
 AUTHENTICITY: Include 1 sensory/experiential detail per section, 1 insider tip per section, 1 honest caveat, price details (£/€/$) in 3+ sections.${isArabic(draft.locale) ? " Arabic: use نصيحة/نصيحتنا for tips, رائحة/مذاق/أجواء for sensory." : ""}
 GEO CITABILITY: 1+ statistic per section, 2+ source attributions, 40-80 word self-contained opening paragraphs, 1+ comparison table.
@@ -566,7 +595,7 @@ CRITICAL JSON RULES:
         const timeoutCap = isArabic(draft.locale) ? 80_000 : 65_000;
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
-          systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
+          systemPrompt: `${getExpertPersona(site, draft.locale)} Write from genuine first-hand experience with specific local knowledge and an authoritative, helpful voice (Google E-E-A-T). Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
           maxTokens: useMinimalPrompt ? 1000 : isArabic(draft.locale) ? 3500 : 1500,
           temperature: 0.7,
           timeoutMs: sectionTimeout,
@@ -796,7 +825,7 @@ Return JSON:
     const bufferMs = isArabic(draft.locale) ? 3_000 : 5_000;
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
+      systemPrompt: `${getExpertPersona(site, draft.locale)} Acting as senior editor, polish for quality, coherence, factual accuracy and SEO — tighten flowery preamble so the article answers fast, keep the expert first-hand voice, and ensure the opening "Key Takeaways" and a "Frequently Asked Questions" section are present. The final article MUST be at least 1,500 words — expand if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 1500 : 1000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
@@ -1181,6 +1210,11 @@ export async function phaseSeo(draft: DraftRecord, site: SiteConfig, budgetRemai
 
 Optimize this ${isArabic(draft.locale) ? "Arabic" : "English"} article's SEO metadata for the keyword "${draft.keyword}".
 
+CTR-DRIVEN METADATA RULES (these win clicks on page 1, not just rankings):
+- metaTitle: 50-60 chars, FRONT-LOAD the primary keyword, add ONE specificity/value hook (a number, "Guide", "2026", or a benefit). Match the searcher's intent. NO brand suffix ("| ${site.name}") — Google appends it automatically. Never end on a dangling word or punctuation.
+- metaDescription: 120-160 chars, lead with the direct benefit/answer, include the primary keyword naturally, and end with a soft action cue ("Compare picks", "Book ahead", "See the full list"). Make it read like the best result on the page, not a summary.
+- For question keywords, the metaTitle should BE the question; for "best/top" keywords, include the count.
+
 Article HTML (first 2000 chars): ${html.substring(0, 2000)}
 Research data: ${JSON.stringify(research).substring(0, 1000)}
 Schema type: ${(outline.schemaType as string) || "Article"}
@@ -1218,7 +1252,7 @@ Return JSON:
   try {
     const seoTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const seoResult = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}${getTemplateHygieneDirectives(draft.locale)}`,
+      systemPrompt: `You are a technical SEO specialist for "${site.name}" (${site.destination} travel). Write metadata that wins CLICKS on page 1, not just rankings: front-loaded keyword, intent-matched, compelling, correct length (title 50-60, description 120-160), no brand suffix, no dangling words. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}${getTemplateHygieneDirectives(draft.locale)}`,
       maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
       timeoutMs: seoTimeout,

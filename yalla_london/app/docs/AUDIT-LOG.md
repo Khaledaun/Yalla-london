@@ -1825,3 +1825,26 @@ Total test suite: 90 tests across 16 categories.
 - Featured snippets / AI Overviews require the direct answer in a self-contained block at the TOP of the page, not buried after preamble — a 40-60 word "Quick answer:" capsule right after the title heading is the highest-yield format.
 - Answer capsules must be ACCURATE even when the answer is "no" — an honest "Zuma is not halal-certified" capsule wins the snippet and trust; a vague/wrong answer loses both.
 - Inject capsules after the FIRST `</h2>` via non-global `regexp_replace` (first match only) so the capsule lands once, right under the title.
+
+---
+
+## Session: June 14, 2026 — Content Generation & SEO Prompt Overhaul (best-in-class)
+
+**Review:** Audited the full content-generation + SEO prompt stack (phases.ts 8-phase pipeline, daily-content-generate, config/sites.ts personas, pre-pub gate). The legacy daily-content path already had strong AIO directives, but the PRIMARY 8-phase pipeline had two best-in-class gaps.
+
+**Gaps found & fixed (`lib/content-pipeline/phases.ts`):**
+1. **Persona disconnect (biggest gap):** the 8-phase pipeline used generic hardcoded personas ("You are a travel writer creating content for all visitors") and IGNORED the rich per-site credentialed `systemPromptEN`/`systemPromptAR` in config/sites.ts. Added `getExpertPersona(site, locale)` (extracts the site's 1-2 sentence credential statement) and wired it into the research, outline, drafting, and assembly system prompts — the pipeline now writes in each site's expert E-E-A-T voice with its specific audience.
+2. **Outline structure → best-in-class:** added mandatory (a) dominant SEARCH-INTENT detection + format matching, (b) a "Key Takeaways" opening section (snippet/AIO-friendly), (c) salient-entity/topical-authority breadth, (d) a dedicated "Frequently Asked Questions" section with self-contained 40-60 word answers (wins People-Also-Ask + AI Overview citations).
+3. **CTR-driven metadata:** phaseSeo now specifies front-loaded keyword, intent-match, 50-60/120-160 char limits, no auto-appended brand suffix, no dangling words, and a soft action cue in the description — written to win clicks on page 1, not just rank.
+4. **Assembly editor:** now tightens flowery preamble (answer-fast), preserves the expert first-hand voice, and verifies Key Takeaways + FAQ are present.
+
+**Kept (already best-in-class):** daily-content-generate `getAIOOptimizationDirectives` (atomic-answer format, per-content-type), research phase (intent + subtopics + content gaps + citability sources), drafting authenticity/GEO/factual-accuracy rules, batch-5 answer-capsule gate recognition.
+
+**Constraint respected:** additions kept concise — the drafting phase is timeout-sensitive (has a circuit-breaker minimal prompt), so persona is 1-2 sentences (~30 tokens), not the full per-site prompt.
+
+**Result:** TypeScript 0 errors. New articles inherit the site's expert voice, intent-matched structure, Key Takeaways + FAQ, and CTR-optimized metadata automatically.
+
+**Critical Rules Learned:**
+- The 8-phase pipeline and the legacy daily-content path are SEPARATE prompt stacks — improving one does not improve the other. Best-in-class directives must be applied to both (or shared).
+- The rich per-site personas in config/sites.ts were dead weight for the main pipeline until wired in via `getExpertPersona`. Always confirm config-defined prompts are actually consumed by the active generation path.
+- Prompt additions to the drafting phase must be minimal — it is the timeout bottleneck with a circuit-breaker fallback; bloat there causes generation failures, not better content.

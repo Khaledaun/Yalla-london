@@ -1848,3 +1848,31 @@ Total test suite: 90 tests across 16 categories.
 - The 8-phase pipeline and the legacy daily-content path are SEPARATE prompt stacks — improving one does not improve the other. Best-in-class directives must be applied to both (or shared).
 - The rich per-site personas in config/sites.ts were dead weight for the main pipeline until wired in via `getExpertPersona`. Always confirm config-defined prompts are actually consumed by the active generation path.
 - Prompt additions to the drafting phase must be minimal — it is the timeout bottleneck with a circuit-breaker fallback; bloat there causes generation failures, not better content.
+
+---
+
+## Session: June 14, 2026 — Comprehensive Per-Page Content Auditor
+
+**Problem:** The per-page audit (`/api/admin/per-page-audit`) was shallow — it only read the stored `seo_score`, indexing status, word count, and CTR. It never analyzed the actual page HTML, so it could not audit links, images, fonts, AIO, internal backlinks, or CTAs.
+
+**Built — two-layer per-page audit architecture:**
+
+1. **Static layer (`lib/audit/page-content-auditor.ts` — NEW):** `auditPageContent(input, ctx)` analyzes the stored HTML + DB context and returns a per-dimension scorecard (0-100 each + weighted overall + issue list + raw signals) across 7 dimensions:
+   - **links** — broken internal links (target not live), links to redirected pages, placeholder slugs
+   - **images** — missing alt text, missing width/height (CLS risk), non-WebP, broken/placeholder src, missing featured image
+   - **fonts** — inline font-family/size overrides that break the design system
+   - **seo** — title/meta length, duplicate body H1, H2 count, skipped heading levels, keyword in title/first-para/H2
+   - **aio** — answer capsule, question H2s, Key Takeaways, FAQ, stat density, comparison table
+   - **internalLinks** — outbound count, generic-anchor quality, orphan/inbound status
+   - **ctas** — affiliate/booking CTA presence, top-half distribution, FTC disclosure
+   - `buildInboundCounts()` computes site-wide inbound-link counts in ONE O(n) pass (orphan detection without O(n²)).
+
+2. **Rendered layer (contract documented):** photo alignment, font rendering (FOUT/FOIT), real CLS, and mobile responsiveness CANNOT be judged from HTML — they need a browser. `VisualAuditResult` documents the integration contract for the two existing channels: Chrome Bridge (Claude Chrome — live DOM + computed styles + screenshots → `/api/admin/chrome-bridge/report`) and PageSpeed Insights (`lib/performance/site-auditor.ts` — CLS/LCP/font-display/aspect-ratio). Run sampled/on-demand for top pages (each is one headless render).
+
+**Wired into `/api/admin/per-page-audit`:** every page now returns a `scorecard`; the summary adds `avgPageScore`, per-dimension `dimAverages`, and counts for `orphanPages`, `pagesNoCta`, `pagesBrokenLinks`, `pagesWeakAio`. Pure functions, zero extra DB calls (context fetched once). TypeScript 0 errors.
+
+**Follow-up (not done):** the `/admin/cockpit/per-page-audit` frontend can render the new scorecard (dimension bars + per-page drill-down) — API is ready; UI is additive.
+
+**Critical Rules Learned:**
+- Per-page auditing splits cleanly into a STATIC layer (links/SEO/AIO/CTAs/alt/internal-links — all in HTML+DB, cheap, run on every page) and a RENDERED layer (visual alignment/fonts/CLS — needs a browser, expensive, sample only). Don't try to judge visual alignment from HTML; don't pay for a headless render to count internal links.
+- Orphan/inbound-link detection must be a single O(n) tally pass (`buildInboundCounts`), never an O(n²) per-page scan of every other page's content.

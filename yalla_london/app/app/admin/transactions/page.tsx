@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminButton,
+  AdminKPICard,
+} from '@/components/admin/admin-ui'
 import {
   CreditCard, Search, Download, DollarSign, TrendingUp,
-  ArrowUpRight, ArrowDownRight, Filter, Calendar
+  ArrowUpRight, Filter, Calendar
 } from 'lucide-react'
 
 const transactions = [
@@ -75,135 +78,206 @@ export default function TransactionsPage() {
   const todayRevenue = 24.98
   const pendingAmount = transactions.filter(t => t.status === 'pending').reduce((sum, t) => sum + t.amount, 0)
 
+  const filteredTransactions = searchQuery
+    ? transactions.filter(t =>
+        t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.status.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : transactions
+
   return (
-    <MophyAdminLayout pageTitle="Transactions">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transactions</h1>
-            <p className="text-gray-500 dark:text-gray-400">
-              Track all purchases and payment activity
-            </p>
-          </div>
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" /> Export CSV
-          </Button>
-        </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Transactions"
+        subtitle="Track all purchases and payment activity"
+        action={
+          <AdminButton
+            size="sm"
+            onClick={() => {
+              const csv = ['ID,Customer,Email,Product,Amount,Status,Date', ...transactions.map(t =>
+                `"${t.id}","${t.customer}","${t.email}","${t.product}","${t.amount}","${t.status}","${t.date}"`
+              )].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = 'transactions.csv'; a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </AdminButton>
+        }
+      />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</div>
-                <div className="text-sm text-gray-500">Total Revenue</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1">
-                  <span className="text-2xl font-bold">£{todayRevenue}</span>
-                  <ArrowUpRight className="w-4 h-4 text-green-500" />
-                </div>
-                <div className="text-sm text-gray-500">Today</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{transactions.length}</div>
-                <div className="text-sm text-gray-500">Total Transactions</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <CreditCard className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">£{pendingAmount.toFixed(2)}</div>
-                <div className="text-sm text-gray-500">Pending</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4">
-              <div className="relative flex-1 min-w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search by customer, email, or transaction ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" /> Filter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Transactions Table */}
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {transactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-gray-50">
-                    <td className="p-4 font-mono text-sm">{txn.id}</td>
-                    <td className="p-4">
-                      <div>
-                        <div className="font-medium">{txn.customer}</div>
-                        <div className="text-sm text-gray-500">{txn.email}</div>
-                      </div>
-                    </td>
-                    <td className="p-4">{txn.product}</td>
-                    <td className="p-4 font-medium">£{txn.amount}</td>
-                    <td className="p-4">
-                      <Badge className={
-                        txn.status === 'completed' ? 'bg-green-500' :
-                        txn.status === 'pending' ? 'bg-amber-500' :
-                        'bg-red-500'
-                      }>
-                        {txn.status}
-                      </Badge>
-                    </td>
-                    <td className="p-4 text-sm text-gray-500">{txn.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <AdminKPICard
+          value={`\u00A3${totalRevenue.toFixed(2)}`}
+          label="Total Revenue"
+          color="#2D5A3D"
+        />
+        <AdminKPICard
+          value={`\u00A3${todayRevenue}`}
+          label="Today"
+          color="#3B7EA1"
+          trend={{ value: 12, positive: true }}
+        />
+        <AdminKPICard
+          value={String(transactions.length)}
+          label="Total Transactions"
+          color="#C49A2A"
+        />
+        <AdminKPICard
+          value={`\u00A3${pendingAmount.toFixed(2)}`}
+          label="Pending"
+          color="#C8322B"
+        />
       </div>
-    </MophyAdminLayout>
+
+      {/* Filters */}
+      <AdminCard className="mb-4">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#A8A29E' }} />
+            <input
+              className="admin-input pl-10"
+              placeholder="Search by customer, email, or transaction ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <AdminButton
+            onClick={() => setSearchQuery(searchQuery === 'completed' ? '' : 'completed')}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            {searchQuery === 'completed' ? 'Show All' : 'Completed'}
+          </AdminButton>
+        </div>
+      </AdminCard>
+
+      {/* Transactions Table — Desktop */}
+      <AdminCard className="hidden md:block overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(214,208,196,0.5)' }}>
+                {['Transaction ID', 'Customer', 'Product', 'Amount', 'Status', 'Date'].map((h) => (
+                  <th
+                    key={h}
+                    className="p-3 text-left"
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 9,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '1.5px',
+                      color: '#A8A29E',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map((txn) => (
+                <tr
+                  key={txn.id}
+                  className="transition-colors"
+                  style={{ borderBottom: '1px solid rgba(214,208,196,0.3)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FAF8F4')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <td className="p-3">
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#3B7EA1', letterSpacing: '0.5px' }}>
+                      {txn.id}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>
+                        {txn.customer}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                        {txn.email}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                      {txn.product}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                      {'\u00A3'}{txn.amount}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <AdminStatusBadge
+                      status={
+                        txn.status === 'completed' ? 'success' :
+                        txn.status === 'pending' ? 'pending' :
+                        'error'
+                      }
+                      label={txn.status}
+                    />
+                  </td>
+                  <td className="p-3">
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                      {txn.date}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </AdminCard>
+
+      {/* Transactions Cards — Mobile */}
+      <div className="md:hidden space-y-2">
+        {filteredTransactions.map((txn) => (
+          <AdminCard key={txn.id}>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13, color: '#1C1917' }}>
+                  {txn.customer}
+                </span>
+                <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                  {txn.email}
+                </p>
+              </div>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
+                {'\u00A3'}{txn.amount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AdminStatusBadge
+                  status={
+                    txn.status === 'completed' ? 'success' :
+                    txn.status === 'pending' ? 'pending' :
+                    'error'
+                  }
+                  label={txn.status}
+                />
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                  {txn.id}
+                </span>
+              </div>
+              <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                {txn.date}
+              </span>
+            </div>
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 6 }}>
+              {txn.product}
+            </p>
+          </AdminCard>
+        ))}
+      </div>
+    </div>
   )
 }

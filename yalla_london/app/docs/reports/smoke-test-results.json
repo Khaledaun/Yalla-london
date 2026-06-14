@@ -1,0 +1,199 @@
+{
+  "timestamp": "2026-03-02T10:31:08.401Z",
+  "total": 221,
+  "pass": 215,
+  "fail": 0,
+  "warn": 6,
+  "score": 97,
+  "p0Fail": 0,
+  "p1Fail": 0,
+  "p2Fail": 0,
+  "categories": [
+    {
+      "name": "A. Build",
+      "total": 5,
+      "pass": 5,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "B. Pipeline",
+      "total": 17,
+      "pass": 17,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "C. Content Gen",
+      "total": 12,
+      "pass": 12,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "D. Cron Routes",
+      "total": 29,
+      "pass": 29,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "D. Cron maxDuration",
+      "total": 16,
+      "pass": 16,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "D. Cron Budget",
+      "total": 16,
+      "pass": 16,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "D. Cron Auth",
+      "total": 29,
+      "pass": 29,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "D. Cron Config",
+      "total": 1,
+      "pass": 1,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "E. SEO",
+      "total": 13,
+      "pass": 12,
+      "fail": 0,
+      "warn": 1
+    },
+    {
+      "name": "F. Security",
+      "total": 11,
+      "pass": 9,
+      "fail": 0,
+      "warn": 2
+    },
+    {
+      "name": "G. Multi-Site",
+      "total": 9,
+      "pass": 8,
+      "fail": 0,
+      "warn": 1
+    },
+    {
+      "name": "H. Data",
+      "total": 5,
+      "pass": 4,
+      "fail": 0,
+      "warn": 1
+    },
+    {
+      "name": "I. Observability",
+      "total": 6,
+      "pass": 6,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "J. Quality",
+      "total": 4,
+      "pass": 4,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "K. Thresholds",
+      "total": 4,
+      "pass": 4,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "L. Dashboard",
+      "total": 11,
+      "pass": 11,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "M. Yachts",
+      "total": 14,
+      "pass": 14,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "N. Design",
+      "total": 6,
+      "pass": 6,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "O. Audit Engine",
+      "total": 5,
+      "pass": 5,
+      "fail": 0,
+      "warn": 0
+    },
+    {
+      "name": "P. Anti-Patterns",
+      "total": 4,
+      "pass": 3,
+      "fail": 0,
+      "warn": 1
+    },
+    {
+      "name": "Q. Vercel",
+      "total": 4,
+      "pass": 4,
+      "fail": 0,
+      "warn": 0
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    {
+      "category": "E. SEO",
+      "name": "seo-agent delegates IndexNow to seo/cron",
+      "priority": "P0",
+      "details": "Could not verify delegation"
+    },
+    {
+      "category": "F. Security",
+      "name": "No API key logging in responses",
+      "priority": "P1",
+      "details": "79 refs found — review"
+    },
+    {
+      "category": "F. Security",
+      "name": "XSS: All dangerouslySetInnerHTML use sanitization",
+      "priority": "P0",
+      "details": "28 unsanitized: app/about/layout.tsx, app/blog/[slug]/page.tsx, app/blog/category/[slug]/page.tsx"
+    },
+    {
+      "category": "G. Multi-Site",
+      "name": "trends-monitor skips yacht site",
+      "priority": "P1",
+      "details": "May generate topics for yacht site"
+    },
+    {
+      "category": "H. Data",
+      "name": "No mock data arrays in admin pages",
+      "priority": "P1",
+      "details": "1 mock data references"
+    },
+    {
+      "category": "P. Anti-Patterns",
+      "name": "No error.message in public API responses",
+      "priority": "P1",
+      "details": "2 routes may expose error details"
+    }
+  ]
+}

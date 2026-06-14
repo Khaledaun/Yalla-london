@@ -1,29 +1,26 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Brain, 
-  Plus, 
-  Edit, 
-  Save, 
-  History, 
-  Play, 
-  Copy, 
-  Languages,
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminSectionLabel,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
+import {
+  Brain,
+  Plus,
+  Edit,
+  Save,
+  Play,
+  Copy,
   FileText,
-  Zap,
-  Settings,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
   Trash2,
-  RotateCcw
 } from 'lucide-react'
 
 interface PromptTemplate {
@@ -43,25 +40,13 @@ interface PromptTemplate {
   usageCount: number
 }
 
-interface PromptVersion {
-  id: string
-  promptId: string
-  version: number
-  prompt: string
-  createdAt: string
-  createdBy: string
-  changeNote: string
-}
-
-// Version history placeholder - will be fetched from API in future
-const mockVersions: { [key: string]: PromptVersion[] } = {}
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTemplate | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [editedPrompt, setEditedPrompt] = useState<Partial<PromptTemplate>>({})
@@ -74,6 +59,10 @@ export default function PromptsPage() {
     const fetchPrompts = async () => {
       try {
         const response = await fetch('/api/admin/prompts')
+        if (!response.ok) {
+          console.warn('[prompts] Fetch failed:', response.status);
+          return;
+        }
         const data = await response.json()
 
         if (data.success && data.templates) {
@@ -95,8 +84,9 @@ export default function PromptsPage() {
           }))
           setPrompts(transformedPrompts)
         }
-      } catch (error) {
-        console.error('Failed to fetch prompts:', error)
+      } catch (err) {
+        console.error('Failed to fetch prompts:', err)
+        setError('Failed to load prompt templates. Please try again.')
       } finally {
         setLoading(false)
       }
@@ -105,12 +95,12 @@ export default function PromptsPage() {
     fetchPrompts()
   }, [])
 
-  const categoryColors = {
-    'content': 'bg-blue-100 text-blue-800',
-    'seo': 'bg-green-100 text-green-800',
-    'social': 'bg-purple-100 text-purple-800',
-    'email': 'bg-orange-100 text-orange-800',
-    'translation': 'bg-pink-100 text-pink-800'
+  const categoryStatusMap: Record<string, string> = {
+    content: 'active',
+    seo: 'indexed',
+    social: 'running',
+    email: 'pending',
+    translation: 'promoting',
   }
 
   const languageLabels = {
@@ -119,8 +109,8 @@ export default function PromptsPage() {
     'both': 'Both'
   }
 
-  const filteredPrompts = selectedCategory === 'all' 
-    ? prompts 
+  const filteredPrompts = selectedCategory === 'all'
+    ? prompts
     : prompts.filter(prompt => prompt.category === selectedCategory)
 
   const handleEditPrompt = (prompt: PromptTemplate) => {
@@ -137,8 +127,8 @@ export default function PromptsPage() {
         version: selectedPrompt.version + 1,
         updatedAt: new Date().toISOString()
       }
-      
-      setPrompts(prev => prev.map(p => 
+
+      setPrompts(prev => prev.map(p =>
         p.id === selectedPrompt.id ? updatedPrompt : p
       ))
       setSelectedPrompt(updatedPrompt)
@@ -164,9 +154,13 @@ export default function PromptsPage() {
         })
       })
 
+      if (!response.ok) {
+        console.warn('[prompts] Create failed:', response.status);
+        return;
+      }
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.template) {
         // Add new prompt to the list
         const newPrompt: PromptTemplate = {
           id: data.template.id,
@@ -179,15 +173,15 @@ export default function PromptsPage() {
           variables: extractVariables(editedPrompt.prompt || ''),
           version: 1,
           isActive: true,
-          createdAt: data.template.createdAt,
-          updatedAt: data.template.createdAt,
+          createdAt: data.template.createdAt || new Date().toISOString(),
+          updatedAt: data.template.createdAt || new Date().toISOString(),
           usageCount: 0
         }
 
         setPrompts(prev => [newPrompt, ...prev])
       }
-    } catch (error) {
-      console.error('Failed to create prompt:', error)
+    } catch (err) {
+      console.error('Failed to create prompt:', err)
     }
 
     setEditedPrompt({})
@@ -201,16 +195,16 @@ export default function PromptsPage() {
 
   const handleTestPrompt = () => {
     if (!selectedPrompt) return
-    
+
     setIsTesting(true)
     let result = selectedPrompt.prompt
-    
+
     // Replace variables with test values
     selectedPrompt.variables.forEach(variable => {
       const value = testVariables[variable] || `[${variable}]`
       result = result.replace(new RegExp(`\\{\\{${variable}\\}\\}`, 'g'), value)
     })
-    
+
     // Simulate API delay
     setTimeout(() => {
       setTestResult(result)
@@ -230,6 +224,11 @@ export default function PromptsPage() {
         method: 'DELETE'
       })
 
+      if (!response.ok) {
+        console.warn('[prompts] Delete failed:', response.status)
+        return
+      }
+
       const data = await response.json()
 
       if (data.success) {
@@ -240,476 +239,672 @@ export default function PromptsPage() {
       } else if (data.error) {
         alert(data.error) // Show error for system templates
       }
-    } catch (error) {
-      console.error('Failed to delete prompt:', error)
+    } catch (err) {
+      console.error('[prompts] Failed to delete prompt:', err)
     }
   }
 
-  const handleRevertVersion = (version: PromptVersion) => {
-    if (selectedPrompt) {
-      const revertedPrompt = {
-        ...selectedPrompt,
-        prompt: version.prompt,
-        version: selectedPrompt.version + 1,
-        updatedAt: new Date().toISOString()
-      }
-      
-      setPrompts(prev => prev.map(p => 
-        p.id === selectedPrompt.id ? revertedPrompt : p
-      ))
-      setSelectedPrompt(revertedPrompt)
-      setShowVersionHistory(false)
-    }
+
+  if (loading) {
+    return (
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Prompts Editor"
+          subtitle="Manage AI prompt templates for content generation"
+        />
+        <AdminLoadingState label="Loading prompts..." />
+      </div>
+    )
   }
+
+  const categoryTabs = [
+    { id: 'all', label: 'All', count: prompts.length },
+    { id: 'content', label: 'Content', count: prompts.filter(p => p.category === 'content').length },
+    { id: 'seo', label: 'SEO', count: prompts.filter(p => p.category === 'seo').length },
+    { id: 'social', label: 'Social', count: prompts.filter(p => p.category === 'social').length },
+    { id: 'email', label: 'Email', count: prompts.filter(p => p.category === 'email').length },
+    { id: 'translation', label: 'Translation', count: prompts.filter(p => p.category === 'translation').length },
+  ]
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Prompts Editor</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage AI prompt templates for content generation</p>
-        </div>
-        <Button
-          onClick={() => setIsCreating(true)}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Prompt
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Prompts Editor"
+        subtitle="Manage AI prompt templates for content generation"
+        action={
+          <AdminButton variant="primary" onClick={() => setIsCreating(true)}>
+            <Plus size={14} />
+            New Prompt
+          </AdminButton>
+        }
+      />
+
+      {error && (
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Prompts List */}
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5" />
-                Prompt Templates
-              </CardTitle>
-              <div className="mt-2">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="content">Content</SelectItem>
-                    <SelectItem value="seo">SEO</SelectItem>
-                    <SelectItem value="social">Social Media</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="translation">Translation</SelectItem>
-                  </SelectContent>
-                </Select>
+          <AdminCard>
+            <div className="p-4 pb-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Brain size={16} color="#3B7EA1" />
+                <AdminSectionLabel>Prompt Templates</AdminSectionLabel>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="space-y-2">
-                {filteredPrompts.map((prompt) => (
-                  <div 
-                    key={prompt.id}
-                    className={`p-3 cursor-pointer border-l-4 hover:bg-gray-50 ${
-                      selectedPrompt?.id === prompt.id 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-transparent'
-                    }`}
-                    onClick={() => setSelectedPrompt(prompt)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-sm text-gray-900">{prompt.name}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{prompt.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge className={categoryColors[prompt.category]}>
-                            {prompt.category}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {languageLabels[prompt.language]}
-                          </Badge>
-                          <span className="text-xs text-gray-400">v{prompt.version}</span>
+              <AdminTabs
+                tabs={categoryTabs}
+                activeTab={selectedCategory}
+                onTabChange={setSelectedCategory}
+              />
+            </div>
+
+            <div className="border-t border-stone-100">
+              {filteredPrompts.length === 0 ? (
+                <AdminEmptyState
+                  icon={Brain}
+                  title="No prompts found"
+                  description="Create a new prompt template to get started."
+                  action={
+                    <AdminButton variant="primary" size="sm" onClick={() => setIsCreating(true)}>
+                      <Plus size={12} />
+                      Create Prompt
+                    </AdminButton>
+                  }
+                />
+              ) : (
+                <div>
+                  {filteredPrompts.map((prompt) => (
+                    <div
+                      key={prompt.id}
+                      className="p-3 cursor-pointer transition-colors hover:bg-stone-50"
+                      style={{
+                        borderLeft: selectedPrompt?.id === prompt.id
+                          ? '3px solid #C8322B'
+                          : '3px solid transparent',
+                        backgroundColor: selectedPrompt?.id === prompt.id
+                          ? 'rgba(200,50,43,0.04)'
+                          : undefined,
+                      }}
+                      onClick={() => setSelectedPrompt(prompt)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p
+                            style={{
+                              fontFamily: 'var(--font-display)',
+                              fontWeight: 700,
+                              fontSize: 13,
+                              color: '#1C1917',
+                            }}
+                            className="truncate"
+                          >
+                            {prompt.name}
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 11,
+                              color: '#78716C',
+                              marginTop: 2,
+                            }}
+                            className="line-clamp-2"
+                          >
+                            {prompt.description}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            <AdminStatusBadge
+                              status={categoryStatusMap[prompt.category] || 'pending'}
+                              label={prompt.category}
+                            />
+                            <AdminStatusBadge
+                              status="inactive"
+                              label={languageLabels[prompt.language]}
+                            />
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-system)',
+                                fontSize: 9,
+                                color: '#A8A29E',
+                                letterSpacing: '0.5px',
+                              }}
+                            >
+                              v{prompt.version}
+                            </span>
+                          </div>
+                          <div
+                            className="flex items-center gap-3 mt-2"
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              color: '#A8A29E',
+                            }}
+                          >
+                            <span>Used {prompt.usageCount}x</span>
+                            {prompt.lastUsed && (
+                              <span>Last: {new Date(prompt.lastUsed).toLocaleDateString()}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                          <span>Used {prompt.usageCount} times</span>
-                          {prompt.lastUsed && (
-                            <span>Last: {new Date(prompt.lastUsed).toLocaleDateString()}</span>
-                          )}
+                        <div className="flex flex-col gap-1 ml-2 flex-shrink-0">
+                          <AdminButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              handleEditPrompt(prompt)
+                            }}
+                          >
+                            <Edit size={12} />
+                          </AdminButton>
+                          <AdminButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              handleDeletePrompt(prompt.id)
+                            }}
+                          >
+                            <Trash2 size={12} color="#C8322B" />
+                          </AdminButton>
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditPrompt(prompt)
-                          }}
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeletePrompt(prompt.id)
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3 text-red-500" />
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </AdminCard>
         </div>
 
         {/* Prompt Editor/Viewer */}
         <div className="lg:col-span-2">
           {selectedPrompt ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Prompt Details */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      {selectedPrompt.name}
-                    </CardTitle>
+              <AdminCard>
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setShowVersionHistory(true)}
+                      <FileText size={16} color="#C49A2A" />
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 800,
+                          fontSize: 16,
+                          color: '#1C1917',
+                        }}
                       >
-                        <History className="h-4 w-4 mr-2" />
-                        History
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleCopyPrompt}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
+                        {selectedPrompt.name}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <AdminButton variant="ghost" size="sm" onClick={handleCopyPrompt}>
+                        <Copy size={12} />
                         Copy
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEditPrompt(selectedPrompt)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
+                      </AdminButton>
+                      <AdminButton variant="secondary" size="sm" onClick={() => handleEditPrompt(selectedPrompt)}>
+                        <Edit size={12} />
                         Edit
-                      </Button>
+                      </AdminButton>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{selectedPrompt.description}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-600">Category:</span>
-                        <Badge className={`ml-2 ${categoryColors[selectedPrompt.category]}`}>
-                          {selectedPrompt.category}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-600">Language:</span>
-                        <span className="ml-2">{languageLabels[selectedPrompt.language]}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-600">Version:</span>
-                        <span className="ml-2">v{selectedPrompt.version}</span>
-                      </div>
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 12,
+                      color: '#78716C',
+                      marginBottom: 16,
+                    }}
+                  >
+                    {selectedPrompt.description}
+                  </p>
+
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="admin-card-inset p-3 rounded-lg">
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          color: '#A8A29E',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Category
+                      </p>
+                      <AdminStatusBadge
+                        status={categoryStatusMap[selectedPrompt.category] || 'pending'}
+                        label={selectedPrompt.category}
+                      />
                     </div>
-                    
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Content Types:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
+                    <div className="admin-card-inset p-3 rounded-lg">
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          color: '#A8A29E',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Language
+                      </p>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#1C1917',
+                        }}
+                      >
+                        {languageLabels[selectedPrompt.language]}
+                      </span>
+                    </div>
+                    <div className="admin-card-inset p-3 rounded-lg">
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          color: '#A8A29E',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Version
+                      </p>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#1C1917',
+                        }}
+                      >
+                        v{selectedPrompt.version}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content Types */}
+                  {selectedPrompt.contentType.length > 0 && (
+                    <div className="mb-4">
+                      <AdminSectionLabel>Content Types</AdminSectionLabel>
+                      <div className="flex flex-wrap gap-1.5">
                         {selectedPrompt.contentType.map((type, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {type}
-                          </Badge>
+                          <AdminStatusBadge key={index} status="inactive" label={type} />
                         ))}
                       </div>
                     </div>
-                    
-                    {selectedPrompt.variables.length > 0 && (
-                      <div>
-                        <span className="font-medium text-gray-600 text-sm">Variables:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {selectedPrompt.variables.map((variable, index) => (
-                            <code key={index} className="bg-gray-100 px-2 py-1 rounded text-xs">
-                              {`{{${variable}}}`}
-                            </code>
-                          ))}
-                        </div>
+                  )}
+
+                  {/* Variables */}
+                  {selectedPrompt.variables.length > 0 && (
+                    <div className="mb-4">
+                      <AdminSectionLabel>Variables</AdminSectionLabel>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedPrompt.variables.map((variable, index) => (
+                          <code
+                            key={index}
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: '#3B7EA1',
+                              backgroundColor: 'rgba(59,126,161,0.08)',
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              letterSpacing: '0.3px',
+                            }}
+                          >
+                            {`{{${variable}}}`}
+                          </code>
+                        ))}
                       </div>
-                    )}
-                    
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Prompt:</span>
-                      <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-                        <pre className="whitespace-pre-wrap text-sm text-gray-800">
-                          {selectedPrompt.prompt}
+                    </div>
+                  )}
+
+                  {/* Prompt Content */}
+                  <div>
+                    <AdminSectionLabel>Prompt Template</AdminSectionLabel>
+                    <div
+                      className="admin-card-inset p-4 rounded-lg"
+                      style={{ maxHeight: 400, overflowY: 'auto' }}
+                    >
+                      <pre
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 12,
+                          color: '#44403C',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.6,
+                          margin: 0,
+                        }}
+                      >
+                        {selectedPrompt.prompt}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </AdminCard>
+
+              {/* Test Prompt */}
+              <AdminCard accent accentColor="green">
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Play size={16} color="#2D5A3D" />
+                    <AdminSectionLabel>Test Prompt</AdminSectionLabel>
+                  </div>
+
+                  {selectedPrompt.variables.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                      {selectedPrompt.variables.map((variable) => (
+                        <div key={variable}>
+                          <label
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: '1px',
+                              color: '#78716C',
+                              display: 'block',
+                              marginBottom: 4,
+                            }}
+                          >
+                            {variable}
+                          </label>
+                          <input
+                            className="admin-input"
+                            value={testVariables[variable] || ''}
+                            onChange={(e) => setTestVariables(prev => ({
+                              ...prev,
+                              [variable]: e.target.value
+                            }))}
+                            placeholder={`Enter ${variable}...`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <AdminButton
+                    variant="success"
+                    onClick={handleTestPrompt}
+                    loading={isTesting}
+                    disabled={isTesting}
+                  >
+                    <Play size={12} />
+                    {isTesting ? 'Testing...' : 'Test Prompt'}
+                  </AdminButton>
+
+                  {testResult && (
+                    <div className="mt-4">
+                      <AdminSectionLabel>Result</AdminSectionLabel>
+                      <div
+                        className="p-4 rounded-lg"
+                        style={{
+                          backgroundColor: 'rgba(45,90,61,0.04)',
+                          border: '1px solid rgba(45,90,61,0.15)',
+                        }}
+                      >
+                        <pre
+                          style={{
+                            fontFamily: 'var(--font-system)',
+                            fontSize: 12,
+                            color: '#44403C',
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: 1.6,
+                            margin: 0,
+                          }}
+                        >
+                          {testResult}
                         </pre>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Test Prompt */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Play className="h-5 w-5" />
-                    Test Prompt
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {selectedPrompt.variables.length > 0 && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {selectedPrompt.variables.map((variable) => (
-                          <div key={variable}>
-                            <label className="block text-sm font-medium mb-1">
-                              {variable}
-                            </label>
-                            <Input
-                              value={testVariables[variable] || ''}
-                              onChange={(e) => setTestVariables(prev => ({
-                                ...prev,
-                                [variable]: e.target.value
-                              }))}
-                              placeholder={`Enter ${variable}...`}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <Button 
-                      onClick={handleTestPrompt}
-                      disabled={isTesting}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {isTesting ? (
-                        <>
-                          <Clock className="h-4 w-4 mr-2 animate-spin" />
-                          Testing...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Test Prompt
-                        </>
-                      )}
-                    </Button>
-                    
-                    {testResult && (
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Result:</label>
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <pre className="whitespace-pre-wrap text-sm text-gray-800">
-                            {testResult}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  )}
+                </div>
+              </AdminCard>
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Select a Prompt Template
-                </h3>
-                <p className="text-gray-500">
-                  Choose a prompt from the list to view, edit, or test it.
-                </p>
-              </CardContent>
-            </Card>
+            <AdminCard>
+              <AdminEmptyState
+                icon={Brain}
+                title="Select a Prompt Template"
+                description="Choose a prompt from the list to view, edit, or test it."
+              />
+            </AdminCard>
           )}
         </div>
       </div>
 
       {/* Edit/Create Modal */}
       {(isEditing || isCreating) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {isCreating ? <Plus className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
-                {isCreating ? 'Create New Prompt' : 'Edit Prompt'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Name</label>
-                  <Input
-                    value={editedPrompt.name || ''}
-                    onChange={(e) => setEditedPrompt(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter prompt name..."
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Category</label>
-                  <Select 
-                    value={editedPrompt.category || 'content'} 
-                    onValueChange={(value) => setEditedPrompt(prev => ({ ...prev, category: value as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="content">Content</SelectItem>
-                      <SelectItem value="seo">SEO</SelectItem>
-                      <SelectItem value="social">Social Media</SelectItem>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="translation">Translation</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
-                <Input
-                  value={editedPrompt.description || ''}
-                  onChange={(e) => setEditedPrompt(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description of what this prompt does..."
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Language</label>
-                  <Select 
-                    value={editedPrompt.language || 'en'} 
-                    onValueChange={(value) => setEditedPrompt(prev => ({ ...prev, language: value as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="ar">Arabic</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Content Types (comma-separated)</label>
-                  <Input
-                    value={editedPrompt.contentType?.join(', ') || ''}
-                    onChange={(e) => setEditedPrompt(prev => ({ 
-                      ...prev, 
-                      contentType: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
-                    }))}
-                    placeholder="guide, travel, food..."
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Prompt Template</label>
-                <Textarea
-                  value={editedPrompt.prompt || ''}
-                  onChange={(e) => setEditedPrompt(prev => ({ ...prev, prompt: e.target.value }))}
-                  placeholder="Write your prompt template here. Use {{variableName}} for variables..."
-                  rows={12}
-                  className="font-mono"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Use double curly braces for variables: {`{{variableName}}`}
-                </p>
-              </div>
-              
-              <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditing(false)
-                    setIsCreating(false)
-                    setEditedPrompt({})
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ backgroundColor: 'rgba(28,25,23,0.5)' }}
+        >
+          <AdminCard elevated className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 md:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                {isCreating ? <Plus size={16} color="#C8322B" /> : <Edit size={16} color="#C49A2A" />}
+                <p
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    fontSize: 18,
+                    color: '#1C1917',
                   }}
                 >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={isCreating ? handleCreatePrompt : handleSavePrompt}
-                  disabled={!editedPrompt.name || !editedPrompt.prompt}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isCreating ? 'Create' : 'Save'} Prompt
-                </Button>
+                  {isCreating ? 'Create New Prompt' : 'Edit Prompt'}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        color: '#78716C',
+                        display: 'block',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Name
+                    </label>
+                    <input
+                      className="admin-input"
+                      value={editedPrompt.name || ''}
+                      onChange={(e) => setEditedPrompt(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter prompt name..."
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        color: '#78716C',
+                        display: 'block',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Category
+                    </label>
+                    <select
+                      className="admin-select"
+                      value={editedPrompt.category || 'content'}
+                      onChange={(e) => setEditedPrompt(prev => ({ ...prev, category: e.target.value as any }))}
+                    >
+                      <option value="content">Content</option>
+                      <option value="seo">SEO</option>
+                      <option value="social">Social Media</option>
+                      <option value="email">Email</option>
+                      <option value="translation">Translation</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      color: '#78716C',
+                      display: 'block',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Description
+                  </label>
+                  <input
+                    className="admin-input"
+                    value={editedPrompt.description || ''}
+                    onChange={(e) => setEditedPrompt(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description of what this prompt does..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        color: '#78716C',
+                        display: 'block',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Language
+                    </label>
+                    <select
+                      className="admin-select"
+                      value={editedPrompt.language || 'en'}
+                      onChange={(e) => setEditedPrompt(prev => ({ ...prev, language: e.target.value as any }))}
+                    >
+                      <option value="en">English</option>
+                      <option value="ar">Arabic</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        color: '#78716C',
+                        display: 'block',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Content Types (comma-separated)
+                    </label>
+                    <input
+                      className="admin-input"
+                      value={editedPrompt.contentType?.join(', ') || ''}
+                      onChange={(e) => setEditedPrompt(prev => ({
+                        ...prev,
+                        contentType: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                      }))}
+                      placeholder="guide, travel, food..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      color: '#78716C',
+                      display: 'block',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Prompt Template
+                  </label>
+                  <textarea
+                    className="admin-input"
+                    value={editedPrompt.prompt || ''}
+                    onChange={(e) => setEditedPrompt(prev => ({ ...prev, prompt: e.target.value }))}
+                    placeholder="Write your prompt template here. Use {{variableName}} for variables..."
+                    rows={12}
+                    style={{
+                      fontFamily: 'monospace',
+                      resize: 'vertical',
+                      minHeight: 200,
+                    }}
+                  />
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 10,
+                      color: '#A8A29E',
+                      marginTop: 4,
+                    }}
+                  >
+                    Use double curly braces for variables: {`{{variableName}}`}
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+                  <AdminButton
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setIsCreating(false)
+                      setEditedPrompt({})
+                    }}
+                  >
+                    Cancel
+                  </AdminButton>
+                  <AdminButton
+                    variant="primary"
+                    onClick={isCreating ? handleCreatePrompt : handleSavePrompt}
+                    disabled={!editedPrompt.name || !editedPrompt.prompt}
+                  >
+                    <Save size={12} />
+                    {isCreating ? 'Create' : 'Save'} Prompt
+                  </AdminButton>
+                </div>
+              </div>
+            </div>
+          </AdminCard>
         </div>
       )}
 
-      {/* Version History Modal */}
-      {showVersionHistory && selectedPrompt && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Version History: {selectedPrompt.name}
-                </CardTitle>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowVersionHistory(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockVersions[selectedPrompt.id]?.map((version) => (
-                  <div key={version.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">v{version.version}</Badge>
-                        <span className="text-sm text-gray-600">
-                          by {version.createdBy} on {new Date(version.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleRevertVersion(version)}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Revert
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">{version.changeNote}</p>
-                    <div className="bg-gray-50 p-3 rounded text-sm">
-                      <pre className="whitespace-pre-wrap text-gray-800">
-                        {version.prompt.substring(0, 200)}
-                        {version.prompt.length > 200 && '...'}
-                      </pre>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

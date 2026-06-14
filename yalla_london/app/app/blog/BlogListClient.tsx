@@ -5,12 +5,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, Calendar, User, ArrowRight, Filter } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { FollowUs } from '@/components/follow-us'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 interface BlogPostData {
   id: string
@@ -34,6 +31,26 @@ interface BlogListClientProps {
   posts: BlogPostData[]
 }
 
+// Format raw-slug or all-lowercase titles into readable Title Case.
+const SMALL_WORDS = new Set(['in', 'for', 'and', 'the', 'of', 'to', 'a', 'an', 'with', 'by', 'at', 'on', 'is']);
+const formatTitle = (title: string) => {
+  const isSlug = !title.includes(' ') && title.includes('-') && !/[A-Z]/.test(title);
+  const isAllLowercase = title === title.toLowerCase() && title.length > 10 && !/[A-Z]/.test(title);
+
+  if (isSlug || isAllLowercase) {
+    const words = title.replace(/-/g, ' ').split(/\s+/);
+    return words
+      .map((w, i) => {
+        if (i === 0) return w.charAt(0).toUpperCase() + w.slice(1);
+        if (/^\d{4}$/.test(w)) return w;
+        if (SMALL_WORDS.has(w)) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join(' ');
+  }
+  return title;
+};
+
 export default function BlogListClient({ posts }: BlogListClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
@@ -41,7 +58,6 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [filteredPosts, setFilteredPosts] = useState<BlogPostData[]>(posts)
 
-  // Filter posts based on search and category
   useEffect(() => {
     let filtered = posts
 
@@ -74,162 +90,144 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     if (language === 'en') {
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     } else {
-      return date.toLocaleDateString('ar-SA', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+      return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
     }
   }
 
   return (
-    <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-purple-50 to-yellow-50 py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-5xl font-playfair font-bold gradient-text mb-4">
-              {t('blog')}
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              {language === 'en'
-                ? 'Discover the stories behind London\'s most luxurious experiences'
-                : 'اكتشف القصص وراء أكثر التجارب الفاخرة في لندن'
-              }
-            </p>
-          </motion.div>
+      <section className="bg-yl-dark-navy pt-28 pb-16 relative overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs items={[
+            { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },
+            { label: t('blog') },
+          ]} />
+          <SectionLabel>{language === 'en' ? 'Stories & Guides' : 'قصص وأدلة'}</SectionLabel>
+          <h1 className="text-4xl sm:text-5xl font-heading font-bold text-white mb-4">
+            {t('blog')}
+          </h1>
+          <p className="text-xl text-yl-gray-400 max-w-2xl mx-auto font-body">
+            {language === 'en'
+              ? 'Discover the stories behind London\'s most luxurious experiences'
+              : 'اكتشف القصص وراء أكثر التجارب الفاخرة في لندن'
+            }
+          </p>
         </div>
       </section>
 
+      <TriBar />
+
       {/* Search and Filter */}
-      <section className="py-8 bg-white border-b">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="flex flex-col md:flex-row gap-4 items-center justify-between"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
+      <section className="py-6 bg-white border-b border-yl-gray-200 sticky top-16 z-40">
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-yl-gray-500" />
+                <input
                   placeholder={language === 'en' ? 'Search stories...' : 'البحث في القصص...'}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-80"
+                  className="pl-10 pr-4 py-2.5 w-full sm:w-80 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold"
                 />
               </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-yl-gray-500" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="pl-10 pr-8 py-2.5 w-full sm:w-48 border border-yl-gray-200 rounded-[14px] font-body text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold"
+                >
                   {categories.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
+                    <option key={category.value} value={category.value}>
                       {category.label}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+              </div>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
               {filteredPosts.length} {language === 'en' ? 'stories found' : 'قصة موجودة'}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Blog Posts Grid */}
-      <section className="py-12">
-        <div className="max-w-6xl mx-auto px-6">
+      <section className="py-12 bg-yl-cream">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredPosts.map((post, index) => {
-              const title = language === 'en' ? post.title_en : post.title_ar
+            {filteredPosts.map((post) => {
+              const title = formatTitle(language === 'en' ? post.title_en : post.title_ar)
               const excerpt = language === 'en' ? post.excerpt_en : post.excerpt_ar
               const categoryName = post.category
                 ? (language === 'en' ? post.category.name_en : post.category.name_ar)
                 : (language === 'en' ? 'General' : 'عام')
 
               return (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full group">
-                    <div className="relative aspect-video">
-                      <Image
-                        src={post.featured_image || '/images/placeholder-blog.jpg'}
-                        alt={title}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-purple-800">
-                          {categoryName}
-                        </span>
-                      </div>
+                <BrandCardLight key={post.id} className="overflow-hidden group h-full flex flex-col">
+                  <div className="relative aspect-video">
+                    <Image
+                      src={post.featured_image || '/images/placeholder-blog.svg'}
+                      alt={title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
+                      <BrandTag color="red">{categoryName}</BrandTag>
                     </div>
-                    <CardContent className="p-6 flex-1 flex flex-col">
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {formatDate(post.created_at)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          {language === 'en' ? 'Editorial Team' : 'فريق التحرير'}
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-purple-800 transition-colors">
-                        {title}
-                      </h3>
-                      <p className="text-gray-600 leading-relaxed flex-1 mb-4">
-                        {excerpt}
-                      </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-purple-800 hover:text-purple-900">
-                        <Link href={`/blog/${post.slug}`}>
-                          {t('readMore')}
-                          <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex items-center gap-4 font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-3">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4 text-yl-gold" />
+                        {formatDate(post.created_at)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <User className="h-4 w-4 text-yl-gold" />
+                        {language === 'en' ? 'Editorial Team' : 'فريق التحرير'}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-heading font-semibold mb-3 text-yl-charcoal group-hover:text-yl-red transition-colors line-clamp-2">
+                      {title}
+                    </h3>
+                    <p className="text-yl-gray-500 font-body leading-relaxed flex-1 mb-4 line-clamp-3">
+                      {excerpt}
+                    </p>
+                    <Link href={`/blog/${post.slug}`} className="self-start flex items-center gap-2 text-yl-red font-heading font-medium text-sm group-hover:gap-3 transition-all">
+                      {t('readMore')}
+                      <ArrowRight className={`h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
+                    </Link>
+                  </div>
+                </BrandCardLight>
               )
             })}
           </div>
 
           {filteredPosts.length === 0 && (
-            <motion.div
-              className="text-center py-12"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-xl text-gray-500">
+            <div className="text-center py-12">
+              <p className="text-xl text-yl-gray-500 font-body">
                 {language === 'en'
                   ? 'No stories found matching your criteria.'
                   : 'لم يتم العثور على قصص تطابق معاييرك.'
                 }
               </p>
-            </motion.div>
+            </div>
           )}
+        </div>
+      </section>
+
+      <TriBar />
+
+      {/* Follow Us */}
+      <section className="py-10 bg-yl-dark-navy">
+        <div className="max-w-7xl mx-auto px-7 text-center">
+          <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>
     </div>

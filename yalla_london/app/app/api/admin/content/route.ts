@@ -19,14 +19,14 @@ import { z } from 'zod';
 const BlogPostSchema = z.object({
   title_en: z.string().min(1, 'English title is required'),
   title_ar: z.string().min(1, 'Arabic title is required'),
-  slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Invalid slug format'),
+  slug: z.string().min(1, 'Slug is required').transform(s => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')).pipe(z.string().regex(/^[a-z0-9-]+$/, 'Invalid slug format')),
   excerpt_en: z.string().optional(),
   excerpt_ar: z.string().optional(),
   content_en: z.string().min(1, 'English content is required'),
   content_ar: z.string().min(1, 'Arabic content is required'),
-  featured_image: z.string().url().optional(),
+  featured_image: z.string().url().optional().or(z.literal('')).transform(v => v || undefined),
   published: z.boolean().default(false),
-  page_type: z.enum(['guide', 'place', 'event', 'list', 'faq', 'news', 'itinerary']).optional(),
+  page_type: z.enum(['guide', 'comparison', 'hotel-review', 'restaurant-review', 'service-review', 'news', 'events', 'sales', 'listicle', 'deep-dive', 'seasonal', 'answer', 'place', 'event', 'list', 'faq', 'itinerary']).optional(),
   category_id: z.string(),
   author_id: z.string(),
   tags: z.array(z.string()).default([]),
@@ -35,7 +35,8 @@ const BlogPostSchema = z.object({
   meta_description_en: z.string().optional(),
   meta_description_ar: z.string().optional(),
   place_id: z.string().optional(),
-  seo_score: z.number().min(0).max(100).optional()
+  seo_score: z.number().min(0).max(100).optional(),
+  siteId: z.string().optional()
 });
 
 // CREATE - New blog post
@@ -69,10 +70,12 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
-    // Create the blog post
+    // Create the blog post with site scoping
+    const { getDefaultSiteId } = await import('@/config/sites');
     const newPost = await prisma.blogPost.create({
       data: {
         ...data,
+        siteId: data.siteId || getDefaultSiteId(),
         keywords_json: data.tags.length > 0 ? { primary: data.tags[0], longtails: data.tags.slice(1) } : null,
         seo_score: data.seo_score || 50
       },

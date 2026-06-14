@@ -49,9 +49,12 @@ export class EnhancedSitemapGenerator {
   private maxEntriesPerSitemap: number = 50000;
 
   constructor(
-    baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.yalla-london.com",
+    baseUrl?: string,
   ) {
+    if (!baseUrl) {
+      const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+    }
     this.baseUrl = baseUrl;
   }
 

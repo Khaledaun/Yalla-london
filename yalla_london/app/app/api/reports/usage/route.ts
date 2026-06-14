@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission, PERMISSIONS, logAuditEvent } from '@/lib/rbac';
 import { analyticsService } from '@/lib/analytics';
 import { prisma } from '@/lib/db';
+import { getActiveSiteIds } from '@/config/sites';
 
 export const GET = withPermission(PERMISSIONS.VIEW_REPORTS, async (request: NextRequest, user) => {
   try {
@@ -104,12 +105,14 @@ export const GET = withPermission(PERMISSIONS.VIEW_REPORTS, async (request: Next
 async function getUsageStatistics(startDate: Date, endDate: Date) {
   try {
     // Get content creation statistics
+    const activeSiteIds = getActiveSiteIds();
     const contentCreated = await prisma.blogPost.count({
       where: {
         created_at: {
           gte: startDate,
           lte: endDate
-        }
+        },
+        siteId: { in: activeSiteIds },
       }
     });
 

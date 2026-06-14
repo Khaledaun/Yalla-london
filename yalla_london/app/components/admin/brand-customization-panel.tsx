@@ -1,7 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import NextImage from 'next/image';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Palette, 
   Type, 
-  Image, 
+  Image as ImageIcon,
   Globe, 
   Save,
   RefreshCw,
@@ -27,6 +29,7 @@ import { brandConfig, generateCSSVariables } from '@/config/brand-config';
 import { brandTemplates, type BusinessType } from '@/config/brand-templates';
 
 export function BrandCustomizationPanel() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState('identity');
   const [currentConfig, setCurrentConfig] = useState(brandConfig);
   const [previewMode, setPreviewMode] = useState(false);
@@ -173,8 +176,9 @@ export function BrandCustomizationPanel() {
     }
   };
 
-  const resetToDefaults = () => {
-    if (confirm('Are you sure you want to reset to default brand settings?')) {
+  const resetToDefaults = async () => {
+    const ok = await confirm({ title: 'Reset Brand Settings', message: 'Are you sure you want to reset to default brand settings?', variant: 'danger' });
+    if (ok) {
       applyTemplate('luxury-guide');
     }
   };
@@ -273,8 +277,6 @@ export function BrandCustomizationPanel() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="luxury-guide">Luxury Guide</SelectItem>
-                      <SelectItem value="kids-retail">Kids Retail</SelectItem>
-                      <SelectItem value="real-estate">Real Estate</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -427,7 +429,7 @@ export function BrandCustomizationPanel() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Image className="h-5 w-5" />
+                <ImageIcon className="h-5 w-5" />
                 Logo & Branding Assets
               </CardTitle>
             </CardHeader>
@@ -453,7 +455,7 @@ export function BrandCustomizationPanel() {
                 </div>
                 {logoPreview && (
                   <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                    <img src={logoPreview} alt="Logo preview" className="max-h-24 mx-auto" />
+                    <NextImage src={logoPreview} alt="Logo preview" width={0} height={0} sizes="100vw" className="max-h-24 mx-auto" style={{ width: 'auto', height: 'auto', maxHeight: '6rem' }} unoptimized />
                   </div>
                 )}
               </div>
@@ -515,7 +517,7 @@ export function BrandCustomizationPanel() {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="hello@yourbrand.com"
+                    placeholder="info@yourbrand.com"
                   />
                 </div>
 
@@ -647,6 +649,7 @@ export function BrandCustomizationPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+      <ConfirmDialog />
     </div>
   );
 }

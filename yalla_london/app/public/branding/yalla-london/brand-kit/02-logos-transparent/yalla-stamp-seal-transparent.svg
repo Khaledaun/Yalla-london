@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120" width="480" height="480">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&amp;family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;display=swap');
+  </style>
+  <defs>
+    <filter id="sf" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="3" seed="7" result="noise"/>
+      <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+      <feComponentTransfer in="grayNoise" result="threshold">
+        <feFuncA type="discrete" tableValues="0 0 0 1 1 1 1"/>
+      </feComponentTransfer>
+      <feComposite operator="in" in="SourceGraphic" in2="threshold"/>
+    </filter>
+  </defs>
+  <g transform="translate(60, 60) rotate(-6)" filter="url(#sf)">
+    <circle cx="0" cy="0" r="52" fill="none" stroke="#4A7BA8" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="46" fill="none" stroke="#4A7BA8" stroke-width="0.8"/>
+    <path id="ssTop" d="M-40,-20 A46,46 0 0,1 40,-20" fill="none"/>
+    <text font-family="Anybody, sans-serif" font-size="8" font-weight="700" fill="#4A7BA8" letter-spacing="3.5">
+      <textPath href="#ssTop" startOffset="50%" text-anchor="middle">YALLA LONDON</textPath>
+    </text>
+    <text x="0" y="6" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="22" font-weight="600" fill="#4A7BA8" letter-spacing="5">LDN</text>
+    <path id="ssBot" d="M42,18 A46,46 0 0,1 -42,18" fill="none"/>
+    <text font-family="IBM Plex Mono, monospace" font-size="6" font-weight="500" fill="#4A7BA8" letter-spacing="2">
+      <textPath href="#ssBot" startOffset="50%" text-anchor="middle">GATE Y · 1st CLASS</textPath>
+    </text>
+    <circle cx="-48" cy="0" r="3" fill="#C8322B"/>
+    <circle cx="48" cy="0" r="3" fill="#3B7EA1"/>
+    <circle cx="0" cy="-48" r="3" fill="#C49A2A"/>
+  </g>
+</svg>

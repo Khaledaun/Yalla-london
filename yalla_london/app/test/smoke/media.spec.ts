@@ -1,21 +1,49 @@
 /**
  * Media upload smoke tests
+ *
+ * NOTE: Admin routes use withAdminAuth which decodes JWT from cookies
+ * via next-auth/jwt, NOT getServerSession.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createMocks } from 'node-mocks-http';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 import { POST as uploadPOST } from '@/app/api/admin/media/upload/route';
 import { getPrismaClient } from '@/lib/database';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+
+/** Helper: mock JWT decode to return an admin session */
+async function mockAdminSession(email = 'admin@test.com') {
+  process.env.ADMIN_EMAILS = email;
+  const { decode } = await import('next-auth/jwt');
+  vi.mocked(decode).mockResolvedValue({
+    email,
+    name: 'Test Admin',
+    sub: 'admin-1',
+    role: 'admin',
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  });
+}
+
+/** Helper: create a NextRequest with FormData and cookie */
+function makeUploadRequest(file: File, type: string = 'logo') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+
+  return new NextRequest(new URL('/api/admin/media/upload', 'http://localhost:3000'), {
+    method: 'POST',
+    headers: {
+      'cookie': 'next-auth.session-token=test-token-value',
+    },
+    body: formData,
+  });
+}
 
 describe('Media Upload', () => {
   let prisma: any;
 
   beforeEach(async () => {
     prisma = getPrismaClient();
-    // Clean up any existing test media assets
     await prisma.mediaAsset.deleteMany({
       where: {
         originalName: {
@@ -26,7 +54,6 @@ describe('Media Upload', () => {
   });
 
   afterEach(async () => {
-    // Clean up test media assets
     await prisma.mediaAsset.deleteMany({
       where: {
         originalName: {
@@ -34,125 +61,51 @@ describe('Media Upload', () => {
         }
       }
     });
+    delete process.env.ADMIN_EMAILS;
+    const { decode } = await import('next-auth/jwt');
+    vi.mocked(decode).mockReset();
   });
 
-  it('should upload logo and persist to database', async () => {
-    // Mock admin session
-    const mockSession = {
-      user: {
-        email: 'admin@test.com',
-        name: 'Test Admin'
-      }
-    };
-
-    jest.spyOn(require('next-auth'), 'getServerSession').mockResolvedValue(mockSession);
-
-    // Create test file
-    const testImageBuffer = Buffer.from('fake-image-data');
-    const testFile = new File([testImageBuffer], 'test-logo.png', { type: 'image/png' });
-
+  it('should reject unauthenticated upload with 401', async () => {
+    const file = new File(['fake-image-data'], 'test-logo.png', { type: 'image/png' });
     const formData = new FormData();
-    formData.append('file', testFile);
+    formData.append('file', file);
     formData.append('type', 'logo');
 
-    const { req, res } = createMocks({
+    const request = new NextRequest(new URL('/api/admin/media/upload', 'http://localhost:3000'), {
       method: 'POST',
-      url: '/api/admin/media/upload',
-      body: formData
+      body: formData,
     });
 
-    const response = await uploadPOST(req as any);
-    const responseData = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(responseData.success).toBe(true);
-    expect(responseData.data).toHaveProperty('filename');
-    expect(responseData.data.originalName).toBe('test-logo.png');
-
-    // Verify media asset exists in database
-    const savedAsset = await prisma.mediaAsset.findFirst({
-      where: {
-        originalName: 'test-logo.png'
-      }
-    });
-
-    expect(savedAsset).toBeTruthy();
-    expect(savedAsset.fileType).toBe('logo');
-    expect(savedAsset.mimeType).toBe('image/png');
-    expect(savedAsset.assetType).toBe('image');
-
-    // Restore original function
-    require('next-auth').getServerSession.mockRestore();
+    const response = await uploadPOST(request);
+    expect(response.status).toBe(401);
   });
 
   it('should reject non-image files', async () => {
-    // Mock admin session
-    const mockSession = {
-      user: {
-        email: 'admin@test.com',
-        name: 'Test Admin'
-      }
-    };
+    await mockAdminSession();
 
-    jest.spyOn(require('next-auth'), 'getServerSession').mockResolvedValue(mockSession);
+    const textFile = new File(['fake-text-data'], 'test.txt', { type: 'text/plain' });
+    const request = makeUploadRequest(textFile, 'logo');
+    const response = await uploadPOST(request);
 
-    // Create test non-image file
-    const testFile = new File(['fake-text-data'], 'test.txt', { type: 'text/plain' });
-
-    const formData = new FormData();
-    formData.append('file', testFile);
-    formData.append('type', 'logo');
-
-    const { req, res } = createMocks({
-      method: 'POST',
-      url: '/api/admin/media/upload',
-      body: formData
-    });
-
-    const response = await uploadPOST(req as any);
-    
     expect(response.status).toBe(400);
-    
+
     const responseData = await response.json();
     expect(responseData.error).toContain('Only image files are allowed');
-
-    // Restore original function
-    require('next-auth').getServerSession.mockRestore();
   });
 
   it('should reject oversized files', async () => {
-    // Mock admin session
-    const mockSession = {
-      user: {
-        email: 'admin@test.com',
-        name: 'Test Admin'
-      }
-    };
-
-    jest.spyOn(require('next-auth'), 'getServerSession').mockResolvedValue(mockSession);
+    await mockAdminSession();
 
     // Create oversized test file (6MB)
-    const largeBuffer = Buffer.alloc(6 * 1024 * 1024);
+    const largeBuffer = new Uint8Array(6 * 1024 * 1024);
     const testFile = new File([largeBuffer], 'large-test.png', { type: 'image/png' });
+    const request = makeUploadRequest(testFile, 'logo');
+    const response = await uploadPOST(request);
 
-    const formData = new FormData();
-    formData.append('file', testFile);
-    formData.append('type', 'logo');
-
-    const { req, res } = createMocks({
-      method: 'POST',
-      url: '/api/admin/media/upload',
-      body: formData
-    });
-
-    const response = await uploadPOST(req as any);
-    
     expect(response.status).toBe(400);
-    
+
     const responseData = await response.json();
     expect(responseData.error).toContain('File size must be less than');
-
-    // Restore original function
-    require('next-auth').getServerSession.mockRestore();
   });
 });

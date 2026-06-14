@@ -5,14 +5,19 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { downloadFile } from '@/lib/s3'
+import { requireAdmin } from '@/lib/admin-middleware'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
+    const { id } = await params;
     const backup = await prisma.databaseBackup.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!backup) {

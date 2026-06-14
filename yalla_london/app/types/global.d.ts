@@ -7,6 +7,10 @@
 declare global {
   // eslint-disable-next-line no-var
   var prisma: any;
+
+  interface Window {
+    gtag: (...args: unknown[]) => void;
+  }
 }
 
 // Prisma Client Types (fallback when not generated)

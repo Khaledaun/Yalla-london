@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zenitha — Master Strategy</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #0B0F1C;
+  --ink-mid:   #111827;
+  --ink-light: #1A2035;
+  --ink-card:  #141926;
+  --border:    #1E2A42;
+  --gold:      #C4943A;
+  --gold-dim:  #8A6420;
+  --gold-pale: rgba(196,148,58,0.12);
+  --white:     #EEE8DC;
+  --dim:       #9A9185;
+  --muted:     #4A4840;
+  --green:     #2E7D5A;
+  --green-bg:  rgba(46,125,90,0.12);
+  --blue:      #1A4F8A;
+  --blue-bg:   rgba(26,79,138,0.14);
+  --copper:    #A05C2A;
+  --copper-bg: rgba(160,92,42,0.12);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+
+body{
+  background:var(--ink);
+  color:var(--white);
+  font-family:'DM Sans',sans-serif;
+  font-weight:300;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+
+/* GRAIN */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:999;
+}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 56px;height:64px;
+  background:rgba(11,15,28,0.94);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.nav-brand{
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;
+}
+.nav-mark{
+  width:28px;height:28px;
+  border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;
+}
+.nav-mark span{
+  font-family:'Cormorant Garamond',serif;
+  font-size:14px;font-weight:500;
+  color:var(--gold);letter-spacing:0;
+}
+.nav-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:18px;font-weight:400;
+  letter-spacing:4px;color:var(--white);
+  text-transform:uppercase;
+}
+.nav-links{display:flex;gap:0;list-style:none;}
+.nav-links a{
+  font-size:9.5px;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--dim);text-decoration:none;
+  padding:0 18px;height:64px;
+  display:flex;align-items:center;
+  border-left:1px solid var(--border);
+  transition:color .2s,background .2s;
+}
+.nav-links a:hover{color:var(--gold);background:rgba(196,148,58,0.04);}
+.nav-doc{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;color:var(--muted);
+  text-transform:uppercase;
+}
+
+/* SECTIONS */
+section{padding:100px 56px;position:relative;}
+section+section{border-top:1px solid var(--border);}
+
+.label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:3.5px;color:var(--gold);
+  text-transform:uppercase;
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:14px;
+}
+.label::before{content:'';width:32px;height:1px;background:var(--gold);}
+.label-num{color:var(--gold-dim);}
+
+h2.title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(40px,5.5vw,72px);
+  font-weight:300;line-height:1.05;
+  margin-bottom:20px;
+  letter-spacing:-0.5px;
+}
+h2.title em{font-style:italic;color:var(--gold);}
+
+.intro{
+  font-size:14px;color:var(--dim);
+  max-width:680px;margin-bottom:56px;
+  line-height:1.85;
+}
+
+/* ═══ HERO ═══ */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  padding-top:140px;
+  overflow:hidden;
+  position:relative;
+}
+#hero::before{
+  content:'';position:absolute;
+  top:50%;right:-20%;transform:translateY(-50%);
+  width:700px;height:700px;
+  background:radial-gradient(circle,rgba(196,148,58,.055) 0%,transparent 65%);
+  pointer-events:none;
+}
+.hero-eyebrow{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:4px;
+  color:var(--gold);text-transform:uppercase;
+  display:flex;align-items:center;gap:16px;
+  margin-bottom:36px;
+  animation:fadeUp .8s .1s both;
+}
+.hero-eyebrow::before{content:'';width:36px;height:1px;background:var(--gold);}
+.hero-h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(56px,9vw,124px);
+  font-weight:300;line-height:.95;
+  letter-spacing:-2px;
+  margin-bottom:12px;
+  animation:fadeUp .8s .25s both;
+}
+.hero-h1 em{font-style:italic;color:var(--gold);}
+.hero-sub{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(18px,2vw,26px);
+  font-weight:300;font-style:italic;
+  color:var(--dim);
+  margin-bottom:52px;
+  max-width:600px;
+  animation:fadeUp .8s .4s both;
+}
+.hero-statement{
+  font-size:13px;color:var(--dim);
+  max-width:560px;line-height:1.9;
+  border-left:2px solid var(--gold-dim);
+  padding-left:20px;
+  animation:fadeUp .8s .55s both;
+}
+.hero-meta{
+  position:absolute;bottom:56px;right:56px;
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  color:var(--muted);text-transform:uppercase;
+  text-align:right;
+  animation:fadeIn 1s .7s both;
+}
+.hero-scroll{
+  position:absolute;bottom:56px;left:56px;
+  display:flex;align-items:center;gap:12px;
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;color:var(--muted);
+  animation:fadeIn 1s .9s both;
+}
+.hero-scroll::after{content:'';width:36px;height:1px;background:var(--muted);}
+
+/* ═══ REPOSITIONING ═══ */
+.reposition-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:2px;margin-top:48px;
+}
+.rp-cell{
+  background:var(--ink-card);
+  padding:44px 40px;
+  position:relative;overflow:hidden;
+  transition:background .3s;
+}
+.rp-cell:hover{background:var(--ink-light);}
+.rp-cell::before{
+  content:'';position:absolute;
+  top:0;left:0;width:2px;height:0;
+  background:var(--gold);
+  transition:height .4s ease;
+}
+.rp-cell:hover::before{height:100%;}
+.rp-n{
+  font-family:'Cormorant Garamond',serif;
+  font-size:80px;font-weight:300;
+  color:rgba(196,148,58,.05);
+  position:absolute;bottom:-10px;right:20px;
+  line-height:1;
+}
+.rp-tag{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:3px;color:var(--gold-dim);
+  text-transform:uppercase;margin-bottom:14px;
+}
+.rp-heading{
+  font-family:'Cormorant Garamond',serif;
+  font-size:26px;font-weight:400;
+  margin-bottom:14px;line-height:1.15;
+}
+.rp-text{font-size:12.5px;color:var(--dim);line-height:1.85;}
+
+/* ═══ VENTURES ═══ */
+.ventures{display:flex;flex-direction:column;gap:2px;}
+
+.venture{
+  background:var(--ink-card);
+  padding:36px 40px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:24px;align-items:start;
+  position:relative;overflow:hidden;
+  transition:background .25s;
+  border-left:3px solid transparent;
+}
+.venture:hover{
+  background:var(--ink-light);
+  border-left-color:var(--gold);
+}
+
+/* VENTURE HEADER */
+.v-header{
+  display:flex;align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+  padding-bottom:16px;
+  border-bottom:1px solid rgba(196,148,58,.1);
+  gap:16px;flex-wrap:wrap;
+}
+
+/* LOGO AREA */
+.v-logo{
+  height:38px;
+  display:flex;align-items:center;
+  flex-shrink:0;
+  overflow:visible;
+}
+.v-logo img{
+  height:100%;width:auto;
+  max-width:200px;
+  object-fit:contain;
+}
+.v-logo img.invert{filter:brightness(0) invert(1);opacity:.9;}
+.v-logo img.invert-gold{
+  filter:brightness(0) saturate(100%)
+    invert(62%) sepia(38%) saturate(600%)
+    hue-rotate(3deg) brightness(90%);
+}
+.v-logo svg{height:38px;width:auto;overflow:visible;}
+
+/* TIER BADGE */
+.tbadge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 13px 5px 9px;
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;
+  border-radius:2px;
+  white-space:nowrap;flex-shrink:0;
+}
+.tbadge svg{flex-shrink:0;}
+
+.tb-studio {background:rgba(100,60,180,.12);color:#a78bfa;border:1px solid rgba(100,60,180,.28);}
+.tb-solo   {background:var(--gold-pale);color:var(--gold);border:1px solid rgba(196,148,58,.28);}
+.tb-active {background:var(--green-bg);color:#5DD49A;border:1px solid rgba(46,125,90,.35);}
+.tb-t1     {background:var(--copper-bg);color:#E89060;border:1px solid rgba(160,92,42,.32);}
+.tb-t2     {background:var(--green-bg);color:#6EE7B7;border:1px solid rgba(46,125,90,.35);}
+.tb-t3     {background:var(--gold-pale);color:#EDD080;border:1px solid rgba(196,148,58,.4);}
+.tb-t4     {background:var(--blue-bg);color:#93C5FD;border:1px solid rgba(26,79,138,.4);}
+
+/* VENTURE BODY */
+.v-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:24px;font-weight:400;
+  margin-bottom:6px;
+}
+.v-tagline{
+  font-size:12px;color:var(--gold);
+  font-style:italic;
+  margin-bottom:14px;
+  font-family:'Cormorant Garamond',serif;
+  font-size:15px;
+}
+.v-desc{font-size:12.5px;color:var(--dim);line-height:1.82;margin-bottom:16px;}
+
+/* PROOF CALLOUT */
+.v-proof{
+  display:inline-flex;align-items:center;gap:10px;
+  background:rgba(196,148,58,.06);
+  border:1px solid rgba(196,148,58,.18);
+  border-left:2px solid var(--gold);
+  padding:8px 14px;
+  margin-bottom:16px;
+}
+.v-proof-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  color:var(--gold-dim);text-transform:uppercase;
+}
+
+/* TAGS */
+.v-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tag{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:1.5px;
+  padding:4px 10px;text-transform:uppercase;
+  border:1px solid var(--border);
+  color:var(--muted);
+}
+
+/* STATUS BADGE */
+.vstatus{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:1.5px;
+  padding:5px 12px;text-transform:uppercase;
+  white-space:nowrap;
+}
+.vs-live    {background:var(--green-bg);color:#5DD49A;}
+.vs-build   {background:var(--gold-pale);color:var(--gold);}
+.vs-seek    {background:var(--blue-bg);color:#93C5FD;}
+
+/* URL LINK */
+.v-url{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:1px;
+  color:var(--gold-dim);text-decoration:none;
+  display:flex;align-items:center;gap:4px;
+  margin-top:10px;
+  transition:color .2s;
+}
+.v-url:hover{color:var(--gold);}
+.v-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+
+/* ═══ CALLOUT BLOCK ═══ */
+.callout{
+  background:linear-gradient(135deg,rgba(196,148,58,.06) 0%,transparent 55%);
+  border:1px solid rgba(196,148,58,.2);
+  border-left:3px solid var(--gold);
+  padding:36px 44px;
+  margin:48px 0;
+  position:relative;
+}
+.callout::before{
+  content:'"';
+  font-family:'Cormorant Garamond',serif;
+  font-size:140px;font-weight:300;
+  color:rgba(196,148,58,.05);
+  position:absolute;top:-30px;left:16px;
+  line-height:1;pointer-events:none;
+}
+.callout-q{
+  font-family:'Cormorant Garamond',serif;
+  font-size:22px;font-weight:300;
+  font-style:italic;line-height:1.55;
+  position:relative;
+}
+.callout-attr{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  color:var(--gold-dim);margin-top:14px;
+  text-transform:uppercase;
+}
+
+/* ═══ CIRCLE TIERS ═══ */
+.tiers{display:flex;flex-direction:column;gap:2px;}
+
+.tier-row{
+  display:grid;
+  grid-template-columns:260px 1fr 1fr;
+  gap:2px;
+}
+.tier-id{
+  background:var(--ink-card);
+  padding:44px 36px;
+  position:relative;overflow:hidden;
+}
+.tier-ghost{
+  font-family:'Cormorant Garamond',serif;
+  font-size:110px;font-weight:300;
+  color:rgba(196,148,58,.04);
+  position:absolute;bottom:-20px;right:-10px;
+  line-height:1;
+}
+.tier-seq{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:3px;
+  color:var(--gold-dim);text-transform:uppercase;
+  margin-bottom:12px;
+}
+.tier-name-big{
+  font-family:'Cormorant Garamond',serif;
+  font-size:30px;font-weight:300;
+  line-height:1.1;margin-bottom:10px;
+}
+.tier-subtitle{font-size:11.5px;color:var(--muted);font-style:italic;}
+
+.tier-col{background:var(--ink-card);padding:32px 36px;}
+.tier-col-title{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:3px;
+  color:var(--gold);text-transform:uppercase;
+  margin-bottom:18px;
+}
+.tier-list{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.tier-list li{
+  font-size:12.5px;color:var(--dim);
+  line-height:1.65;
+  padding-left:16px;position:relative;
+}
+.tier-list li::before{
+  content:'—';position:absolute;left:0;
+  color:var(--gold-dim);font-size:10px;
+}
+
+/* ═══ PRODUCTS GRID ═══ */
+.products{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2px;
+}
+.prod-card{
+  background:var(--ink-card);
+  padding:36px 32px;
+  position:relative;overflow:hidden;
+  transition:background .25s;
+}
+.prod-card:hover{background:var(--ink-light);}
+.prod-top-bar{
+  position:absolute;top:0;left:0;right:0;height:2px;
+}
+.bar-t2{background:linear-gradient(to right,#5DD49A,transparent);}
+.bar-t3{background:linear-gradient(to right,var(--gold),transparent);}
+.bar-t4{background:linear-gradient(to right,#93C5FD,transparent);}
+.prod-tier{
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:18px;
+}
+.pt2{color:#5DD49A;} .pt3{color:var(--gold);} .pt4{color:#93C5FD;}
+.prod-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:24px;font-weight:400;
+  margin-bottom:12px;line-height:1.2;
+}
+.prod-desc{font-size:12.5px;color:var(--dim);line-height:1.8;margin-bottom:18px;}
+.prod-rule{
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;
+  color:var(--muted);
+  border-top:1px solid var(--border);
+  padding-top:14px;line-height:1.8;
+}
+
+/* ═══ EVENTS ═══ */
+.ev-formats{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px;margin-bottom:56px;
+}
+.ev-card{background:var(--ink-card);padding:44px 36px;position:relative;overflow:hidden;}
+.ev-bg-n{
+  font-family:'Cormorant Garamond',serif;
+  font-size:130px;font-weight:300;
+  color:rgba(196,148,58,.03);
+  position:absolute;top:-20px;right:-10px;
+  line-height:1;pointer-events:none;
+}
+.ev-label{
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;
+  color:var(--gold-dim);text-transform:uppercase;margin-bottom:14px;
+}
+.ev-name{
+  font-family:'Cormorant Garamond',serif;
+  font-size:34px;font-weight:300;
+  margin-bottom:6px;line-height:1.1;
+}
+.ev-cap{font-size:11.5px;color:var(--gold);margin-bottom:20px;font-style:italic;}
+.ev-desc{font-size:12.5px;color:var(--dim);line-height:1.85;margin-bottom:20px;}
+.ev-rev{
+  background:rgba(196,148,58,.05);
+  border:1px solid rgba(196,148,58,.14);
+  padding:14px 18px;
+}
+.ev-rev-label{
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;
+  color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px;
+}
+.ev-rev-text{font-size:12px;color:var(--dim);line-height:1.7;}
+
+/* ═══ LVJ GRID ═══ */
+.lvj-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+.lvj-card{background:var(--ink-card);padding:44px 40px;}
+.lvj-h{
+  font-family:'Cormorant Garamond',serif;
+  font-size:32px;font-weight:300;
+  margin-bottom:18px;line-height:1.15;
+}
+.lvj-t{font-size:13px;color:var(--dim);line-height:1.85;margin-bottom:20px;}
+.visa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.visa{
+  background:var(--ink);padding:12px 14px;
+  border-left:2px solid var(--gold-dim);
+}
+.visa-name{
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;
+  color:var(--gold);text-transform:uppercase;margin-bottom:4px;
+}
+.visa-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* ═══ ROADMAP ═══ */
+.years{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;}
+.year{background:var(--ink-card);padding:40px 36px;position:relative;}
+.year-ghost{
+  font-family:'Cormorant Garamond',serif;
+  font-size:80px;font-weight:300;
+  color:rgba(196,148,58,.05);
+  position:absolute;top:10px;right:20px;
+  line-height:1;
+}
+.year-label{
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;
+  color:var(--gold);text-transform:uppercase;margin-bottom:6px;
+}
+.year-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:26px;font-weight:300;margin-bottom:20px;
+}
+.year-items{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.year-items li{
+  font-size:12.5px;color:var(--dim);
+  line-height:1.6;padding-left:16px;position:relative;
+}
+.year-items li::before{
+  content:'◆';position:absolute;left:0;
+  color:var(--gold-dim);font-size:5px;top:7px;
+}
+
+/* ═══ PRINCIPLES ═══ */
+.principles{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:48px;}
+.p-card{background:var(--ink-card);padding:32px 28px;position:relative;overflow:hidden;}
+.p-card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(to right,var(--gold),transparent);
+  opacity:.3;
+}
+.p-n{
+  font-family:'Cormorant Garamond',serif;
+  font-size:64px;font-weight:300;
+  color:rgba(196,148,58,.05);
+  position:absolute;top:-4px;right:12px;
+  line-height:1;
+}
+.p-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:20px;font-weight:400;
+  margin-bottom:10px;line-height:1.2;
+}
+.p-text{font-size:11.5px;color:var(--muted);line-height:1.8;}
+
+/* ═══ ORNAMENT ═══ */
+.orn{
+  display:flex;align-items:center;
+  justify-content:center;gap:14px;
+  margin:56px 0;
+}
+.orn-line{
+  flex:1;height:1px;
+  background:linear-gradient(to right,transparent,var(--border),transparent);
+}
+.orn-d{width:5px;height:5px;background:var(--gold-dim);transform:rotate(45deg);}
+.orn-d.hollow{background:transparent;border:1px solid var(--gold-dim);}
+
+/* ═══ FOOTER ═══ */
+footer{
+  padding:56px;
+  border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.ft-brand{
+  font-family:'Cormorant Garamond',serif;
+  font-size:26px;font-weight:300;
+  letter-spacing:8px;color:var(--gold);
+  text-transform:uppercase;
+}
+.ft-text{
+  font-family:'DM Mono',monospace;font-size:9px;
+  letter-spacing:2px;color:var(--muted);
+  text-align:right;line-height:1.8;
+}
+
+/* ═══ ANIMATIONS ═══ */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(24px);}
+  to{opacity:1;transform:translateY(0);}
+}
+@keyframes fadeIn{
+  from{opacity:0;}to{opacity:1;}
+}
+.fu{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;}
+.fu.vis{opacity:1;transform:translateY(0);}
+
+/* UTILS */
+strong.gold{color:var(--white);font-weight:500;}
+
+/* ─── BADGE ICON HELPER ─── */
+.bi{width:11px;height:11px;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#hero">
+    <div class="nav-mark"><span>Z</span></div>
+    <span class="nav-name">Zenitha</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#vision">Vision</a></li>
+    <li><a href="#ecosystem">Ventures</a></li>
+    <li><a href="#circle">Circle</a></li>
+    <li><a href="#products">Products</a></li>
+    <li><a href="#events">Events</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+  </ul>
+  <span class="nav-doc">Confidential · April 2026</span>
+</nav>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ══════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-eyebrow">Master Vision &amp; Strategic Plan</div>
+  <h1 class="hero-h1">The Luxury<br><em>AI Studio</em></h1>
+  <p class="hero-sub">Built from the Arab world. Delivered to the world.</p>
+  <p class="hero-statement">
+    Zenitha is not a travel agency, a tech company, or a media brand.
+    It is the infrastructure behind extraordinary luxury ventures —
+    rooted in the Arab world, built for a global audience.
+  </p>
+  <div class="hero-meta">April 2026<br>Internal Strategy</div>
+  <div class="hero-scroll">Scroll</div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- REPOSITIONING -->
+<!-- ══════════════════════════════════════════ -->
+<section id="vision">
+  <div class="label"><span class="label-num">01</span> Positioning</div>
+  <h2 class="title">What Zenitha <em>Actually Is</em></h2>
+  <p class="intro">The original plan defined Zenitha as a luxury travel affiliate agency. That was the entry point — not the destination. What has emerged is something structurally different and far more defensible.</p>
+
+  <div class="callout">
+    <p class="callout-q">Zenitha is a luxury AI studio that builds bespoke digital ecosystems, operates high-ticket ventures, and partners with exceptional operators — with the Arab world at its cultural core and Arabic-speaking audiences as its primary market.</p>
+    <p class="callout-attr">The Zenitha Repositioning · April 2026</p>
+  </div>
+
+  <div class="reposition-grid fu">
+    <div class="rp-cell">
+      <div class="rp-n">1</div>
+      <div class="rp-tag">The Studio</div>
+      <h3 class="rp-heading">We build platforms for extraordinary businesses</h3>
+      <p class="rp-text">Proven through the NAS &amp; Co. law firm platform — a production-grade, trilingual, AI-powered operations system. Arabic-first, RTL-native, compliance-ready. Each platform build is a $50K–$200K engagement with ongoing managed services.</p>
+    </div>
+    <div class="rp-cell">
+      <div class="rp-n">2</div>
+      <div class="rp-tag">The Operator</div>
+      <h3 class="rp-heading">We build and operate our own ventures</h3>
+      <p class="rp-text">Zenitha Travel, Yalla London, WTME, LVJ — Zenitha-owned ventures each serving a specific segment of the Arab luxury lifestyle. The Studio builds their infrastructure. The Circle distributes them. Events make them real.</p>
+    </div>
+    <div class="rp-cell">
+      <div class="rp-n">3</div>
+      <div class="rp-tag">The Market Entry Partner</div>
+      <h3 class="rp-heading">We open the Arab market for exceptional operators</h3>
+      <p class="rp-text">A yacht operator in Cannes, a villa resort in Koh Samui — they have extraordinary products and no culturally intelligent access to Arabic-speaking luxury travellers. Zenitha is that bridge. We bring the brand, the market, the infrastructure, the community.</p>
+    </div>
+    <div class="rp-cell">
+      <div class="rp-n">4</div>
+      <div class="rp-tag">The Co-Founder</div>
+      <h3 class="rp-heading">We co-build category-defining ventures</h3>
+      <p class="rp-text">For the right opportunity with the right partner, Zenitha enters as a co-founding entity. Zenitha Sky is the first Enterprise Venture — an Arabic-native private aviation platform built with an industry co-founder who brings operator relationships or inventory.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- ECOSYSTEM / VENTURES -->
+<!-- ══════════════════════════════════════════ -->
+<section id="ecosystem">
+  <div class="label"><span class="label-num">02</span> The Ecosystem</div>
+  <h2 class="title">The Zenitha <em>Architecture</em></h2>
+  <p class="intro">Seven distinct ventures, three operating models, one cultural identity. Each venture compounds the others — Studio builds the platform, Travel proves the market, Events create the community, LVJ converts clients downstream.</p>
+
+  <div class="ventures">
+
+    <!-- ZENITHA STUDIO -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="220" height="38" viewBox="0 0 220 38" overflow="visible" fill="none">
+              <text y="28" font-family="Cormorant Garamond, serif" font-size="26" letter-spacing="3">
+                <tspan fill="#EEE8DC" font-weight="300">ZENITHA </tspan><tspan fill="#C4943A" font-weight="400">STUDIO</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-studio">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M3 6h6M6 3v6" stroke="currentColor" stroke-width="1.2"/></svg>
+            Mothership
+          </span>
+        </div>
+        <div class="v-name">Zenitha Studio</div>
+        <div class="v-tagline">The AI platform that makes every other venture possible</div>
+        <p class="v-desc">Builds AI-powered platforms, brand identities, and digital infrastructure for luxury professional services firms. Trilingual (EN/HE/AR), RTL-native, compliance-ready — AI Secretary, CMS, social publishing, email campaigns, and full CRM in one no-code dashboard.</p>
+        <div class="v-proof">
+          <img src="https://www.nas-law.com/wp-content/uploads/2020/07/Nas_Logo_All-n.png" alt="NAS & Co." style="height:26px;width:auto;filter:brightness(0) invert(1);opacity:.85;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <svg width="100" height="24" viewBox="0 0 120 28" overflow="visible" fill="none" style="display:none"><text y="20" font-family="Cormorant Garamond, serif" font-size="18" letter-spacing="1"><tspan fill="#C4943A" font-weight="500">NAS</tspan><tspan fill="#EEE8DC" font-weight="300"> &amp; Co.</tspan></text></svg>
+          <span class="v-proof-label">Proof of Concept · Live at khaledaun.com</span>
+        </div>
+        <div class="v-tags">
+          <span class="tag">Platform Builds</span>
+          <span class="tag">AI Infrastructure</span>
+          <span class="tag">Trilingual EN/HE/AR</span>
+          <span class="tag">$50K–$200K</span>
+        </div>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-live">Live</span>
+      </div>
+    </div>
+
+    <!-- ZENITHA TRAVEL -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="220" height="38" viewBox="0 0 220 38" overflow="visible" fill="none">
+              <text y="28" font-family="Cormorant Garamond, serif" font-size="26" letter-spacing="3">
+                <tspan fill="#EEE8DC" font-weight="300">ZENITHA </tspan><tspan fill="#C4943A" font-weight="400">TRAVEL</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-solo">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Solo Venture
+          </span>
+        </div>
+        <div class="v-name">Zenitha Travel</div>
+        <div class="v-tagline">Luxury concierge for Arabic-speaking high-net-worth travellers</div>
+        <p class="v-desc">Entry via affiliate partnerships (Virtuoso, Villiers Jets, Anantara). Progression to bespoke concierge. Cultural differentiation: halal-luxury, Arabic-first, family-focused itineraries, privacy-led service. Serves Arab travellers from the Gulf, Levant, North Africa, and diaspora communities in Europe.</p>
+        <div class="v-tags">
+          <span class="tag">Affiliate + Concierge</span>
+          <span class="tag">Arab World HNWIs</span>
+          <span class="tag">Halal Luxury</span>
+        </div>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-build">Building</span>
+      </div>
+    </div>
+
+    <!-- YALLA LONDON -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="200" height="38" viewBox="0 0 200 38" overflow="visible" fill="none">
+              <text y="30" font-family="Cormorant Garamond, serif" font-size="28" letter-spacing="1">
+                <tspan fill="#EEE8DC" font-weight="500">Yalla </tspan><tspan fill="#C4943A" font-weight="300" font-style="italic">London</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-solo">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l1.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Solo Venture
+          </span>
+        </div>
+        <div class="v-name">Yalla London</div>
+        <div class="v-tagline">Arab diaspora lifestyle &amp; events brand across European cities</div>
+        <p class="v-desc">A culturally specific lifestyle brand for the Arab diaspora in London and beyond. Ambassador-led content, cultural gatherings, brand activations. The accessible base of the pyramid — building the audience that feeds every other Zenitha vertical. Zenitha owns entirely; ambassadors are distribution, not equity partners.</p>
+        <div class="v-tags">
+          <span class="tag">Solo Venture</span>
+          <span class="tag">Ambassador-Led</span>
+          <span class="tag">Arab Diaspora</span>
+          <span class="tag">European Cities</span>
+        </div>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-build">Building</span>
+      </div>
+    </div>
+
+    <!-- WTME -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="190" height="44" viewBox="0 0 190 44" overflow="visible" fill="none">
+              <text x="0" y="20" font-family="Cormorant Garamond, serif" font-size="17" font-weight="400" fill="#C4943A" letter-spacing="1">عالم من عيوني</text>
+              <text x="0" y="38" font-family="DM Mono, monospace" font-size="9" fill="#9A9185" letter-spacing="3">WORLDTME.COM</text>
+            </svg>
+          </div>
+          <span class="tbadge tb-active">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
+            Active · Relaunching
+          </span>
+        </div>
+        <div class="v-name">WTME — World Through My Eyes</div>
+        <div class="v-tagline">The largest Arabic-language travel experience platform in the Arab world</div>
+        <p class="v-desc">worldtme.com — currently in active relaunch phase. A destination guide, travel content hub, and community platform serving Arabic-speaking travellers across the Arab world and diaspora. The distribution backbone of the entire Zenitha ecosystem — the channel through which every new product reaches its audience first.</p>
+        <div class="v-tags">
+          <span class="tag">Active · Relaunching</span>
+          <span class="tag">Arabic Travel Platform</span>
+          <span class="tag">Distribution Backbone</span>
+        </div>
+        <a href="https://worldtme.com" target="_blank" class="v-url">worldtme.com ↗</a>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-live">Active</span>
+      </div>
+    </div>
+
+    <!-- LVJ -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <img
+              src="https://cdn.prod.website-files.com/681f2cae729aca6c7bfe006e/6825d1e0b098d1e57b87f2dd_Black-logo-no-background.webp"
+              alt="LVJ — Livre Vida Jovem"
+              class="invert"
+              style="height:34px;"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='block'"
+            />
+            <svg width="200" height="38" viewBox="0 0 200 38" overflow="visible" fill="none" style="display:none">
+              <text y="28" font-family="Cormorant Garamond, serif" font-size="26" letter-spacing="2">
+                <tspan fill="#C4943A" font-weight="500">LVJ</tspan><tspan fill="#EEE8DC" font-weight="300" font-size="15" font-style="italic"> Livre Vida Jovem</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-active">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
+            Active · Building
+          </span>
+        </div>
+        <div class="v-name">LVJ — Livre Vida Jovem</div>
+        <div class="v-tagline">Portugal residency &amp; visa consultancy for the Arab world</div>
+        <p class="v-desc">Golden Visa, D7 passive income, D2 entrepreneurship, D8 digital nomads, Family Reunification — already bilingual (EN/AR). Natural downstream conversion for every Arabic-speaking client Zenitha serves. Urgent priority: rebuild on the Zenitha Studio platform to become the only Arabic-first Portugal residency service built for the Arab world.</p>
+        <div class="v-tags">
+          <span class="tag">Legal Services</span>
+          <span class="tag">Portugal Residency</span>
+          <span class="tag">Arab World Clients</span>
+          <span class="tag">Downstream Conversion</span>
+        </div>
+        <a href="https://lvj-visa.com" target="_blank" class="v-url">lvj-visa.com ↗</a>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-live">Active</span>
+      </div>
+    </div>
+
+    <!-- ZENITHA YACHTS -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="240" height="38" viewBox="0 0 240 38" overflow="visible" fill="none">
+              <text y="28" font-family="Cormorant Garamond, serif" font-size="26" letter-spacing="3">
+                <tspan fill="#EEE8DC" font-weight="300">ZENITHA </tspan><tspan fill="#C4943A" font-weight="400">YACHTS</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-t2">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><path d="M6 1L11 3.5V7C11 9.5 8.5 11 6 11C3.5 11 1 9.5 1 7V3.5L6 1Z" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+            Tier 2 · Partner
+          </span>
+        </div>
+        <div class="v-name">Zenitha Yachts Mediterranean</div>
+        <div class="v-tagline">Territory partnership — one Mediterranean hub, Arab world clientele</div>
+        <p class="v-desc">French Riviera or Amalfi — not both. The Partner manages charter operations and client experience. Zenitha manages Arab market access, brand, AI concierge infrastructure, and Ambassador content distribution. Revenue share: 15–25% of net territory revenue. Maximum two territory partnerships at launch.</p>
+        <div class="v-tags">
+          <span class="tag">Tier 2 Partner</span>
+          <span class="tag">Revenue Share</span>
+          <span class="tag">Mediterranean</span>
+        </div>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-seek">Seeking Partner</span>
+      </div>
+    </div>
+
+    <!-- ZENITHA SKY -->
+    <div class="venture fu">
+      <div class="v-content">
+        <div class="v-header">
+          <div class="v-logo">
+            <svg width="195" height="38" viewBox="0 0 195 38" overflow="visible" fill="none">
+              <text y="28" font-family="Cormorant Garamond, serif" font-size="26" letter-spacing="3">
+                <tspan fill="#EEE8DC" font-weight="300">ZENITHA </tspan><tspan fill="#C4943A" font-weight="400">SKY</tspan>
+              </text>
+            </svg>
+          </div>
+          <span class="tbadge tb-t4">
+            <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M1 6h10M6 1c-1.5 2-1.5 6 0 10M6 1c1.5 2 1.5 6 0 10" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+            Tier 4 · Enterprise
+          </span>
+        </div>
+        <div class="v-name">Zenitha Sky</div>
+        <div class="v-tagline">Arabic-native private aviation platform — empty legs, charter access</div>
+        <p class="v-desc">No Arabic luxury brand has built a credible product in this space. Seeking a co-founder with existing operator relationships, a broker network, or charter inventory. Zenitha brings: the brand, Arab world market access, the full Circle distribution network, and Studio infrastructure. A genuine co-founding conversation — not a licensing arrangement.</p>
+        <div class="v-tags">
+          <span class="tag">Enterprise Venture</span>
+          <span class="tag">Pre-Seed</span>
+          <span class="tag">Co-Founder Sought</span>
+          <span class="tag">Private Aviation</span>
+        </div>
+      </div>
+      <div class="v-right">
+        <span class="vstatus vs-seek">Co-Founder Sought</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- THE CIRCLE -->
+<!-- ══════════════════════════════════════════ -->
+<section id="circle">
+  <div class="label"><span class="label-num">03</span> The Circle</div>
+  <h2 class="title">The Zenitha <em>Circle</em></h2>
+  <p class="intro">The ambassador framework is one pillar of the vision — not the whole vision. Four distinct relationship tiers, each with a different commercial structure, role, and value proposition.</p>
+
+  <div class="tiers">
+
+    <!-- T1 -->
+    <div class="tier-row fu">
+      <div class="tier-id">
+        <div class="tier-ghost">I</div>
+        <div class="tier-seq">Tier 01</div>
+        <span class="tbadge tb-t1" style="margin-bottom:14px;">
+          <svg class="bi" viewBox="0 0 12 12" fill="none"><polygon points="6,1 7.8,4.2 11.5,4.9 8.9,7.5 9.5,11.2 6,9.4 2.5,11.2 3.1,7.5 0.5,4.9 4.2,4.2" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+          Zenitha Ambassador
+        </span>
+        <div class="tier-name-big">Content<br>Creators</div>
+        <div class="tier-subtitle">Arabic-first influencers &amp; creators</div>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">What They Offer</div>
+        <ul class="tier-list">
+          <li>Arabic-first content that tells the Zenitha story authentically</li>
+          <li>Genuine cultural authority with Arab world and diaspora audiences</li>
+          <li>Distribution reach that drives traffic and bookings</li>
+          <li>Micro (20K–150K) and Macro (150K–1M+) sub-tiers within this level</li>
+        </ul>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">What They Receive</div>
+        <ul class="tier-list">
+          <li>8–12% performance commission on bookings generated</li>
+          <li>Curated complimentary luxury experiences for content production</li>
+          <li>Zenitha Studio creative direction and production support</li>
+          <li>First access to every new destination or product pre-launch</li>
+          <li>Arabic-first briefs — Zenitha thinks in Arabic, not translates into it</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- T2 -->
+    <div class="tier-row fu">
+      <div class="tier-id">
+        <div class="tier-ghost">II</div>
+        <div class="tier-seq">Tier 02</div>
+        <span class="tbadge tb-t2" style="margin-bottom:14px;">
+          <svg class="bi" viewBox="0 0 12 12" fill="none"><path d="M6 1L11 3.5V7C11 9.5 8.5 11 6 11C3.5 11 1 9.5 1 7V3.5L6 1Z" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+          Zenitha Partner
+        </span>
+        <div class="tier-name-big">Territory<br>Operators</div>
+        <div class="tier-subtitle">Own a market on behalf of Zenitha</div>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">What They Offer</div>
+        <ul class="tier-list">
+          <li>Deep local knowledge and existing supplier relationships</li>
+          <li>Operational competence to run a Zenitha-branded territory</li>
+          <li>Personal brand equity with the relevant market audience</li>
+          <li>Both operational AND content capability — the combination is required</li>
+        </ul>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">What They Receive</div>
+        <ul class="tier-list">
+          <li>Exclusive Zenitha representation in their territory</li>
+          <li>Revenue share (15–25% of net) or semi-equity in territory entity</li>
+          <li>Full Zenitha brand and Arab market trust from day one</li>
+          <li>AI platform and Studio infrastructure adapted for their market</li>
+          <li>Pipeline of pre-qualified Arabic-speaking luxury clients</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- T3 -->
+    <div class="tier-row fu">
+      <div class="tier-id">
+        <div class="tier-ghost">III</div>
+        <div class="tier-seq">Tier 03</div>
+        <span class="tbadge tb-t3" style="margin-bottom:14px;">
+          <svg class="bi" viewBox="0 0 12 12" fill="none"><path d="M6 1L11 6L6 11L1 6Z" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+          Zenitha Pioneer
+        </span>
+        <div class="tier-name-big">Early<br>Adopters</div>
+        <div class="tier-subtitle">Use the product first, grow with it</div>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">The Three Stages</div>
+        <ul class="tier-list">
+          <li><strong class="gold">Stage 1:</strong> Free access during build — NDA signed, feedback shapes the product</li>
+          <li><strong class="gold">Stage 2:</strong> Validation — 8–12% affiliate commission on referrals post-launch</li>
+          <li><strong class="gold">Stage 3:</strong> Partnership — equity in product entity based on documented contribution</li>
+          <li>Contribution ledger tracks time, feedback, referrals, and revenue from day one</li>
+        </ul>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">Protections</div>
+        <ul class="tier-list">
+          <li>Equity in product entity only — never in Zenitha parent</li>
+          <li>Vesting over 2–3 years with 6–12 month cliff</li>
+          <li>Defined pool (10–15%) shared across all Pioneers per product</li>
+          <li>Contribution threshold required — Stage 3 is earned, not automatic</li>
+          <li>First right of refusal if Pioneer ever exits their stake</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- T4 -->
+    <div class="tier-row fu">
+      <div class="tier-id">
+        <div class="tier-ghost">IV</div>
+        <div class="tier-seq">Tier 04</div>
+        <span class="tbadge tb-t4" style="margin-bottom:14px;">
+          <svg class="bi" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M1 6h10M6 1c-1.5 2-1.5 6 0 10M6 1c1.5 2 1.5 6 0 10" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+          Enterprise Venture
+        </span>
+        <div class="tier-name-big">Strategic<br>Co-Founders</div>
+        <div class="tier-subtitle">Their idea, built on Zenitha infrastructure</div>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">The Pipeline</div>
+        <ul class="tier-list">
+          <li>Public invitation on Zenitha platform — curated, not open to all</li>
+          <li>Mutual NDA triggered automatically on serious submission</li>
+          <li>On-site validation questionnaire filters before human time is spent</li>
+          <li>Internal evaluation: fit, what each party brings, revenue potential</li>
+          <li>Zoom call for mutual evaluation — both sides decide to proceed</li>
+        </ul>
+      </div>
+      <div class="tier-col">
+        <div class="tier-col-title">Categories Zenitha Will Evaluate</div>
+        <ul class="tier-list">
+          <li>Private aviation ventures using Arab world market access</li>
+          <li>Luxury hospitality concepts needing brand and distribution</li>
+          <li>Professional services platforms in adjacent verticals</li>
+          <li>Luxury lifestyle and e-commerce with Arab world positioning</li>
+          <li>NOT: physical asset ownership, mid-market, unnavigable regulated sectors</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- PRODUCTS BY TIER -->
+<!-- ══════════════════════════════════════════ -->
+<section id="products">
+  <div class="label"><span class="label-num">04</span> Products</div>
+  <h2 class="title">Products <em>by Tier</em></h2>
+  <p class="intro">Controlled expansion is the discipline. Every product must require at least two of three Zenitha assets: Arab world market access, the AI platform, or the brand and distribution network. Maximum products at launch are strictly defined.</p>
+
+  <div class="products fu">
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t2"></div>
+      <div class="prod-tier pt2">Tier 2 · Partner Product</div>
+      <div class="prod-name">Zenitha Yachts Mediterranean</div>
+      <p class="prod-desc">One Mediterranean hub. French Riviera or Amalfi — not both. Partner manages charter operations. Zenitha manages Arab market access, brand, AI concierge infrastructure, and Ambassador distribution.</p>
+      <div class="prod-rule">LIMIT: 1 territory at launch · No second territory until first proven</div>
+    </div>
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t2"></div>
+      <div class="prod-tier pt2">Tier 2 · Partner Product</div>
+      <div class="prod-name">Zenitha Retreats</div>
+      <p class="prod-desc">One boutique property. Thailand or Maldives. Partner is the hospitality operator. Zenitha is the Arab market channel, brand layer, and content production engine. Every retreat becomes a Studio content property.</p>
+      <div class="prod-rule">LIMIT: 1 property at launch · Proven Arab world demand required</div>
+    </div>
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t3"></div>
+      <div class="prod-tier pt3">Tier 3 · Pioneer Product</div>
+      <div class="prod-name">Zenitha Platform — Professional Services</div>
+      <p class="prod-desc">NAS &amp; Co. is proof of concept. Next Pioneer targets: one medical clinic serving Arab medical tourism, one boutique wealth management firm, one architecture studio with Gulf residential contracts.</p>
+      <div class="prod-rule">REQUIREMENT: Platform 80%+ adapted before Pioneer access opens</div>
+    </div>
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t3"></div>
+      <div class="prod-tier pt3">Tier 3 · Pioneer Product</div>
+      <div class="prod-name">Zenitha Travel Concierge Infrastructure</div>
+      <p class="prod-desc">The booking and concierge platform as a Pioneer product for boutique travel agencies wanting Arab world market access. They validate with their client base, refer other agencies, earn equity proportional to contribution.</p>
+      <div class="prod-rule">REQUIREMENT: Travel platform built first · Pioneer agencies must have existing client base</div>
+    </div>
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t3"></div>
+      <div class="prod-tier pt3">Tier 3 · Pioneer Product</div>
+      <div class="prod-name">LVJ — Platform Upgrade</div>
+      <p class="prod-desc">LVJ rebuilt on Zenitha Studio becomes a Pioneer product for complementary immigration services in Spain, Greece, UAE. Pioneers validate the platform in their market, earn equity in the expanded LVJ entity.</p>
+      <div class="prod-rule">PRIORITY: Most immediate Pioneer opportunity · Direct Arab client conversion synergy</div>
+    </div>
+    <div class="prod-card">
+      <div class="prod-top-bar bar-t4"></div>
+      <div class="prod-tier pt4">Tier 4 · Enterprise Venture</div>
+      <div class="prod-name">Zenitha Sky</div>
+      <p class="prod-desc">Arabic-native private aviation. Empty leg aggregation, charter access. Co-founder sought with operator relationships, broker network, or charter inventory. Zenitha brings brand, Arab world market, full Circle, Studio infrastructure.</p>
+      <div class="prod-rule">CO-FOUNDER MUST BRING: Industry infrastructure OR capital — genuine equity co-founding only</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- EVENTS -->
+<!-- ══════════════════════════════════════════ -->
+<section id="events">
+  <div class="label"><span class="label-num">05</span> Events</div>
+  <h2 class="title">Zenitha <em>Events</em></h2>
+  <p class="intro">The only Zenitha product that simultaneously generates revenue, produces premium content, converts clients across every vertical, and makes the brand physically real. In the Arab world — where trust is built face to face and relationships precede transactions — events are not marketing. They are the most powerful business development instrument Zenitha deploys.</p>
+
+  <div class="callout">
+    <p class="callout-q">Nobody pays $3,000 for a dinner. They pay $3,000 to be in a room where one conversation could change the direction of their business. Zenitha earns the right to charge that by proving the quality of its curation first.</p>
+  </div>
+
+  <div class="ev-formats fu">
+    <div class="ev-card">
+      <div class="ev-bg-n">1</div>
+      <div class="ev-label">Format One</div>
+      <div class="ev-name">Zenitha Gatherings</div>
+      <div class="ev-cap">20–40 people · Invitation only · Year 1 priority</div>
+      <p class="ev-desc">Private dinners and curated evenings in exceptional settings — a villa in Cap Ferrat, a private dining room in a Lisbon palace. The guest list is everything: Pioneers, prospective HNWIs, potential Partners. No sponsors. No overt branding. The conversation is the product.</p>
+      <p class="ev-desc">Revenue model in Year 1: zero ticket revenue. Venue costs covered by luxury property sponsorships. Every Gathering targets two to three meaningful conversions: LVJ consultations, travel bookings, Pioneer agreements, or territory partnerships.</p>
+      <div class="ev-rev">
+        <div class="ev-rev-label">Year 1 Model</div>
+        <div class="ev-rev-text">Zero cost to Zenitha — venue sponsors cover. One qualified conversion per Gathering funds ten more Gatherings.</div>
+      </div>
+    </div>
+    <div class="ev-card">
+      <div class="ev-bg-n">2</div>
+      <div class="ev-label">Format Two</div>
+      <div class="ev-name">Zenitha Summits</div>
+      <div class="ev-cap">80–150 people · Curated program · Year 2+</div>
+      <p class="ev-desc">One or two day gatherings built around a specific theme. Nothing that feels like a conference. Three proven themes: <em style="color:var(--gold)">The Arab Investor in Europe</em> (LVJ central, Lisbon or Dubai), <em style="color:var(--gold)">Luxury Living Redefined</em> (all verticals, Monaco or Maldives), <em style="color:var(--gold)">The Future of Arab Business</em> (legal tech, cross-border commerce, Dubai or Tel Aviv).</p>
+      <div class="ev-rev">
+        <div class="ev-rev-label">Revenue Model</div>
+        <div class="ev-rev-text">$2,000–$5,000 per delegate. Strategic sponsorships from luxury brands and property developers. Target: $150K–$400K gross per event. Earned through Year 1 Gathering reputation.</div>
+      </div>
+    </div>
+    <div class="ev-card">
+      <div class="ev-bg-n">3</div>
+      <div class="ev-label">Format Three</div>
+      <div class="ev-name">Zenitha Experiences</div>
+      <div class="ev-cap">Open · Brand-building · Runs in parallel from Year 1</div>
+      <p class="ev-desc">The Yalla London format — culturally vibrant, lifestyle-oriented, accessible to the broader Arab diaspora. A Yalla London evening in Shoreditch. A Ramadan gathering in Paris. A summer rooftop in Barcelona. These feel like cultural moments, not brand activations — because they genuinely are.</p>
+      <div class="ev-rev">
+        <div class="ev-rev-label">Revenue Model</div>
+        <div class="ev-rev-text">Ticket sales + brand sponsorships from halal luxury brands. $20K–$80K per event. Uses existing WTME reach and Yalla London infrastructure.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LVJ + Events -->
+  <div class="label" style="margin-top:8px;"><span>↳</span> Portugal by Zenitha — The LVJ Event Synergy</div>
+  <div class="lvj-grid fu">
+    <div class="lvj-card">
+      <h3 class="lvj-h">Portugal by Zenitha</h3>
+      <p class="lvj-t">A curated evening series — held in key Arab diaspora cities: London, Dubai, Paris, Berlin — combining three things in one room: the lifestyle of Portugal through Zenitha's lens, the investment case for Portuguese residency presented by LVJ, and the community of Arab investors at the same stage of their European relocation journey.</p>
+      <p class="lvj-t">Arab clients do not buy immigration services from a website. They buy from someone they met at a dinner, introduced by someone they trust, in a setting that felt like their world. One well-executed Portugal by Zenitha dinner in Dubai generates more qualified LVJ conversions than six months of digital marketing.</p>
+    </div>
+    <div class="lvj-card">
+      <h3 class="lvj-h">LVJ Visa Portfolio</h3>
+      <p class="lvj-t" style="margin-bottom:20px;">Eight pathways, each with a distinct Arab client profile:</p>
+      <div class="visa-grid">
+        <div class="visa"><div class="visa-name">Golden Visa</div><div class="visa-desc">Investment-based residency. Primary Arab HNWI target.</div></div>
+        <div class="visa"><div class="visa-name">D7 Visa</div><div class="visa-desc">Passive income / retirement. Expats with European ambitions.</div></div>
+        <div class="visa"><div class="visa-name">D2 Visa</div><div class="visa-desc">Entrepreneurship. Arab founders expanding to Europe.</div></div>
+        <div class="visa"><div class="visa-name">D8 Visa</div><div class="visa-desc">Digital nomads. Next-gen Arab professionals.</div></div>
+        <div class="visa"><div class="visa-name">Startup Visa</div><div class="visa-desc">Innovative entrepreneurs. Tech and innovation focus.</div></div>
+        <div class="visa"><div class="visa-name">D3 Visa</div><div class="visa-desc">Highly skilled professionals relocating.</div></div>
+        <div class="visa"><div class="visa-name">D1 Visa</div><div class="visa-desc">Employment in Portugal.</div></div>
+        <div class="visa"><div class="visa-name">Family Reunification</div><div class="visa-desc">Joining existing residents.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- ROADMAP -->
+<!-- ══════════════════════════════════════════ -->
+<section id="roadmap">
+  <div class="label"><span class="label-num">06</span> Roadmap</div>
+  <h2 class="title">The <em>Roadmap</em></h2>
+  <p class="intro">Three years, three phases. Controlled expansion is not timidity — it is the strategy that separates businesses that last from those that scale and collapse.</p>
+
+  <div class="years fu">
+    <div class="year">
+      <div class="year-ghost">Y1</div>
+      <div class="year-label">Year One</div>
+      <div class="year-title">Build &amp; Prove</div>
+      <ul class="year-items">
+        <li>Launch Zenitha Travel — affiliate partnerships (Virtuoso, Villiers Jets, Anantara)</li>
+        <li>Rebuild LVJ on Zenitha Studio platform — Arabic-first, Arab world-native</li>
+        <li>Open Pioneer program for Platform: first 3 professional services clients</li>
+        <li>Identify and sign first Tier 2 Partner for Mediterranean Yachts</li>
+        <li>Launch Yalla London — first Experience events in London</li>
+        <li>Run first 3 Zenitha Gatherings (Lisbon, Dubai, London) — zero cost</li>
+        <li>First "Portugal by Zenitha" dinner in Dubai — LVJ lead generation</li>
+        <li>Build Ambassador program: 10–15 Tier 1 creators</li>
+        <li>Begin Zenitha Sky co-founder conversations</li>
+        <li style="color:var(--gold);"><strong class="gold">KPIs:</strong> $150K–$300K revenue · 3 Pioneer agreements · 1 Partner signed</li>
+      </ul>
+    </div>
+    <div class="year">
+      <div class="year-ghost">Y2</div>
+      <div class="year-label">Year Two</div>
+      <div class="year-title">Scale &amp; Expand</div>
+      <ul class="year-items">
+        <li>Zenitha Travel: direct contracts with Mediterranean and Indian Ocean properties</li>
+        <li>First Zenitha Summit — "The Arab Investor in Europe" — Lisbon or Dubai</li>
+        <li>Zenitha Yachts Mediterranean fully operational with proven Partner</li>
+        <li>Add second territory partnership if first is proven</li>
+        <li>LVJ expansion via Pioneer model to Spain or Greece market</li>
+        <li>Platform: second vertical of Pioneer clients launched</li>
+        <li>Zenitha Sky: co-founder signed, pre-seed raised or bootstrapped with partner</li>
+        <li>Enterprise Venture pipeline open — first inbound applications evaluated</li>
+        <li>Zenitha Faces: 3–5 macro Ambassadors formally engaged</li>
+        <li style="color:var(--gold);"><strong class="gold">KPIs:</strong> $500K–$800K revenue · First Summit $150K+ gross · 2 active Partners</li>
+      </ul>
+    </div>
+    <div class="year">
+      <div class="year-ghost">Y3</div>
+      <div class="year-label">Year Three</div>
+      <div class="year-title">Prestige &amp; Community</div>
+      <ul class="year-items">
+        <li>Zenitha Elite membership launch — $10K/year, 50–100 members target</li>
+        <li>Annual Summit series established: 2–3 events per year across formats</li>
+        <li>Zenitha Sky product live and generating revenue</li>
+        <li>Studio platform as commercial SaaS: multi-tenant expansion</li>
+        <li>PR campaigns: Harper's Bazaar Arabia, GQ Middle East, Forbes Middle East</li>
+        <li>First Enterprise Venture co-built and launched</li>
+        <li>LVJ expanded beyond Portugal — European residency brand</li>
+        <li>Pioneer program: first equity grants vest for Stage 1 pioneers</li>
+        <li>Cross-border legal tech product (UAE–Israel) in development</li>
+        <li style="color:var(--gold);"><strong class="gold">KPIs:</strong> $1.5M+ revenue · 100 elite members · 3+ active Enterprise Ventures</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="orn"><div class="orn-line"></div><div class="orn-d hollow"></div><div class="orn-d"></div><div class="orn-d hollow"></div><div class="orn-line"></div></div>
+
+  <div class="label"><span>↳</span> The Principles That Never Change</div>
+  <div class="principles fu">
+    <div class="p-card">
+      <div class="p-n">1</div>
+      <div class="p-title">Cultural specificity is the filter</div>
+      <p class="p-text">Every product, partner, ambassador, and event must have genuine credibility with the Arab world. A beautiful Western product with no Arab market connection is worthless regardless of quality.</p>
+    </div>
+    <div class="p-card">
+      <div class="p-n">2</div>
+      <div class="p-title">Brand elevation, not dilution</div>
+      <p class="p-text">One mid-market product under the Zenitha brand destroys the positioning irreversibly. Every venture must sit at or above the luxury threshold — no exceptions for financial attractiveness.</p>
+    </div>
+    <div class="p-card">
+      <div class="p-n">3</div>
+      <div class="p-title">Controlled expansion only</div>
+      <p class="p-text">Maximum two territory Partners at launch. Three Pioneer product categories only. No new Partner until existing ones are proven. The discipline is saying no until what exists is genuinely proven.</p>
+    </div>
+    <div class="p-card">
+      <div class="p-n">4</div>
+      <div class="p-title">Everything compounds</div>
+      <p class="p-text">The Studio builds the platform. Travel proves the market. Events create the community. LVJ converts clients downstream. Ambassadors distribute the content. Pioneers co-own what they helped build.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="ft-brand">Zenitha</div>
+  <div class="ft-text">
+    Master Vision &amp; Strategic Plan<br>
+    April 2026 · Confidential Internal Document
+  </div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('vis'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.fu').forEach(el => obs.observe(el));
+
+const secs = document.querySelectorAll('section[id]');
+const links = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  secs.forEach(s => { if(scrollY >= s.offsetTop - 80) cur = s.id; });
+  links.forEach(a => {
+    a.style.color = (a.getAttribute('href') === '#' + cur) ? 'var(--gold)' : '';
+  });
+});
+</script>
+</body>
+</html>

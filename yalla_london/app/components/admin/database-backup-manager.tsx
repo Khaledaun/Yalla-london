@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -85,12 +85,7 @@ export function DatabaseBackupManager() {
   const [selectedBackup, setSelectedBackup] = useState<DatabaseBackup | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadBackups()
-    loadDatabaseStats()
-  }, [])
-
-  const loadBackups = async () => {
+  const loadBackups = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/database/backups')
@@ -108,9 +103,9 @@ export function DatabaseBackupManager() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
-  const loadDatabaseStats = async () => {
+  const loadDatabaseStats = useCallback(async () => {
     try {
       const response = await fetch('/api/database/stats')
       if (response.ok) {
@@ -120,7 +115,12 @@ export function DatabaseBackupManager() {
     } catch (error) {
       console.error('Failed to load database stats:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadBackups()
+    loadDatabaseStats()
+  }, [loadBackups, loadDatabaseStats])
 
   const handleCreateBackup = async () => {
     if (!newBackupName.trim()) {
@@ -580,7 +580,7 @@ export function DatabaseBackupManager() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Restore Database</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to restore the database from "{backup.backupName}"? 
+                                    Are you sure you want to restore the database from &quot;{backup.backupName}&quot;?
                                     This will replace all current data and cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -611,7 +611,7 @@ export function DatabaseBackupManager() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Backup</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{backup.backupName}"? 
+                                Are you sure you want to delete &quot;{backup.backupName}&quot;?
                                 This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>

@@ -22,6 +22,7 @@ interface RateLimitStore {
 
 // In-memory store for rate limiting (use Redis in production)
 const rateLimitStore: RateLimitStore = {};
+let checkCount = 0;
 
 /**
  * Default key generator based on IP address
@@ -69,9 +70,9 @@ export function createRateLimit(config: RateLimitConfig) {
       resetTime: number;
       totalRequests: number;
     }> => {
-      // Clean up expired entries periodically
-      if (Math.random() < 0.01) {
-        // 1% chance
+      // Clean up expired entries every 100th request (deterministic)
+      checkCount++;
+      if (checkCount % 100 === 0) {
         cleanupExpiredEntries();
       }
 

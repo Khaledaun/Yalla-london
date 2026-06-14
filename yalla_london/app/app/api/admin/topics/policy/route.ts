@@ -2,6 +2,8 @@
  * Phase 4C Topics Policy Management API
  * Zod-validated, role-protected endpoints for topic policy CRUD
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

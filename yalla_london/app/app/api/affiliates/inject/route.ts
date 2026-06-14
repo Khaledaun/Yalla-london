@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { buildCjDeepLinkRaw } from "@/lib/affiliate/page-affiliate-links";
 
 /**
  * Affiliate Link Injection API (Admin-only)
@@ -54,6 +55,18 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       "حجز",
     ],
     affiliates: [
+      {
+        // JOINED CJ advertiser — deep link pays commission (June 12 audit).
+        // Listed first so hotels still monetize while Booking/Agoda IDs are unset.
+        name: "Expedia",
+        url: buildCjDeepLinkRaw(
+          "expedia",
+          "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+          "yalla-london_inject",
+        ) as string,
+        param: "",
+        category: "hotel",
+      },
       {
         name: "Booking.com",
         url: "https://www.booking.com/city/gb/london.html",
@@ -326,6 +339,9 @@ function findAffiliateMatches(
       if (inContent || inKeywords) {
         for (const affiliate of rule.affiliates) {
           if (categoryFilter && affiliate.category !== categoryFilter) continue;
+          // Skip links whose tracking param resolved to an empty value (unset
+          // env var) — they ship readers to partners with $0 attribution.
+          if (`${affiliate.url}${affiliate.param}`.match(/[?&][a-z_]+=(&|$)/i)) continue;
 
           // Calculate relevance score
           let score = 0;
@@ -384,7 +400,9 @@ function injectAffiliateLinks(htmlContent: string, categoryFilter?: string) {
     const { affiliate } = match;
     const safeName = escapeHtml(affiliate.name);
     const safeCategory = escapeHtml(affiliate.category);
-    const safeUrl = encodeURI(affiliate.url + affiliate.param);
+    // NOTE: no encodeURI — rule URLs are pre-built (CJ deep links contain
+    // %-encoded url params) and encodeURI double-encodes "%" → broken links.
+    const safeUrl = (affiliate.url + affiliate.param).replace(/"/g, "&quot;");
     const affiliateBox = `
 <div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${safeCategory}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
   <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${safeName}</p>
@@ -417,7 +435,7 @@ function injectAffiliateLinks(htmlContent: string, categoryFilter?: string) {
     ${matches
       .map(
         (m) => `
-    <a href="${encodeURI(m.affiliate.url + m.affiliate.param)}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit; transition: box-shadow 0.2s;">
+    <a href="${(m.affiliate.url + m.affiliate.param).replace(/"/g, "&quot;")}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit; transition: box-shadow 0.2s;">
       <strong style="color: #7c3aed;">${escapeHtml(m.affiliate.name)}</strong>
       <span style="display: block; font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem;">${escapeHtml(m.affiliate.category)}</span>
     </a>
@@ -507,7 +525,7 @@ async function bulkInjectAffiliates() {
   const posts = await prisma.blogPost.findMany({
     where: {
       published: true,
-      deletedAt: null,
+      
       content_en: { not: "" },
     },
     select: { id: true, content_en: true, content_ar: true, slug: true },

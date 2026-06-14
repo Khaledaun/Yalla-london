@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { trackClick, getPartnerBySlug, generateAffiliateUrl } from '@/lib/domains/affiliate';
 import { cookies } from 'next/headers';
 import { publicLimiter } from '@/lib/rate-limit';
+import { getDefaultSiteId } from '@/config/sites';
 
 export async function POST(request: NextRequest) {
   const blocked = publicLimiter(request);
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get tenant context from headers
-    const siteId = request.headers.get('x-site-id') || 'yalla-london';
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId();
 
     // Get visitor/session from cookies
     const cookieStore = await cookies();

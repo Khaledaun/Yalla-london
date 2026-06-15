@@ -223,7 +223,7 @@ export async function searchTrendingTopics(destination: string, locale: string =
 
 Search for the most trending and newsworthy topics about ${destination} travel RIGHT NOW.
 Focus on: hotels, restaurants, attractions, tickets, events, seasonal activities, transport updates, new openings, nightlife, day trips, shopping, family activities, itineraries, budget tips.
-TOPIC MIX: 7-8 topics must be general travel. 1-2 can be halal/Arab-traveller niche topics.
+TOPIC MIX: 6-7 topics must serve Arab/Gulf/Muslim travellers (halal dining, prayer-friendly venues, Arab-friendly & family hotels, Edgware Road / Knightsbridge, Ramadan/Eid, shisha). 2-3 broader travel topics with an Arab-traveller lens. This niche is where the site ranks and converts — lead with it.
 PAGETYPE MIX: At least 2 must be "comparison" (X vs Y queries) and at least 2 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
 
 Each topic MUST include 3 long-tail keyword variations (3-6 words, including modifiers like "vs", "best for", "how to", "is X worth it") AND 2-3 question-format queries real travelers actually search.

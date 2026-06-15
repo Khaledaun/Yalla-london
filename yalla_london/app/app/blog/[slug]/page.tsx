@@ -102,6 +102,7 @@ async function getDbPost(slug: string, siteId: string) {
           content_en: true,
           content_ar: true,
           featured_image: true,
+          noindex: true,
           created_at: true,
           updated_at: true,
           tags: true,
@@ -333,6 +334,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .split(/\s+/)
     .filter(Boolean).length;
   const hasSubstantiveContent = wordCountEn >= 300 || wordCountAr >= 300;
+  // Pruned dead-weight: served (200) but explicitly noindex'd to stop diluting
+  // site quality signals. Reversible — flip BlogPost.noindex back to false.
+  const shouldIndex = hasSubstantiveContent && !(post as { noindex?: boolean }).noindex;
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);
@@ -399,10 +403,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: image ? [image] : [],
     },
     robots: {
-      index: hasSubstantiveContent,
+      index: shouldIndex,
       follow: true,
       googleBot: {
-        index: hasSubstantiveContent,
+        index: shouldIndex,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",

@@ -336,7 +336,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
     const { BLOG_REDIRECTS } = await import("@/lib/seo/redirect-map");
     const redirectedSlugs = new Set<string>(Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, "")));
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, siteId, canonical_slug: null },
+      where: { published: true, deletedAt: null, siteId, canonical_slug: null, noindex: false },
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 500,

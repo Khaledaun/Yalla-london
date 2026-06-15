@@ -537,7 +537,7 @@ async function generateTopicsDirect(
     : "";
   const prompt = `You are a local editor specializing in ${destination} travel content. Suggest 5 timely article topics about ${destination} for "${category}"
 in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
-TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport tips, family activities). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
+TOPIC MIX: 3 topics must serve Arab/Gulf/Muslim travellers to ${destination} (halal dining by area, prayer-friendly venues, Arab-friendly & family hotels, Edgware Road / Knightsbridge / Mayfair, Ramadan/Eid, shisha lounges, Arabic-speaking services). 2 topics cover broader ${destination} (attractions, shopping, day trips) written WITH an Arab-traveller lens (note halal options, modesty, family-friendliness). This niche is where the site ranks and converts.${holidayBlock}
 PAGETYPE MIX: At least 1 must be "comparison" (X vs Y, X vs Y vs Z) and at least 1 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
 Each topic MUST include 3 long-tail keyword variations (3-6 words each, including comparison/intent modifiers like "vs", "best for", "how to", "is it worth") AND 2-3 question-format queries that real travelers type.
 Return strict JSON array with objects: {title, slug, rationale, sources: string[], longtails: string[], questions: string[], pageType: "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", intent: "info"|"commercial"|"transactional"}`;
@@ -595,7 +595,7 @@ async function generateTopicsViaAIProvider(
     locale === "en"
       ? `You are a local editor specializing in ${destination} travel content.
 Suggest 5 timely, SEO-worthy article topics about ${destination} for the category "${category}".
-TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
+TOPIC MIX: 3 topics must serve Arab/Gulf/Muslim travellers to ${destination} (halal dining by area, prayer-friendly venues, Arab-friendly & family hotels, Edgware Road / Knightsbridge / Mayfair, Ramadan/Eid, shisha lounges). 2 topics cover broader ${destination} (attractions, shopping, day trips) written WITH an Arab-traveller lens. This niche is where the site ranks and converts.${holidayBlock}
 PAGETYPE MIX: At least 1 must be "comparison" (X vs Y, X vs Y vs Z) and at least 1 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
 Each topic MUST include a short URL slug, 1-2 authority source domains, 3 long-tail keyword variations (3-6 words each, including comparison/intent modifiers like "vs", "best for", "how to", "is it worth"), and 2-3 question-format queries real travelers type.
 Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"], longtails: ["..."], questions: ["..."], pageType: "guide"|"comparison"|"listicle"|"deep-dive"|"answer"|"review"|"seasonal", intent: "info"|"commercial"|"transactional"}]`

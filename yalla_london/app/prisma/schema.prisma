@@ -112,6 +112,7 @@ model BlogPost {
   content_ar   String
   featured_image String?
   published    Boolean  @default(false)
+  noindex      Boolean  @default(false) // pruned dead-weight: served (200) but robots noindex + excluded from sitemap
   category_id  String
   author_id    String
   meta_title_en String?

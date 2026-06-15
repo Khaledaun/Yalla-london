@@ -20,18 +20,21 @@ import { logCronExecution } from "@/lib/cron-logger";
  * - Seasonal trend patterns
  */
 
-// Target keywords to monitor — neutral, high-volume travel queries
+// Target keywords to monitor — niche-dominant (the Arab/Muslim-London niche
+// drives 75% of the site's clicks) + 2 general for breadth.
 const MONITORED_KEYWORDS = [
-  "things to do in london",
-  "best hotels london",
-  "best restaurants london",
-  "london travel guide",
-  "london attractions tickets",
-  "day trips from london",
-]; // 6 keywords — all general, high-volume
+  "halal restaurants london",
+  "arab friendly hotels london",
+  "halal afternoon tea london",
+  "edgware road london",
+  "shisha lounges london",
+  "ramadan london",
+  "things to do in london", // general breadth
+  "best hotels london", // general breadth
+]; // 8 keywords — niche-weighted
 
-// Arabic keywords for Arabic content generation
-const ARABIC_KEYWORDS = ["السياحة في لندن", "أفضل فنادق لندن", "أماكن سياحية في لندن", "برنامج سياحي لندن"];
+// Arabic keywords — niche-focused (halal / Arab-friendly / family London)
+const ARABIC_KEYWORDS = ["مطاعم حلال في لندن", "فنادق عائلية في لندن", "أفضل فنادق لندن", "السياحة في لندن للعائلات"];
 
 interface TrendData {
   keyword: string;
@@ -116,12 +119,11 @@ export async function GET(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "trends-monitor", error: errMsg }).catch(err => console.warn("[trends-monitor] onCronFailure hook failed:", err instanceof Error ? err.message : err));
-
-    return NextResponse.json(
-      { error: errMsg },
-      { status: 500 },
+    onCronFailure({ jobName: "trends-monitor", error: errMsg }).catch((err) =>
+      console.warn("[trends-monitor] onCronFailure hook failed:", err instanceof Error ? err.message : err),
     );
+
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
 
@@ -142,10 +144,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(results);
   } catch (error) {
     console.error("Manual trends monitoring failed:", error);
-    return NextResponse.json(
-      { error: "Monitoring failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Monitoring failed" }, { status: 500 });
   }
 }
 
@@ -164,7 +163,7 @@ async function runTrendsMonitoring(
 }> {
   const start = cronStart || Date.now();
   const budget = budgetMs || 280_000;
-  const hasBudget = (minMs = 5_000) => (Date.now() - start) < (budget - minMs);
+  const hasBudget = (minMs = 5_000) => Date.now() - start < budget - minMs;
 
   const timestamp = new Date().toISOString();
   const keywords = customKeywords || MONITORED_KEYWORDS;
@@ -202,27 +201,23 @@ async function runTrendsMonitoring(
   }
 
   // 4. Identify content opportunities
-  const contentOpportunities = identifyContentOpportunities(
-    trendingTopics,
-    keywordTrends,
-  );
+  const contentOpportunities = identifyContentOpportunities(trendingTopics, keywordTrends);
 
   // 5. Generate summary
-  const summary = generateTrendsSummary(
-    trendingTopics,
-    keywordTrends,
-    contentOpportunities,
-  );
+  const summary = generateTrendsSummary(trendingTopics, keywordTrends, contentOpportunities);
 
   // 6. Save to database for historical tracking (budget-gated)
   if (hasBudget(5_000)) {
-    await saveTrendsData({
-      timestamp: new Date(),
-      trendingTopics,
-      keywordTrends,
-      contentOpportunities,
-      summary,
-    }, start + budget - 3_000); // 3s safety margin
+    await saveTrendsData(
+      {
+        timestamp: new Date(),
+        trendingTopics,
+        keywordTrends,
+        contentOpportunities,
+        summary,
+      },
+      start + budget - 3_000,
+    ); // 3s safety margin
   } else {
     console.warn("[trends-monitor] Budget exhausted — skipping DB save");
   }
@@ -260,29 +255,21 @@ function analyzeTrendingTopics(trendingSearches: any[]): TrendingTopic[] {
   return trendingSearches
     .map((topic) => {
       const title = topic.title?.toLowerCase() || "";
-      const matchedCategories = relevantCategories.filter((cat) =>
-        title.includes(cat),
-      );
-      const isRelevant =
-        matchedCategories.length > 0 || title.includes("london");
+      const matchedCategories = relevantCategories.filter((cat) => title.includes(cat));
+      const isRelevant = matchedCategories.length > 0 || title.includes("london");
 
       return {
         title: topic.title,
         traffic: topic.traffic || "N/A",
         isRelevant,
-        relevanceScore:
-          matchedCategories.length * 0.25 +
-          (title.includes("london") ? 0.5 : 0),
+        relevanceScore: matchedCategories.length * 0.25 + (title.includes("london") ? 0.5 : 0),
         category: matchedCategories[0] || "general",
       };
     })
     .sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
-async function getKeywordTrends(
-  keywords: string[],
-  geo: string,
-): Promise<TrendData[]> {
+async function getKeywordTrends(keywords: string[], geo: string): Promise<TrendData[]> {
   const trends: TrendData[] = [];
   // Budget: leave 18s for trending-search + Grok social + opportunities + DB save + response
   // Previous 45s was too tight — trending search + Grok + DB save easily consumed 15s+
@@ -296,23 +283,15 @@ async function getKeywordTrends(
     }
 
     try {
-      const result = await googleTrends.getInterestOverTime(
-        [keyword],
-        geo,
-        "today 3-m",
-      );
+      const result = await googleTrends.getInterestOverTime([keyword], geo, "today 3-m");
 
       if (result.length > 0) {
         const data = result[0];
         const recentInterest = data.interestOverTime.slice(-7);
         const olderInterest = data.interestOverTime.slice(-14, -7);
 
-        const recentAvg =
-          recentInterest.reduce((sum, p) => sum + p.value, 0) /
-            recentInterest.length || 0;
-        const olderAvg =
-          olderInterest.reduce((sum, p) => sum + p.value, 0) /
-            olderInterest.length || 0;
+        const recentAvg = recentInterest.reduce((sum, p) => sum + p.value, 0) / recentInterest.length || 0;
+        const olderAvg = olderInterest.reduce((sum, p) => sum + p.value, 0) / olderInterest.length || 0;
 
         let trend: "rising" | "stable" | "declining";
         if (recentAvg > olderAvg * 1.1) trend = "rising";
@@ -374,8 +353,7 @@ function identifyContentOpportunities(
         type: "trending",
         priority: "high",
         suggestedAction: `Create timely content about "${topic.title}" - currently trending`,
-        estimatedTraffic:
-          parseInt(topic.traffic.replace(/[^0-9]/g, "")) || 1000,
+        estimatedTraffic: parseInt(topic.traffic.replace(/[^0-9]/g, "")) || 1000,
       });
     });
 
@@ -430,17 +408,11 @@ function generateTrendsSummary(
   return {
     totalTrendingTopics: trendingTopics.length,
     relevantTrendingTopics: trendingTopics.filter((t) => t.isRelevant).length,
-    risingKeywords: keywordTrends
-      .filter((t) => t.trend === "rising")
-      .map((t) => t.keyword),
-    decliningKeywords: keywordTrends
-      .filter((t) => t.trend === "declining")
-      .map((t) => t.keyword),
+    risingKeywords: keywordTrends.filter((t) => t.trend === "rising").map((t) => t.keyword),
+    decliningKeywords: keywordTrends.filter((t) => t.trend === "declining").map((t) => t.keyword),
     topOpportunities: contentOpportunities.slice(0, 5).map((o) => o.title),
     recommendedActions: [
-      ...contentOpportunities
-        .filter((o) => o.priority === "high")
-        .map((o) => o.suggestedAction),
+      ...contentOpportunities.filter((o) => o.priority === "high").map((o) => o.suggestedAction),
     ].slice(0, 5),
   };
 }
@@ -452,9 +424,7 @@ function generateTrendsSummary(
  */
 async function getGrokSocialTrends(): Promise<TrendingTopic[]> {
   try {
-    const { isGrokSearchAvailable, searchSocialBuzz } = await import(
-      "@/lib/ai/grok-live-search"
-    );
+    const { isGrokSearchAvailable, searchSocialBuzz } = await import("@/lib/ai/grok-live-search");
     if (!isGrokSearchAvailable()) {
       return [];
     }
@@ -513,9 +483,7 @@ async function saveTrendsData(data: any, deadlineMs?: number): Promise<void> {
     const activeSites = getActiveSiteIds();
     const targetSites = activeSites.length > 0 ? activeSites : [getDefaultSiteId()];
 
-    const relevantTopics = (data.trendingTopics || []).filter(
-      (t: any) => t.isRelevant && t.relevanceScore >= 0.5,
-    );
+    const relevantTopics = (data.trendingTopics || []).filter((t: any) => t.isRelevant && t.relevanceScore >= 0.5);
 
     let trendsQueued = 0;
     for (const siteId of targetSites) {
@@ -559,13 +527,18 @@ async function saveTrendsData(data: any, deadlineMs?: number): Promise<void> {
           });
           trendsQueued++;
         } catch (topicErr) {
-          console.warn(`[trends-monitor] Failed to create TopicProposal for "${keyword}" on ${siteId}:`, topicErr instanceof Error ? topicErr.message : topicErr);
+          console.warn(
+            `[trends-monitor] Failed to create TopicProposal for "${keyword}" on ${siteId}:`,
+            topicErr instanceof Error ? topicErr.message : topicErr,
+          );
         }
       }
     }
 
     if (trendsQueued > 0) {
-      console.log(`[Trends Monitor] Queued ${trendsQueued} trending topics as TopicProposals across ${targetSites.length} sites`);
+      console.log(
+        `[Trends Monitor] Queued ${trendsQueued} trending topics as TopicProposals across ${targetSites.length} sites`,
+      );
     }
   } catch (error) {
     console.error("[Trends Monitor] Failed to save trends data:", error);

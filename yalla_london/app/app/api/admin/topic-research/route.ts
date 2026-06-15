@@ -61,7 +61,11 @@ async function handlePost(request: NextRequest) {
 
     // Build a rich context prompt for the AI
     const destination = site.destination || site.name;
-    const existingTopics = site.topicsEN?.map((t: { keyword: string }) => t.keyword).slice(0, 10).join(", ") || "";
+    const existingTopics =
+      site.topicsEN
+        ?.map((t: { keyword: string }) => t.keyword)
+        .slice(0, 10)
+        .join(", ") || "";
 
     const focusClause = focusArea
       ? `\n\nFOCUS AREA: "${focusArea}" — prioritize topics related to this theme, but include a few broader topics too.`
@@ -78,9 +82,9 @@ SITE CONTEXT:
 - Content style: First-hand experience, insider tips, practical advice
 - Existing topics (avoid duplicates): ${existingTopics}${focusClause}
 
-TOPIC MIX (mandatory — 80% general, 20% niche):
-- 80% GENERAL travel topics: attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family, solo, couples, budget — these have the highest search volume
-- 20% NICHE topics: halal restaurants, Arab-friendly hotels, Ramadan events, prayer facilities, Eid celebrations — lower competition, our differentiator
+TOPIC MIX (mandatory — niche-dominant; this is where the site ranks and converts):
+- 65% NICHE topics serving Arab/Gulf/Muslim travellers: halal dining by area & cuisine, Arab-friendly & family hotels, prayer-friendly venues, Ramadan/Eid, Edgware Road / Knightsbridge / Mayfair, shisha lounges, modest-friendly experiences — lower competition AND the site's proven demand (75% of its clicks)
+- 35% BROADER travel topics (attractions, shopping, day trips, itineraries) written WITH an Arab-traveller lens (note halal options, prayer facilities, family-friendliness) — never a generic guide
 
 TOPIC CLUSTERS TO COVER:
 - Core attractions: Top landmarks, museums, iconic experiences, tickets and tours
@@ -140,11 +144,20 @@ Return JSON array of ${count} topics, ordered by potential impact (highest first
         rank: i + 1,
         keyword: t.keyword.trim(),
         longTails: Array.isArray(t.longTails) ? t.longTails.slice(0, 5) : [],
-        searchVolume: (["high", "medium", "low"].includes(t.searchVolume) ? t.searchVolume : "medium") as "high" | "medium" | "low",
+        searchVolume: (["high", "medium", "low"].includes(t.searchVolume) ? t.searchVolume : "medium") as
+          | "high"
+          | "medium"
+          | "low",
         estimatedMonthlySearches: t.estimatedMonthlySearches || "unknown",
-        trend: (["rising", "stable", "declining"].includes(t.trend) ? t.trend : "stable") as "rising" | "stable" | "declining",
+        trend: (["rising", "stable", "declining"].includes(t.trend) ? t.trend : "stable") as
+          | "rising"
+          | "stable"
+          | "declining",
         trendEvidence: t.trendEvidence || "",
-        competition: (["low", "medium", "high"].includes(t.competition) ? t.competition : "medium") as "low" | "medium" | "high",
+        competition: (["low", "medium", "high"].includes(t.competition) ? t.competition : "medium") as
+          | "low"
+          | "medium"
+          | "high",
         relevanceScore: typeof t.relevanceScore === "number" ? Math.min(100, Math.max(0, t.relevanceScore)) : 70,
         suggestedPageType: t.suggestedPageType || "guide",
         contentAngle: t.contentAngle || "",
@@ -190,10 +203,7 @@ Return JSON array of ${count} topics, ordered by potential impact (highest first
       fix: "Check AI provider configuration in the AI Config tab. The provider may be down or rate-limited.",
     }).catch(() => {});
 
-    return NextResponse.json(
-      { error: "Topic research failed", detail: msg.substring(0, 200) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Topic research failed", detail: msg.substring(0, 200) }, { status: 500 });
   }
 }
 

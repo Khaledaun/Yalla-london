@@ -145,7 +145,7 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     const { BLOG_REDIRECTS } = await import("@/lib/seo/redirect-map");
     const redirectedSlugs = new Set<string>(Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, "")));
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, siteId, canonical_slug: null },
+      where: { published: true, deletedAt: null, siteId, canonical_slug: null, noindex: false },
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 5000,

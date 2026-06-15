@@ -219,11 +219,11 @@ export async function searchTrendingTopics(destination: string, locale: string =
 
   const prompt =
     locale === "en"
-      ? `You are a travel content strategist for a travel blog covering ${destination} for all visitors and tourists.
+      ? `You are a travel content strategist for ${destination}'s premium guide for Arab, Gulf and Muslim travellers (plus their families).
 
-Search for the most trending and newsworthy topics about ${destination} travel RIGHT NOW.
-Focus on: hotels, restaurants, attractions, tickets, events, seasonal activities, transport updates, new openings, nightlife, day trips, shopping, family activities, itineraries, budget tips.
-TOPIC MIX: 7-8 topics must be general travel. 1-2 can be halal/Arab-traveller niche topics.
+Search for the most trending and newsworthy topics about ${destination} travel RIGHT NOW that this audience searches for.
+Focus on: halal dining & new halal openings, Arab-friendly & family hotels, prayer-friendly venues, Ramadan/Eid, Edgware Road / Knightsbridge / Mayfair, shisha, shopping, family attractions, tickets, events, transport updates — plus broader ${destination} trends seen through an Arab-traveller lens.
+TOPIC MIX: 6-7 topics must serve Arab/Gulf/Muslim travellers (halal dining, prayer-friendly venues, Arab-friendly & family hotels, Edgware Road / Knightsbridge, Ramadan/Eid, shisha). 2-3 broader travel topics with an Arab-traveller lens. This niche is where the site ranks and converts — lead with it.
 PAGETYPE MIX: At least 2 must be "comparison" (X vs Y queries) and at least 2 "answer" (direct answer to a single question — matches AI Overview triggers). Remaining can be "guide", "listicle", "deep-dive", or "review".
 
 Each topic MUST include 3 long-tail keyword variations (3-6 words, including modifiers like "vs", "best for", "how to", "is X worth it") AND 2-3 question-format queries real travelers actually search.
@@ -268,18 +268,36 @@ Return ONLY the JSON array, no other text.`
  * Search for real-time news about a city from trusted sources.
  * Uses web_search with domain filtering for authoritative news.
  */
-export async function searchCityNews(city: string, trustedDomains: string[]): Promise<GrokSearchResult> {
-  const prompt = `Search for the latest news, events, and updates about ${city} from the past 48 hours.
-Focus on: transport disruptions, new restaurant/hotel openings, events, weather alerts, safety updates,
-seasonal events, sales, and anything relevant to tourists visiting ${city}.
+export async function searchCityNews(
+  city: string,
+  trustedDomains: string[],
+  audienceContext?: string,
+): Promise<GrokSearchResult> {
+  // audienceContext lets a site bias the news toward its niche (e.g. Yalla London →
+  // Arab/Muslim travellers). Defaults to a generic-tourist lens for other sites.
+  const lens = audienceContext || "international tourists and families visiting the city";
+  const prioritise = audienceContext
+    ? `PRIORITISE news this audience cares about FIRST (then general timely news):
+- New halal / alcohol-free restaurant, café and dessert openings; halal-certified venues
+- Ramadan & Eid timings, iftar events, mosque and prayer-room news
+- New or refurbished Arab-friendly & family hotels, suites, private-dining news
+- Middle East ↔ ${city} flight routes, visa changes, airport/transfer news
+- Shopping festivals, summer & school-holiday events (aligned to Gulf school calendars), family attractions
+- THEN general timely ${city} news: transport disruptions/strikes, weather alerts, major events, big openings.`
+    : `Focus on: transport disruptions, new restaurant/hotel openings, events, weather alerts, safety updates, seasonal events, sales.`;
 
-Return a JSON array of 5-8 news items:
+  const prompt = `Search for the latest news, events and updates about ${city} from the past 48 hours, useful for ${lens}.
+${prioritise}
+Only include items that are genuinely recent, actionable and verifiable from the cited source — skip evergreen filler.
+
+Return a JSON array of 5-8 news items, ordered most-relevant-to-this-audience first:
 [{
-  "headline_en": "English headline",
+  "headline_en": "English headline (specific, no clickbait)",
   "headline_ar": "Arabic headline",
-  "summary_en": "2-3 sentence summary",
+  "summary_en": "2-3 sentence summary with the concrete detail (date, venue, line, price)",
   "summary_ar": "ملخص بجملتين",
-  "category": "transport|events|weather|dining|shopping|culture|safety",
+  "category": "transport|events|weather|dining|shopping|culture|safety|halal|ramadan|family",
+  "audience_relevance": 0.0-1.0,
   "urgency": "low|medium|high|urgent",
   "source": "source domain",
   "ttl_days": 1-7

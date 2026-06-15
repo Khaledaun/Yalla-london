@@ -1876,3 +1876,18 @@ Total test suite: 90 tests across 16 categories.
 **Critical Rules Learned:**
 - Per-page auditing splits cleanly into a STATIC layer (links/SEO/AIO/CTAs/alt/internal-links — all in HTML+DB, cheap, run on every page) and a RENDERED layer (visual alignment/fonts/CLS — needs a browser, expensive, sample only). Don't try to judge visual alignment from HTML; don't pay for a headless render to count internal links.
 - Orphan/inbound-link detection must be a single O(n) tally pass (`buildInboundCounts`), never an O(n²) per-page scan of every other page's content.
+
+---
+
+## Session: June 15, 2026 — News & Trending Topics Re-pointed to the Niche
+
+Extends the climb pivot (engine → niche) to the news + trends systems so timely content also serves the Arab/Muslim-London audience that drives 75% of clicks.
+
+**Changes:**
+1. **Live news prompt (`grok-live-search.ts searchCityNews`):** added optional `audienceContext` param; `london-news` now passes the Arab/Gulf/Muslim-traveller lens. Prompt prioritises niche-relevant news FIRST (new halal openings, Ramadan/Eid timings, prayer-room news, Arab-friendly hotels, Middle East↔London flights/visa, Gulf-school-holiday events) then general timely London news; added `audience_relevance` score + niche categories; demands genuinely recent/actionable items (no evergreen filler).
+2. **Trending topics prompt (`searchTrendingTopics`):** lead persona + focus re-pointed from "all visitors" to the Arab/Muslim niche (mix already flipped in the climb pivot).
+3. **Trends-monitor keywords:** `MONITORED_KEYWORDS` flipped from 6 all-general to 8 niche-weighted (halal restaurants, Arab-friendly hotels, halal afternoon tea, Edgware Road, shisha, Ramadan + 2 general). Arabic keywords re-focused on halal/family.
+4. **News templates:** added 2 niche seasonal fallbacks — "Eid in London" and "New Halal & Arab-Friendly Restaurant Openings".
+5. **News→article linking:** extended `NewsCategory` + `CATEGORY_TO_ARTICLE_TAGS` with dining/shopping/culture/safety/halal/ramadan/family so niche news links to niche blog articles.
+
+**Result:** News, trends, and blog topics now all generate niche-relevant content. TypeScript 0 errors.

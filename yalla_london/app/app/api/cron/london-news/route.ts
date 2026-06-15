@@ -37,7 +37,15 @@ type NewsCategory =
   | "holidays"
   | "strikes"
   | "popup"
-  | "general";
+  | "general"
+  // niche / Grok-live categories (Arab/Muslim-traveller relevance)
+  | "dining"
+  | "shopping"
+  | "culture"
+  | "safety"
+  | "halal"
+  | "ramadan"
+  | "family";
 
 // ---------------------------------------------------------------------------
 // NEWS_TEMPLATES — seasonal/recurring London news templates
@@ -400,6 +408,46 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [2, 3, 4], // Ramadan shifts annually; covers Feb-Apr for 2026-2028
     ttl_days: 35,
   },
+  {
+    headline_en: "Eid in London: Where to Celebrate, Dine and Shop",
+    headline_ar: "العيد في لندن: أين تحتفل وتتناول الطعام وتتسوق",
+    summary_en:
+      "London marks Eid with prayers at major mosques, festive halal menus across Edgware Road, Knightsbridge and Mayfair, and special family events. Expect Eid prayer gatherings at London Central Mosque and East London Mosque, plus Eid offers at department stores. Book popular halal restaurants early — Eid weekends fill fast.",
+    summary_ar:
+      "تحتفل لندن بالعيد بالصلوات في المساجد الكبرى وقوائم حلال احتفالية في إدجوير رود ونايتسبريدج ومايفير وفعاليات عائلية خاصة. احجز المطاعم الحلال الشهيرة مبكراً — تمتلئ عطلات العيد بسرعة.",
+    announcement_en: "Eid celebrations in London",
+    announcement_ar: "احتفالات العيد في لندن",
+    news_category: "festivals",
+    source: TRUSTED_SOURCES[1], // Visit London
+    source_url: "https://www.visitlondon.com/things-to-do/whats-on",
+    relevance_score: 90,
+    urgency: "normal",
+    is_major: true,
+    tags: ["eid", "halal", "mosques", "family", "edgware-road", "muslim-friendly"],
+    keywords: ["eid london", "eid celebrations london", "halal restaurants london", "eid prayer london"],
+    active_months: [3, 4, 5, 6], // Eid al-Fitr/al-Adha shift annually
+    ttl_days: 14,
+  },
+  {
+    headline_en: "New Halal & Arab-Friendly Restaurant Openings in London",
+    headline_ar: "افتتاحات مطاعم حلال وملائمة للعرب الجديدة في لندن",
+    summary_en:
+      "London's halal dining scene keeps growing, with new alcohol-free and halal-certified restaurants opening across Mayfair, Knightsbridge and Edgware Road. From Middle Eastern fine dining to halal versions of London icons, Muslim and Arab visitors have more premium choices than ever. Check certification and book ahead for weekend tables.",
+    summary_ar:
+      "يستمر مشهد المطاعم الحلال في لندن في النمو، مع افتتاح مطاعم جديدة خالية من الكحول وحاصلة على شهادة حلال في مايفير ونايتسبريدج وإدجوير رود. من المأكولات الشرق أوسطية الفاخرة إلى نسخ حلال من أيقونات لندن.",
+    announcement_en: "New halal restaurant openings",
+    announcement_ar: "افتتاحات مطاعم حلال جديدة",
+    news_category: "events",
+    source: TRUSTED_SOURCES[4], // Time Out
+    source_url: "https://www.timeout.com/london/restaurants/best-halal-restaurants-in-london",
+    relevance_score: 88,
+    urgency: "normal",
+    is_major: false,
+    tags: ["halal", "restaurants", "new-openings", "arab-friendly", "fine-dining", "muslim-friendly"],
+    keywords: ["new halal restaurants london", "halal restaurants london", "arab friendly restaurants london"],
+    active_months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    ttl_days: 21,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -417,6 +465,14 @@ const CATEGORY_TO_ARTICLE_TAGS: Record<NewsCategory, string[]> = {
   holidays: ["holidays", "bank-holiday", "opening-hours", "plan-your-trip"],
   popup: ["popup", "events", "things-to-do", "attractions", "immersive"],
   general: ["london", "travel", "tourism", "visitor"],
+  // niche / Grok-live categories → map to the niche article families
+  dining: ["restaurants", "halal", "dining", "food", "fine-dining", "edgware-road"],
+  shopping: ["shopping", "harrods", "selfridges", "oxford-street", "luxury", "knightsbridge"],
+  culture: ["culture", "things-to-do", "attractions", "heritage", "museums"],
+  safety: ["health", "safety", "plan-your-trip", "emergency"],
+  halal: ["halal", "restaurants", "muslim-friendly", "arab-friendly", "dining", "edgware-road"],
+  ramadan: ["ramadan", "iftar", "halal", "mosques", "muslim-friendly", "edgware-road"],
+  family: ["family", "kids", "things-to-do", "attractions", "family-friendly"],
 };
 
 // ---------------------------------------------------------------------------
@@ -1374,7 +1430,11 @@ async function fetchLiveNewsViaGrok(runType: string): Promise<GrokFetchResult> {
     // Use the first 5 trusted domains for Grok web_search filtering
     const trustedDomains = TRUSTED_SOURCES.map((s) => s.domain).slice(0, 5);
 
-    const result = await searchCityNews("London", trustedDomains);
+    const result = await searchCityNews(
+      "London",
+      trustedDomains,
+      "Arab, Gulf and Muslim travellers visiting London (plus their families) — halal dining, prayer-friendly venues, Arab-friendly hotels, modest-friendly experiences",
+    );
 
     // Parse JSON response
     let jsonStr = result.content.trim();

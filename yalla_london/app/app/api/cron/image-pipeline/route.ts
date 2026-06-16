@@ -110,7 +110,9 @@ export async function GET(request: NextRequest) {
             });
             articlesUpdated++;
             imagesAdded++;
-            console.log(`[image-pipeline] No Unsplash result for "${query}" — used deterministic fallback for ${article.slug}`);
+            console.log(
+              `[image-pipeline] No Unsplash result for "${query}" — used deterministic fallback for ${article.slug}`,
+            );
             continue;
           }
 
@@ -227,16 +229,24 @@ export async function GET(request: NextRequest) {
       // Heuristic: HTML bodies without "<img" almost certainly have no inline
       // image. Featured-image hero is rendered separately in the layout, so a
       // missing inline image leaves the body wall-of-text.
-      const candidates = await prisma.blogPost.findMany({
+      // Fetch a wider pool of image-less articles, then prioritise the niche
+      // (halal/Arab/Muslim — the pages that rank and convert) before spending
+      // the rate-limited Unsplash budget on off-niche pages.
+      const pool = await prisma.blogPost.findMany({
         where: {
           siteId,
           published: true,
+          noindex: false,
           NOT: { content_en: { contains: "<img" } },
         },
         select: { id: true, slug: true, title_en: true, content_en: true },
-        take: inlineBackfillCap,
+        take: inlineBackfillCap * 4,
         orderBy: { updated_at: "desc" },
       });
+      const NICHE_RE = /halal|arab|muslim|edgware|ramadan|mosque|shisha|ajwa|knightsbridge|mayfair|prayer|eid|islamic/i;
+      const candidates = pool
+        .sort((a, b) => (NICHE_RE.test(b.slug) ? 1 : 0) - (NICHE_RE.test(a.slug) ? 1 : 0))
+        .slice(0, inlineBackfillCap);
 
       for (const post of candidates) {
         if (Date.now() - startTime > BUDGET_MS) break;
@@ -263,9 +273,7 @@ export async function GET(request: NextRequest) {
           const body = post.content_en || "";
           const firstP = body.indexOf("</p>");
           const updatedBody =
-            firstP >= 0
-              ? body.slice(0, firstP + 4) + figureHtml + body.slice(firstP + 4)
-              : figureHtml + body;
+            firstP >= 0 ? body.slice(0, firstP + 4) + figureHtml + body.slice(firstP + 4) : figureHtml + body;
 
           await prisma.blogPost.update({
             where: { id: post.id },

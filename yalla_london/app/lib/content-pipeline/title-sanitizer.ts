@@ -74,7 +74,8 @@ const TRAILING_BRAND = /\s*[|–-]\s*Yalla(\s+London)?\s*$/i;
 // orphan word (run twice to catch "...Guide for the" → "...Guide").
 // (June 13 2026 audit root cause: daily-content-generate hard-sliced at 60 chars
 // mid-word; this is the safety net so the artifact never ships again.)
-const TRAILING_DANGLING_WORD = /\s+(?:for|to|in|and|with|the|of|a|an|your|like|by|on|at|from|that|as|or|but|into|about)$/i;
+const TRAILING_DANGLING_WORD =
+  /\s+(?:for|to|in|and|with|the|of|a|an|your|like|by|on|at|from|that|as|or|but|into|about)$/i;
 
 // Versioning slugs leaked from content-strategy ("V2", "V3", "(v2)", "-v3", "Version 2")
 // Lookahead keeps colon-separated subtitles intact: matches " V2" only before ":" or end-of-string.
@@ -86,8 +87,10 @@ const VERSION_SUFFIX_G = /\s+[Vv](?:ersion)?[\s-]?\d{1,2}\b(?=[\s:]|$)/g;
 // Bracket placeholders AI never filled. Enumerates known placeholder words so we
 // don't strip legitimate didactic markers like [example] or citation markers [1].
 // Examples: "[x]", "[X]", "[TBD]", "[insert hotel name]", "[topic]", "[destination]"
-const BRACKET_PLACEHOLDER = /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/i;
-const BRACKET_PLACEHOLDER_G = /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/gi;
+const BRACKET_PLACEHOLDER =
+  /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/i;
+const BRACKET_PLACEHOLDER_G =
+  /\[(?:x|X|\.\.\.|TBD|TODO|placeholder|insert[^\]]*|topic|destination|keyword|number|date|year|month|brand|hotel|restaurant)\]/gi;
 
 // "for arabs" / "for arab travellers" stuffed at end is low-value English-SERP
 // keyword — niche audience already covered by Arabic /ar/ pages with hreflang.
@@ -263,6 +266,13 @@ export function sanitizeContentBody(html: string): string {
   // Strip unfilled bracket placeholders from body content ("[x]", "[TBD]", "[insert ...]")
   // May 17 re-audit: "high hotel prices with [x] unexpected add-on costs"
   cleaned = cleaned.replace(BRACKET_PLACEHOLDER_G, "");
+
+  // Strip leaked markdown code fences ("```html", "```", "~~~"). The AI sometimes
+  // wraps a section in a code block and the fence markers render as visible text
+  // in the published article (June 16 2026 briefing: affected published articles).
+  // The content BETWEEN the fences is already valid HTML, so only the markers go.
+  cleaned = cleaned.replace(/```+[a-zA-Z]*/g, "");
+  cleaned = cleaned.replace(/~~~+/g, "");
 
   // Clean up any resulting empty paragraphs
   cleaned = cleaned.replace(/<p[^>]*>\s*<\/p>/gi, "");

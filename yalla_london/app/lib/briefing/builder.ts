@@ -159,15 +159,16 @@ async function buildSiteStatus(siteIds: string[]): Promise<SiteStatusRow[]> {
 // ───────────────────────────────────────────────────────────────────────────
 
 async function buildGscUpdate(siteIds: string[]): Promise<GscUpdate> {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const d7 = new Date(today.getTime() - 7 * DAY_MS);
-  const d14 = new Date(today.getTime() - 14 * DAY_MS);
+  // Fetch 3 weeks so we can build two complete 7-day windows AFTER anchoring to
+  // the freshest synced date. GSC data lags 2-3 days, so a window anchored on
+  // "today" captures only ~4 days of real data and would compare that partial
+  // week against a full prior week — fabricating a "decline" every day.
+  const fetchSince = new Date(Date.now() - 21 * DAY_MS);
 
   const rows = await prisma.gscPagePerformance.findMany({
     where: {
       site_id: { in: siteIds },
-      date: { gte: d14 },
+      date: { gte: fetchSince },
     },
     select: { url: true, date: true, clicks: true, impressions: true, ctr: true, position: true },
     take: 50_000,
@@ -185,6 +186,13 @@ async function buildGscUpdate(siteIds: string[]): Promise<GscUpdate> {
     };
   }
 
+  // Anchor both 7-day windows to the freshest synced date (not "today") so GSC's
+  // 2-3 day lag can't compare a partial fresh week against a full prior week.
+  const anchorMs = rows.reduce((m, r) => Math.max(m, r.date.getTime()), 0);
+  const d7 = new Date(anchorMs - 7 * DAY_MS + DAY_MS); // last7d = [anchor-6d .. anchor]
+  const d14 = new Date(anchorMs - 14 * DAY_MS + DAY_MS); // prior7d = [anchor-13d .. anchor-7d]
+  const analysisRows = rows.filter((r) => r.date >= d14); // drop the fetch-buffer week
+
   // Aggregate windows
   function aggregate(window: typeof rows) {
     const clicks = window.reduce((s, r) => s + r.clicks, 0);
@@ -194,12 +202,12 @@ async function buildGscUpdate(siteIds: string[]): Promise<GscUpdate> {
     const avgPosition = positions.length > 0 ? positions.reduce((s, p) => s + p, 0) / positions.length : 0;
     return { clicks, impressions, avgCtr, avgPosition };
   }
-  const last7d = aggregate(rows.filter((r) => r.date >= d7));
-  const prior7d = aggregate(rows.filter((r) => r.date < d7));
+  const last7d = aggregate(analysisRows.filter((r) => r.date >= d7));
+  const prior7d = aggregate(analysisRows.filter((r) => r.date < d7));
 
   // Per-URL deltas → top movers
   const byUrl = new Map<string, { last7d: number; prior7d: number; lastPos: number; priorPos: number }>();
-  for (const r of rows) {
+  for (const r of analysisRows) {
     const cur = byUrl.get(r.url) || { last7d: 0, prior7d: 0, lastPos: 0, priorPos: 0 };
     if (r.date >= d7) {
       cur.last7d += r.clicks;
@@ -219,15 +227,15 @@ async function buildGscUpdate(siteIds: string[]): Promise<GscUpdate> {
     .sort((a, b) => Math.abs(b.clicksDelta) - Math.abs(a.clicksDelta))
     .slice(0, 10);
 
-  // 14-day daily clicks sparkline
+  // 14-day daily clicks sparkline (anchored to the freshest synced date)
   const dailyClicks = new Map<string, number>();
-  for (const r of rows) {
+  for (const r of analysisRows) {
     const key = r.date.toISOString().slice(0, 10);
     dailyClicks.set(key, (dailyClicks.get(key) || 0) + r.clicks);
   }
   const sparkline: number[] = [];
   for (let i = 13; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * DAY_MS);
+    const d = new Date(anchorMs - i * DAY_MS);
     sparkline.push(dailyClicks.get(d.toISOString().slice(0, 10)) || 0);
   }
 
@@ -430,12 +438,16 @@ async function buildEnArComparison(siteIds: string[]): Promise<EnArComparison> {
   const arCount = posts.filter((p) => (p.content_ar || "").length > 200).length;
 
   // GSC traffic split: Arabic URLs contain `/ar/` segment.
-  const since = new Date(Date.now() - 7 * DAY_MS);
-  const gsc = await prisma.gscPagePerformance.findMany({
-    where: { site_id: { in: siteIds }, date: { gte: since } },
-    select: { url: true, clicks: true, impressions: true },
+  // Fetch 11 days, then anchor a true 7-day window to the freshest synced date —
+  // GSC lags 2-3 days, so "now - 7d" would only capture ~4 days and undercount.
+  const gscAll = await prisma.gscPagePerformance.findMany({
+    where: { site_id: { in: siteIds }, date: { gte: new Date(Date.now() - 11 * DAY_MS) } },
+    select: { url: true, clicks: true, impressions: true, date: true },
     take: 50_000,
   });
+  const gscAnchorMs = gscAll.reduce((m, r) => Math.max(m, r.date.getTime()), 0);
+  const gscSince = new Date(gscAnchorMs - 7 * DAY_MS + DAY_MS);
+  const gsc = gscAll.filter((r) => r.date >= gscSince);
   let enClicks = 0;
   let arClicks = 0;
   let enImpressions = 0;

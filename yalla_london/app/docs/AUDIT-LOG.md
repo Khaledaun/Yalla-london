@@ -1891,3 +1891,18 @@ Extends the climb pivot (engine → niche) to the news + trends systems so timel
 5. **News→article linking:** extended `NewsCategory` + `CATEGORY_TO_ARTICLE_TAGS` with dining/shopping/culture/safety/halal/ramadan/family so niche news links to niche blog articles.
 
 **Result:** News, trends, and blog topics now all generate niche-relevant content. TypeScript 0 errors.
+
+---
+
+## Session: June 19, 2026 — Briefing GSC Lag Bug (false "decline" alarms)
+
+**Root cause:** The CEO briefing's GSC windows used `date >= NOW() - 7 days`. GSC data lags 2-3 days, so the "last 7 days" window only captured ~4 days of real data while "prior 7 days" captured a full week — fabricating a week-over-week DECLINE every single day, and undercounting clicks by ~half (showed 6-33 vs the real ~70). This drove repeated false "we are declining" alarms.
+
+**Fix (`lib/briefing/builder.ts`):**
+- `buildGscUpdate` (§4 GSC Update): fetch 21 days, ANCHOR both 7-day windows to the freshest synced date (`max(date)`), not `today`. Bounded movers + sparkline to the analysis window; sparkline anchored to the data date.
+- `buildEnArComparison` (§7 EN vs AR): fetch 11 days, anchor a true 7-day window to `max(date)`.
+- KPI 30-day aggregate left as-is (lag is negligible over 30 days, and it's a cumulative total not a WoW delta).
+
+**Verified:** old `now-7d` query returned 33 EN clicks; anchored window returns 69 (the real number from the daily data). TypeScript 0 errors.
+
+**Lesson:** Any week-over-week metric on lagged data (GSC, GA4) MUST anchor its windows to the latest available data date, never to `now()`/`today`. Comparing a partial fresh window to a full prior window fabricates a decline.

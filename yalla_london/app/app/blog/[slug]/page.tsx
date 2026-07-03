@@ -81,6 +81,48 @@ const getAuthorForSite = cache(async function getAuthorForSite(siteId: string): 
   }
 });
 
+// ─── Reviewer lookup (E-E-A-T "Experience" signal — July 2026) ──────────────
+
+interface ReviewerInfo {
+  id: string;
+  name: string;
+  email: string;
+  bio: string | null;
+  profile_photo: string | null;
+  expertise: string[];
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  website_url: string | null;
+  verified_at: Date | null;
+}
+
+const getReviewerById = cache(async function getReviewerById(reviewerId: string): Promise<ReviewerInfo | null> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const reviewer = await withTimeout(
+      (prisma as any).reviewer.findUnique({
+        where: { id: reviewerId, status: "active" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          bio: true,
+          profile_photo: true,
+          expertise: true,
+          linkedin_url: true,
+          twitter_url: true,
+          website_url: true,
+          verified_at: true,
+        },
+      }),
+      2000,
+    );
+    return reviewer as ReviewerInfo | null;
+  } catch {
+    return null;
+  }
+});
+
 async function getDbPost(slug: string, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
@@ -116,6 +158,10 @@ async function getDbPost(slug: string, siteId: string) {
           page_type: true,
           author_id: true,
           category: { select: { id: true, name_en: true, name_ar: true, slug: true } },
+          // Reviewer fields for E-E-A-T (July 2026)
+          reviewer_id: true,
+          reviewed_at: true,
+          reviewer_byline: true,
         },
       }),
       8000,
@@ -657,7 +703,13 @@ function generateStructuredData(
 
 // ─── Transform for client component ────────────────────────────────────────
 
-function transformForClient(post: any, source: "db" | "static", categoriesCache?: any[], author?: AuthorInfo | null) {
+function transformForClient(
+  post: any,
+  source: "db" | "static",
+  categoriesCache?: any[],
+  author?: AuthorInfo | null,
+  reviewer?: ReviewerInfo | null,
+) {
   let category = null;
 
   if (source === "db" && post.category) {
@@ -733,6 +785,22 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
           instagram_url: author.instagram_url || null,
         }
       : null,
+    // Reviewer data for E-E-A-T "Experience" signal (July 2026)
+    reviewer: reviewer
+      ? {
+          id: reviewer.id,
+          name: reviewer.name,
+          bio: reviewer.bio || "",
+          profile_photo: reviewer.profile_photo || null,
+          expertise: reviewer.expertise || [],
+          linkedin_url: reviewer.linkedin_url || null,
+          twitter_url: reviewer.twitter_url || null,
+          website_url: reviewer.website_url || null,
+          verified: !!reviewer.verified_at,
+        }
+      : null,
+    reviewed_at: post.reviewed_at instanceof Date ? post.reviewed_at.toISOString() : post.reviewed_at || null,
+    reviewer_byline: post.reviewer_byline || null,
   };
 }
 
@@ -806,6 +874,11 @@ export default async function BlogPostPage({ params }: Props) {
   // Fetch named author for E-E-A-T (cached — shared with generateMetadata)
   const author = await getAuthorForSite(siteId);
 
+  // Fetch reviewer for E-E-A-T "Experience" signal (July 2026)
+  // Only fetch if the post has a reviewer_id assigned
+  const reviewerId = (result.post as any).reviewer_id;
+  const reviewer = reviewerId ? await getReviewerById(reviewerId) : null;
+
   const structuredData = generateStructuredData(
     result.post,
     result.source,
@@ -813,7 +886,7 @@ export default async function BlogPostPage({ params }: Props) {
     categoriesCache,
     author,
   );
-  const clientPost = transformForClient(result.post, result.source, categoriesCache, author);
+  const clientPost = transformForClient(result.post, result.source, categoriesCache, author, reviewer);
 
   // Fetch Unsplash attribution for hero image (required by Unsplash ToS)
   let unsplashAttribution: string | undefined;

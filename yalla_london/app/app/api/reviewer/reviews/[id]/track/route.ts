@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSessionFromCookie } from "@/lib/reviewer/auth";
+import { getCurrentReviewer } from "@/lib/reviewer/auth";
 
 /**
  * POST /api/reviewer/reviews/[id]/track
@@ -14,9 +14,9 @@ export async function POST(
   try {
     const { id } = await params;
     
-    // Get session from cookie
-    const session = await getSessionFromCookie(request);
-    if (!session || !session.reviewer_id) {
+    // Authenticate reviewer
+    const reviewer = await getCurrentReviewer();
+    if (!reviewer) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,7 +40,7 @@ export async function POST(
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
-    if (review.reviewer_id !== session.reviewer_id) {
+    if (review.reviewer_id !== reviewer.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

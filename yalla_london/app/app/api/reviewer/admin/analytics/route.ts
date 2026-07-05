@@ -18,12 +18,14 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     const previousStartDate = new Date(startDate.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
-    // Build site filter if provided
-    const siteFilter = siteId ? { site_id: siteId } : {};
+    // Build site filter for ContentReview (has site_id field)
+    const contentReviewSiteFilter = siteId ? { site_id: siteId } : {};
+    // Build site filter for Reviewer (has site_ids array)
+    const reviewerSiteFilter = siteId ? { site_ids: { has: siteId } } : {};
 
     // Get total reviewers
     const totalReviewers = await prisma.reviewer.count({
-      where: siteFilter,
+      where: reviewerSiteFilter,
     });
 
     // Get active reviewers (with reviews in this period)
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
       where: {
         reviewer_id: { not: null },
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
     });
     const activeReviewers = activeReviewerIds.length;
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
     const totalReviews = await prisma.contentReview.count({
       where: {
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
     });
 
@@ -52,25 +54,25 @@ export async function GET(request: NextRequest) {
           gte: previousStartDate,
           lt: startDate,
         },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
     });
 
-    // Calculate average review time (in minutes)
+    // Calculate average review time (in seconds, converted to minutes for display)
     const completedReviews = await prisma.contentReview.findMany({
       where: {
         status: 'approved',
-        review_time_minutes: { not: null },
+        total_active_seconds: { not: null },
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
       select: {
-        review_time_minutes: true,
+        total_active_seconds: true,
       },
     });
     const avgReviewTime = completedReviews.length > 0
       ? Math.round(
-          completedReviews.reduce((sum, r) => sum + (r.review_time_minutes || 0), 0) / completedReviews.length
+          completedReviews.reduce((sum, r) => sum + (r.total_active_seconds || 0), 0) / completedReviews.length / 60
         )
       : 0;
 
@@ -79,14 +81,14 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'approved',
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
     });
     const decidedCount = await prisma.contentReview.count({
       where: {
         status: { in: ['approved', 'rejected'] },
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
     });
     const approvalRate = decidedCount > 0 ? Math.round((approvedCount / decidedCount) * 1000) / 10 : 0;
@@ -96,7 +98,7 @@ export async function GET(request: NextRequest) {
       by: ['status'],
       where: {
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
       _count: true,
     });
@@ -116,11 +118,11 @@ export async function GET(request: NextRequest) {
       where: {
         reviewer_id: { not: null },
         created_at: { gte: startDate },
-        reviewer: siteFilter,
+        ...contentReviewSiteFilter,
       },
       _count: true,
       _avg: {
-        review_time_minutes: true,
+        total_active_seconds: true,
       },
       orderBy: {
         _count: {
@@ -139,10 +141,12 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        profile_picture: true,
+        avatar_url: true,
       },
     });
-    const reviewerMap = new Map(reviewerDetails.map((r) => [r.id, r]));
+    const reviewerMap = new Map<string, { id: string; name: string | null; avatar_url: string | null }>(
+      reviewerDetails.map((r) => [r.id, r])
+    );
 
     // Calculate approval rate per reviewer
     const topReviewers = await Promise.all(
@@ -165,9 +169,9 @@ export async function GET(request: NextRequest) {
         return {
           id: r.reviewer_id || '',
           name: reviewer?.name || 'Unknown',
-          profilePicture: reviewer?.profile_picture || null,
+          profilePicture: reviewer?.avatar_url || null,
           reviewCount: r._count,
-          avgTime: Math.round(r._avg.review_time_minutes || 0),
+          avgTime: Math.round((r._avg.total_active_seconds || 0) / 60),
           approvalRate: decidedByReviewer > 0
             ? Math.round((approvedByReviewer / decidedByReviewer) * 100)
             : 0,
@@ -189,7 +193,7 @@ export async function GET(request: NextRequest) {
             gte: weekStart,
             lt: weekEnd,
           },
-          reviewer: siteFilter,
+          ...contentReviewSiteFilter,
         },
       });
       reviewTrend.push({
@@ -201,12 +205,12 @@ export async function GET(request: NextRequest) {
     // Get average time by expertise
     const reviewersWithExpertise = await prisma.reviewer.findMany({
       where: {
-        ...siteFilter,
-        expertise: { isEmpty: false },
+        ...reviewerSiteFilter,
+        expertise_areas: { isEmpty: false },
       },
       select: {
         id: true,
-        expertise: true,
+        expertise_areas: true,
       },
     });
 
@@ -215,16 +219,16 @@ export async function GET(request: NextRequest) {
       const reviews = await prisma.contentReview.findMany({
         where: {
           reviewer_id: reviewer.id,
-          review_time_minutes: { not: null },
+          total_active_seconds: { not: null },
           created_at: { gte: startDate },
         },
-        select: { review_time_minutes: true },
+        select: { total_active_seconds: true },
       });
 
-      for (const exp of reviewer.expertise) {
+      for (const exp of reviewer.expertise_areas) {
         const existing = expertiseMap.get(exp) || { total: 0, count: 0 };
         reviews.forEach((r) => {
-          existing.total += r.review_time_minutes || 0;
+          existing.total += (r.total_active_seconds || 0) / 60;
           existing.count += 1;
         });
         expertiseMap.set(exp, existing);

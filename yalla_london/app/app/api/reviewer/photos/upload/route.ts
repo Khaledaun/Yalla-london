@@ -5,7 +5,7 @@ import { writeFile } from "fs/promises";
 import { join, resolve } from "path";
 import { existsSync } from "fs";
 import { prisma } from "@/lib/db";
-import { getSessionFromCookie } from "@/lib/reviewer/auth";
+import { getCurrentReviewer } from "@/lib/reviewer/auth";
 
 // Allowed image extensions for reviewer photos
 const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
@@ -45,8 +45,8 @@ function getUploadsDir(): { dir: string; isTemp: boolean } {
 export async function POST(request: NextRequest) {
   try {
     // Authenticate reviewer
-    const session = await getSessionFromCookie(request);
-    if (!session || !session.reviewer_id) {
+    const reviewer = await getCurrentReviewer();
+    if (!reviewer) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         where: { id: contentReviewId },
         select: { reviewer_id: true },
       });
-      if (!review || review.reviewer_id !== session.reviewer_id) {
+      if (!review || review.reviewer_id !== reviewer.id) {
         return NextResponse.json(
           { error: "Invalid content review" },
           { status: 403 }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     // Generate filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 8);
-    const filename = `reviewer-${session.reviewer_id.slice(-6)}-${timestamp}-${randomId}.${fileExtension}`;
+    const filename = `reviewer-${reviewer.id.slice(-6)}-${timestamp}-${randomId}.${fileExtension}`;
 
     // Write to disk
     const { dir: uploadsDir, isTemp } = getUploadsDir();
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Create ReviewerPhoto record
     const photo = await prisma.reviewerPhoto.create({
       data: {
-        reviewer_id: session.reviewer_id,
+        reviewer_id: reviewer.id,
         content_review_id: contentReviewId,
         url: publicUrl,
         thumbnail_url: thumbnailUrl,

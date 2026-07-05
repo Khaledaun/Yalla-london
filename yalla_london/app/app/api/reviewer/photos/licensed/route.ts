@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSessionFromCookie } from "@/lib/reviewer/auth";
+import { getCurrentReviewer } from "@/lib/reviewer/auth";
 
 // Allowed license types for external photos
 const ALLOWED_LICENSE_TYPES = [
@@ -21,8 +21,8 @@ type LicenseType = (typeof ALLOWED_LICENSE_TYPES)[number];
 export async function POST(request: NextRequest) {
   try {
     // Authenticate reviewer
-    const session = await getSessionFromCookie(request);
-    if (!session || !session.reviewer_id) {
+    const reviewer = await getCurrentReviewer();
+    if (!reviewer) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         where: { id: contentReviewId },
         select: { reviewer_id: true },
       });
-      if (!review || review.reviewer_id !== session.reviewer_id) {
+      if (!review || review.reviewer_id !== reviewer.id) {
         return NextResponse.json(
           { error: "Invalid content review" },
           { status: 403 }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Create ReviewerPhoto record for the licensed photo
     const photo = await prisma.reviewerPhoto.create({
       data: {
-        reviewer_id: session.reviewer_id,
+        reviewer_id: reviewer.id,
         content_review_id: contentReviewId || null,
         url: imageUrl,
         thumbnail_url: null, // External images don't have our thumbnails
@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate reviewer
-    const session = await getSessionFromCookie(request);
-    if (!session || !session.reviewer_id) {
+    const reviewer = await getCurrentReviewer();
+    if (!reviewer) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
     const contentReviewId = searchParams.get("contentReviewId");
 
     const whereClause: Record<string, unknown> = {
-      reviewer_id: session.reviewer_id,
+      reviewer_id: reviewer.id,
     };
 
     if (contentReviewId) {

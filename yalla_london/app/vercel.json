@@ -40,9 +40,7 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "SKIP_ENV_VALIDATION": "true",
-    "PRISMA_CLIENT_ENGINE_TYPE": "binary",
-    "PRISMA_CLI_BINARY_TARGETS": "debian-openssl-3.0.x"
+    "SKIP_ENV_VALIDATION": "true"
   },
   "headers": [
     {

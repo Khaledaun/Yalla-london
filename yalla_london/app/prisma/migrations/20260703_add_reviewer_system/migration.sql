@@ -118,9 +118,17 @@ CREATE TABLE IF NOT EXISTS "reviewer_photos" (
 -- UNIQUE CONSTRAINTS
 -- ==============================================================================
 
-ALTER TABLE "reviewers" ADD CONSTRAINT IF NOT EXISTS "reviewers_email_key" UNIQUE ("email");
-ALTER TABLE "reviewers" ADD CONSTRAINT IF NOT EXISTS "reviewers_slug_key" UNIQUE ("slug");
-ALTER TABLE "reviewer_sessions" ADD CONSTRAINT IF NOT EXISTS "reviewer_sessions_session_token_key" UNIQUE ("session_token");
+DO $$ BEGIN
+    ALTER TABLE "reviewers" ADD CONSTRAINT "reviewers_email_key" UNIQUE ("email");
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "reviewers" ADD CONSTRAINT "reviewers_slug_key" UNIQUE ("slug");
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "reviewer_sessions" ADD CONSTRAINT "reviewer_sessions_session_token_key" UNIQUE ("session_token");
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ==============================================================================
 -- FOREIGN KEYS

@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 console.log('🚀 Preparing build for deployment...');
+console.log(`📅 Build timestamp: ${new Date().toISOString()}`);
 
 // Detect CI environment and prevent infinite loops
 const isCI = process.env.CI === 'true' || 

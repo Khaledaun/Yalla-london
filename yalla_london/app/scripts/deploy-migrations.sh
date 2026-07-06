@@ -32,6 +32,18 @@ create_pre_migration_backup() {
 verify_prisma_client() {
     echo "🔍 Verifying Prisma client..."
     
+    # Set placeholder env vars for Prisma schema validation if not already set
+    # These are only needed for schema validation during generation, not for actual DB connection
+    if [ -z "$DATABASE_URL" ]; then
+        export DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+        echo "   ℹ️  Using placeholder DATABASE_URL for Prisma client generation"
+    fi
+    
+    if [ -z "$DIRECT_URL" ]; then
+        export DIRECT_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+        echo "   ℹ️  Using placeholder DIRECT_URL for Prisma client generation"
+    fi
+    
     # Generate Prisma client if needed
     npx prisma generate --schema prisma/schema.prisma || {
         echo "   ⚠️  Prisma client generation failed, using existing client"
@@ -95,14 +107,15 @@ main() {
     echo "📅 Timestamp: $(date)"
     
     # Check if database is accessible
-    if ! npx prisma db execute --stdin <<< "SELECT 1;" > /dev/null 2>&1; then
-        echo "⚠️  Database not accessible, running in build-only mode"
+    if ! npx prisma db execute --schema prisma/schema.prisma --stdin <<< "SELECT 1;" > /dev/null 2>&1; then
+        echo "⚠️  Database not accessible during build"
         echo "   • Skipping migration operations"
-        echo "   • Will attempt migrations on first runtime access"
-        
+        echo "   • Use the 'Fix Database' button on /admin/content?tab=generation to create tables"
+        echo "   • Or POST /api/admin/run-migration to create missing tables at runtime"
+
         # Only verify Prisma client generation
         verify_prisma_client
-        
+
         echo "✅ Build-only preparation completed"
         return 0
     fi

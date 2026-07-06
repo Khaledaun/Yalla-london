@@ -33,9 +33,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { isStripeConfigured, getStripe, handleStripeWebhook } = await import(
-      "@/lib/billing/stripe"
-    );
+    const {
+      isStripeConfigured,
+      getStripe,
+      handleStripeWebhook,
+      handleDigitalProductPurchase,
+      handleCharterDepositPayment,
+    } = await import("@/lib/billing/stripe");
 
     if (!isStripeConfigured()) {
       return NextResponse.json(
@@ -47,8 +51,38 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe();
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
 
-    // Handle billing/subscription events
-    const result = await handleStripeWebhook(event);
+    let result: { action: string; details: Record<string, unknown> };
+
+    // Route checkout.session.completed based on metadata
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as unknown as {
+        id: string;
+        payment_intent?: string | null;
+        metadata?: Record<string, string> | null;
+        subscription?: string;
+      };
+
+      if (session.metadata?.purchase_type === "charter_deposit") {
+        // Yacht charter deposit payment [0.4]
+        result = await handleCharterDepositPayment(session as unknown as {
+          id: string;
+          payment_intent?: string | null;
+          metadata?: Record<string, string> | null;
+          amount_total?: number | null;
+          currency?: string | null;
+        });
+      } else if (session.metadata?.purchase_type === "digital_product") {
+        // Digital product one-time purchase
+        result = await handleDigitalProductPurchase(session);
+      } else {
+        // Subscription checkout
+        result = await handleStripeWebhook(event);
+      }
+    } else {
+      // All other events (subscription updates, invoices, etc.)
+      result = await handleStripeWebhook(event);
+    }
+
     console.log(`[Stripe Webhook] ${event.type} → ${result.action}`);
 
     // Handle legacy booking payment events
@@ -99,8 +133,8 @@ async function handleBookingPayment(paymentIntent: Record<string, unknown>) {
         eventName || "Unknown Event",
         totalAmount,
       );
-    } catch {
-      // Notifications are best-effort
+    } catch (err) {
+      console.warn("[stripe-webhook] Notification failed:", err instanceof Error ? err.message : String(err));
     }
 
     // Send confirmation email (best-effort)
@@ -121,8 +155,8 @@ async function handleBookingPayment(paymentIntent: Record<string, unknown>) {
             <p><strong>Reference:</strong> ${paymentIntent.id}</p>
           </div>`,
         );
-      } catch {
-        // Email is best-effort
+      } catch (err) {
+        console.warn("[stripe-webhook] Confirmation email failed:", err instanceof Error ? err.message : String(err));
       }
     }
   } catch (err) {

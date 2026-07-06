@@ -86,7 +86,7 @@ export function MediaLibrary() {
         const formData = new FormData()
         formData.append('file', file)
         
-        const response = await fetch('/api/media/upload', {
+        const response = await fetch('/api/admin/media/upload', {
           method: 'POST',
           body: formData
         })
@@ -95,7 +95,8 @@ export function MediaLibrary() {
           throw new Error('Upload failed')
         }
 
-        const newAsset = await response.json()
+        const result = await response.json()
+        const newAsset = result.data || result
         setAssets(prev => [newAsset, ...prev])
         
         toast({
@@ -125,15 +126,7 @@ export function MediaLibrary() {
     multiple: true
   })
 
-  useEffect(() => {
-    loadAssets()
-  }, [])
-
-  useEffect(() => {
-    filterAssets()
-  }, [assets, searchTerm, fileTypeFilter])
-
-  const loadAssets = async () => {
+  const loadAssets = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/media')
@@ -151,13 +144,13 @@ export function MediaLibrary() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
-  const filterAssets = () => {
+  const filterAssets = useCallback(() => {
     let filtered = assets
 
     if (searchTerm) {
-      filtered = filtered.filter(asset => 
+      filtered = filtered.filter(asset =>
         asset.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.altText?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -169,7 +162,15 @@ export function MediaLibrary() {
     }
 
     setFilteredAssets(filtered)
-  }
+  }, [assets, searchTerm, fileTypeFilter])
+
+  useEffect(() => {
+    loadAssets()
+  }, [loadAssets])
+
+  useEffect(() => {
+    filterAssets()
+  }, [filterAssets])
 
   const handleDeleteAsset = async (id: string) => {
     try {

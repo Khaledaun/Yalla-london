@@ -231,7 +231,7 @@ export function ActivityFeed({
                           <>
                             <Avatar className="h-4 w-4 mr-1">
                               <AvatarImage src={activity.user.avatar} />
-                              <AvatarFallback className="text-[8px]">
+                              <AvatarFallback className="text-[10px]">
                                 {activity.user.name.split(' ').map(n => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>

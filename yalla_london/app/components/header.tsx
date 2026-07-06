@@ -2,11 +2,11 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { LanguageSwitcher } from './language-switcher'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 
 export function Header() {
@@ -16,88 +16,94 @@ export function Header() {
 
   const navigation = [
     { name: t('home'), href: '/' },
+    { name: t('information'), href: '/information' },
     { name: t('blog'), href: '/blog' },
     { name: t('recommendations'), href: '/recommendations' },
+    { name: t('londonByFoot'), href: '/london-by-foot' },
     { name: t('eventsTickets'), href: '/events' },
     { name: t('about'), href: '/about' },
   ]
 
-  const handleMobileMenuToggle = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen)
-  }
-
-  const handleMobileLinkClick = () => {
-    setIsMobileMenuOpen(false)
-  }
-
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-purple-800 hover:text-purple-900 transition-colors font-prestige">
-              Yalla London
+    <header className={`fixed top-0 left-0 right-0 z-50 ${isRTL ? 'rtl' : 'ltr'}`}>
+      {/* Tri-color bar at very top */}
+      <div className="flex h-[3px]" aria-hidden="true">
+        <span className="flex-1 bg-yl-red" />
+        <span className="flex-1 bg-yl-gold" />
+        <span className="flex-1 bg-yl-blue" />
+      </div>
+
+      {/* Main nav */}
+      <div className="bg-white/95 backdrop-blur-md border-b border-yl-gray-200">
+        <div className="max-w-7xl mx-auto px-5">
+          <div className="flex items-center justify-between h-14">
+            {/* Logo — SVG brand mark + wordmark */}
+            <Link href="/" className="flex items-center gap-2.5 group" aria-label="Yalla London Home">
+              <Image
+                src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-primary-light.svg"
+                alt="Yalla London"
+                width={36}
+                height={36}
+                className="transition-transform duration-300 group-hover:scale-105"
+                priority
+              />
+              <span className="hidden sm:flex items-baseline gap-1 font-display text-lg font-bold tracking-tight">
+                <span className="text-yl-charcoal">Yalla</span>
+                <span className="text-yl-red">London</span>
+              </span>
             </Link>
-          </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-gray-700 hover:text-purple-800 font-medium transition-colors"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Desktop Language Switcher & Mobile Menu Button */}
-          <div className="flex items-center gap-4">
-            <div className="hidden md:block">
-              <LanguageSwitcher />
-            </div>
-            
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
-              onClick={handleMobileMenuToggle}
-              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
-              ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg">
-            <nav className="px-6 py-4 space-y-4">
+            {/* Desktop Navigation — editorial style */}
+            <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
-                  onClick={handleMobileLinkClick}
-                  className="block text-gray-700 hover:text-purple-800 font-medium transition-colors py-2 border-b border-gray-100 last:border-b-0"
+                  className="px-3 py-1.5 text-[13px] font-body text-yl-gray-600 hover:text-yl-red rounded-lg hover:bg-yl-red/[0.04] transition-colors duration-200"
                 >
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4 border-t border-gray-200">
+            </nav>
+
+            {/* Right side: Language + Mobile menu */}
+            <div className="flex items-center gap-2">
+              <div className="hidden md:block">
                 <LanguageSwitcher />
               </div>
-            </nav>
+              <button
+                className="lg:hidden p-2 rounded-lg text-yl-gray-500 hover:text-yl-charcoal hover:bg-yl-cream transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMobileMenuOpen}
+              >
+                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Mobile Navigation — slide down */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden bg-white/98 backdrop-blur-md border-b border-yl-gray-200 shadow-lg">
+          <nav className="max-w-7xl mx-auto px-5 py-3" aria-label="Mobile navigation">
+            {navigation.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block py-2.5 text-sm font-body text-yl-gray-600 hover:text-yl-red border-b border-yl-gray-100 last:border-b-0 transition-colors"
+              >
+                {item.name}
+              </Link>
+            ))}
+            <div className="pt-3 mt-1 border-t border-yl-gray-200">
+              <LanguageSwitcher />
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   )
 }

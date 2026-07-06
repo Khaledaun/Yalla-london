@@ -4,7 +4,7 @@
  * Handles affiliate click tracking, conversion recording, and analytics.
  */
 
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import type {
   TrackClickInput,
   RecordConversionInput,

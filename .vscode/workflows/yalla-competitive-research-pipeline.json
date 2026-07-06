@@ -1,0 +1,135 @@
+{
+  "id": "workflow-yalla-competitive-2026",
+  "name": "yalla-competitive-research-pipeline",
+  "description": "Yalla London Competitive Research Pipeline: Monthly competitive intelligence gathering → analysis → benchmarking → strategy adaptation → execution. Monitors luxury travel content competitors across all 5 markets.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-competitive",
+      "type": "start",
+      "name": "start-competitive",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Monthly Trigger (1st of month, 2am UTC)" }
+    },
+    {
+      "id": "agent-competitor-discovery",
+      "type": "subAgent",
+      "name": "competitor-discovery",
+      "position": { "x": 300, "y": 180 },
+      "data": {
+        "description": "Competitor Discovery Agent",
+        "prompt": "Discover and monitor competitors per site market:\n\nLondon: Visit London, Time Out London, Luxury London, Secret London, Halal Trip\nMaldives: Maldives.com, The Maldives Expert, Sun Siyam, Visit Maldives, HalalBooking blog\nFrench Riviera: Riviera Bar Crawl, Côte d'Azur Tourism, France Today, Provence Guide\nIstanbul: Istanbul.com, Turkey Travel Planner, Yabangee, Daily Sabah Travel\nThailand: TAT News, Bangkok Post Travel, Thai Examiner, Thaiger\n\nFor each competitor: crawl sitemap, count new pages this month, identify top-ranking keywords, note content types and formats. Store competitor profiles in research tables.",
+        "model": "sonnet",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-content-gap",
+      "type": "subAgent",
+      "name": "content-gap-analyzer",
+      "position": { "x": 300, "y": 420 },
+      "data": {
+        "description": "Content Gap Analyzer",
+        "prompt": "Identify content gaps between our sites and competitors:\n1. Keyword gap: keywords competitors rank for that we don't cover\n2. Topic gap: content themes competitors cover that we're missing\n3. Format gap: content types competitors use (video, infographic, quiz, comparison table)\n4. Geographic gap: specific locations/neighborhoods we haven't covered\n5. Seasonal gap: upcoming events/seasons competitors are already creating content for\n6. Arabic content gap: compare our AR coverage vs competitor AR coverage\nPrioritize gaps by: search volume × difficulty × affiliate potential.\nOutput: prioritized topic suggestions for content pipeline.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-benchmark",
+      "type": "subAgent",
+      "name": "competitive-benchmark",
+      "position": { "x": 600, "y": 300 },
+      "data": {
+        "description": "Competitive Benchmarking Agent",
+        "prompt": "Benchmark our sites against competitors:\n- Domain authority comparison\n- Total indexed pages comparison\n- Content velocity (new pages/week)\n- Keyword overlap and unique keywords\n- Backlink profile comparison\n- Social media presence and engagement\n- Monetization strategy (which affiliates, how many links)\n- Core Web Vitals comparison (PageSpeed scores)\n- Schema markup usage comparison\n- E-E-A-T signals comparison (author pages, about pages, credentials)\nGenerate competitive scorecard per site (0-100).",
+        "model": "sonnet",
+        "color": "orange",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "switch-action-type",
+      "type": "switch",
+      "name": "action-type-router",
+      "position": { "x": 900, "y": 300 },
+      "data": {
+        "evaluationTarget": "Type of competitive insight and required action",
+        "branches": [
+          { "id": "b-content", "label": "Content Action", "condition": "Content gaps or keyword opportunities found" },
+          { "id": "b-technical", "label": "Technical Action", "condition": "Technical SEO advantages identified in competitors" },
+          { "id": "b-strategy", "label": "Strategy Action", "condition": "Broader strategic positioning insights", "isDefault": true }
+        ],
+        "outputPorts": 3
+      }
+    },
+    {
+      "id": "agent-content-adaptor",
+      "type": "subAgent",
+      "name": "content-strategy-adaptor",
+      "position": { "x": 1200, "y": 150 },
+      "data": {
+        "description": "Content Strategy Adaptor",
+        "prompt": "Adapt content strategy based on competitive intelligence:\n- Create TopicProposals for identified content gaps (source=competitive)\n- Prioritize topics that competitors rank for with weak content (opportunity to outrank)\n- Identify quick wins: topics with high volume, low competition, strong affiliate potential\n- Plan content clusters to build topical authority in weak areas\n- Suggest content format innovations (comparison tables, interactive maps, photo essays)\n- Set content velocity targets per site based on competitor publishing rates\nFeed directly into TopicProposal table for content pipeline pickup.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-technical-adaptor",
+      "type": "subAgent",
+      "name": "technical-seo-adaptor",
+      "position": { "x": 1200, "y": 300 },
+      "data": {
+        "description": "Technical SEO Adaptor",
+        "prompt": "Adapt technical SEO based on competitive findings:\n- Copy successful schema markup patterns from competitors\n- Match or exceed competitor page speed scores\n- Implement content formats that competitors get rich results for\n- Add structured data types competitors use that we don't\n- Improve internal linking patterns based on competitor site architecture\n- Adopt successful URL structures for new content\nFeed technical recommendations to SEO audit pipeline.",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-strategy-report",
+      "type": "subAgent",
+      "name": "competitive-strategy-report",
+      "position": { "x": 1200, "y": 450 },
+      "data": {
+        "description": "Competitive Strategy Report",
+        "prompt": "Generate monthly competitive intelligence report:\n- Executive summary: our position vs competitors (improving/declining/stable)\n- Market share estimate per destination market\n- Competitor moves this month (new features, content pushes, partnerships)\n- Opportunities: underserved niches, emerging trends competitors missed\n- Threats: competitors gaining on our keywords, new entrants\n- Recommended strategic actions for next month\n- Per-site competitive scorecard with trend arrows\nFormat for iPhone dashboard viewing.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-competitive",
+      "type": "end",
+      "name": "end-competitive",
+      "position": { "x": 1500, "y": 300 },
+      "data": { "label": "Monthly Competitive Report (Dashboard)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-discover", "from": "start-competitive", "to": "agent-competitor-discovery", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-gap", "from": "start-competitive", "to": "agent-content-gap", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-discover-benchmark", "from": "agent-competitor-discovery", "to": "agent-benchmark", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-gap-benchmark", "from": "agent-content-gap", "to": "agent-benchmark", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-benchmark-router", "from": "agent-benchmark", "to": "switch-action-type", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-router-content", "from": "switch-action-type", "to": "agent-content-adaptor", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-router-technical", "from": "switch-action-type", "to": "agent-technical-adaptor", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-router-strategy", "from": "switch-action-type", "to": "agent-strategy-report", "fromPort": "branch-2", "toPort": "input" },
+    { "id": "conn-content-end", "from": "agent-content-adaptor", "to": "end-competitive", "fromPort": "output", "toPort": "in" },
+    { "id": "conn-technical-end", "from": "agent-technical-adaptor", "to": "end-competitive", "fromPort": "output", "toPort": "in" },
+    { "id": "conn-strategy-end", "from": "agent-strategy-report", "to": "end-competitive", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["competitive-intelligence", "monthly", "content-gap", "benchmarking", "strategy"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

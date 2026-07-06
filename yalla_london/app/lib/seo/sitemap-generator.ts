@@ -19,7 +19,8 @@ export class SitemapGenerator {
   private entries: SitemapEntry[] = [];
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+    const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+    this.baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
     this.initializeStaticPages();
   }
 

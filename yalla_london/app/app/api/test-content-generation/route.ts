@@ -3,10 +3,14 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 
 // Test endpoint for content generation
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     console.log('🧪 Testing content generation...');
     
@@ -18,8 +22,6 @@ export async function GET(request: NextRequest) {
         error: 'ABACUSAI_API_KEY not found'
       });
     }
-
-    console.log('✅ API Key found:', apiKey.substring(0, 8) + '...');
 
     // Test AI API call
     const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
@@ -74,6 +76,9 @@ export async function GET(request: NextRequest) {
 
 // Test the auto-generate endpoint
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     console.log('🧪 Testing auto-generate endpoint...');
     

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -64,53 +64,84 @@ interface MediaAsset {
 export function MediaUploadManager() {
   const { toast } = useToast()
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([
-    // Mock existing assets
-    {
-      id: '1',
-      filename: 'london-bridge-hero.jpg',
-      originalName: 'London Bridge Hero Image.jpg',
-      url: '/images/london-bridge.jpg',
-      thumbnailUrl: '/images/london-bridge-thumb.jpg',
-      type: 'image',
-      size: 2048000,
-      uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      uploadedBy: 'John Doe',
-      tags: ['hero', 'london', 'bridge'],
-      isHeroImage: true,
-      description: 'Iconic London Bridge view for homepage hero',
-      altText: 'Beautiful view of London Bridge at sunset'
-    },
-    {
-      id: '2',
-      filename: 'london-markets.jpg',
-      originalName: 'London Markets Guide.jpg',
-      url: '/images/london-markets.jpg',
-      thumbnailUrl: '/images/london-markets-thumb.jpg',
-      type: 'image',
-      size: 1536000,
-      uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
-      uploadedBy: 'Jane Smith',
-      tags: ['markets', 'food', 'guide'],
-      isHeroImage: false,
-      description: 'Bustling London market scene',
-      altText: 'Busy London market with fresh produce and vendors'
-    }
-  ])
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
+
+  // Fetch real media assets from API
+  useEffect(() => {
+    fetch('/api/admin/media')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (Array.isArray(data.assets)) setMediaAssets(data.assets);
+      })
+      .catch(err => console.warn('[MediaUploadManager] Failed to load assets:', err instanceof Error ? err.message : err));
+  }, [])
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set())
   const [heroImageId, setHeroImageId] = useState<string>('1')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'document'>('all')
 
+  const simulateUpload = useCallback(async (fileId: string) => {
+    const steps = 10
+    for (let i = 1; i <= steps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+      setUploadedFiles(prev =>
+        prev.map(file =>
+          file.id === fileId
+            ? { ...file, progress: (i / steps) * 100 }
+            : file
+        )
+      )
+    }
+
+    // Complete upload
+    setUploadedFiles(prev =>
+      prev.map(file =>
+        file.id === fileId
+          ? { ...file, status: 'success', progress: 100 }
+          : file
+      )
+    )
+
+    // Add to media assets using the current file from state
+    setUploadedFiles(prev => {
+      const uploadedFile = prev.find(f => f.id === fileId)
+      if (uploadedFile) {
+        const newAsset: MediaAsset = {
+          id: fileId,
+          filename: uploadedFile.file.name.toLowerCase().replace(/\s+/g, '-'),
+          originalName: uploadedFile.file.name,
+          url: uploadedFile.preview || '/placeholder.jpg',
+          thumbnailUrl: uploadedFile.preview,
+          type: uploadedFile.type,
+          size: uploadedFile.size,
+          uploadedAt: new Date(),
+          uploadedBy: 'Current User',
+          tags: [],
+          isHeroImage: false,
+          description: '',
+          altText: ''
+        }
+
+        setMediaAssets(prevAssets => [newAsset, ...prevAssets])
+
+        toast({
+          title: "Upload successful",
+          description: `${uploadedFile.file.name} has been uploaded successfully.`,
+        })
+      }
+      return prev
+    })
+  }, [toast])
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + crypto.getRandomValues(new Uint32Array(1))[0].toString(36),
       file,
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
       status: 'uploading',
       progress: 0,
-      type: file.type.startsWith('image/') ? 'image' : 
+      type: file.type.startsWith('image/') ? 'image' :
             file.type.startsWith('video/') ? 'video' : 'document',
       size: file.size
     }))
@@ -121,57 +152,7 @@ export function MediaUploadManager() {
     newFiles.forEach(uploadFile => {
       simulateUpload(uploadFile.id)
     })
-  }, [])
-
-  const simulateUpload = async (fileId: string) => {
-    const steps = 10
-    for (let i = 1; i <= steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 200))
-      setUploadedFiles(prev => 
-        prev.map(file => 
-          file.id === fileId 
-            ? { ...file, progress: (i / steps) * 100 }
-            : file
-        )
-      )
-    }
-    
-    // Complete upload
-    setUploadedFiles(prev => 
-      prev.map(file => 
-        file.id === fileId 
-          ? { ...file, status: 'success', progress: 100 }
-          : file
-      )
-    )
-
-    // Add to media assets
-    const uploadedFile = uploadedFiles.find(f => f.id === fileId)
-    if (uploadedFile) {
-      const newAsset: MediaAsset = {
-        id: fileId,
-        filename: uploadedFile.file.name.toLowerCase().replace(/\s+/g, '-'),
-        originalName: uploadedFile.file.name,
-        url: uploadedFile.preview || '/placeholder.jpg',
-        thumbnailUrl: uploadedFile.preview,
-        type: uploadedFile.type,
-        size: uploadedFile.size,
-        uploadedAt: new Date(),
-        uploadedBy: 'Current User',
-        tags: [],
-        isHeroImage: false,
-        description: '',
-        altText: ''
-      }
-      
-      setMediaAssets(prev => [newAsset, ...prev])
-      
-      toast({
-        title: "Upload successful",
-        description: `${uploadedFile.file.name} has been uploaded successfully.`,
-      })
-    }
-  }
+  }, [simulateUpload])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

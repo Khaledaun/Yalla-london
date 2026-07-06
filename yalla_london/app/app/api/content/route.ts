@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -47,7 +48,7 @@ const ContentQuerySchema = z.object({
 });
 
 // Transform static post to API format
-function transformStaticPost(
+async function transformStaticPost(
   post: (typeof allStaticPosts)[0],
   locale: "en" | "ar",
 ) {
@@ -71,12 +72,19 @@ function transformStaticPost(
         }
       : null,
     place: null,
-    author: {
-      id: "author-yalla",
-      name: locale === "en" ? "Yalla London Editorial" : "فريق يلا لندن",
-      image: null,
-    },
-    url: `https://yalla-london.com/blog/${post.slug}`,
+    author: await (async () => {
+      try {
+        const { getAuthorForPost } = await import("@/lib/content-pipeline/author-rotation");
+        const author = await getAuthorForPost(post.id);
+        if (author) {
+          return { id: author.id, name: locale === "en" ? author.name : (author.nameAr || author.name), image: author.avatarUrl };
+        }
+      } catch { /* fallback */ }
+      const { getSiteConfig } = await import("@/config/sites");
+      const site = getSiteConfig(getDefaultSiteId());
+      return { id: "editorial", name: locale === "en" ? `${site?.name || "Editorial"} Team` : "فريق التحرير", image: null };
+    })(),
+    url: `${getSiteDomain(getDefaultSiteId())}/blog/${post.slug}`,
   };
 }
 
@@ -111,7 +119,7 @@ export async function GET(request: NextRequest) {
 
     try {
       // Build where clause for database query (scoped by tenant)
-      const siteId = request.headers.get("x-site-id") || "yalla-london";
+      const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
       const where: any = {
         published: true,
         site_id: siteId,
@@ -200,7 +208,7 @@ export async function GET(request: NextRequest) {
           category: post.category,
           place: null,
           author: post.author,
-          url: `https://yalla-london.com/blog/${post.slug}`,
+          url: `${getSiteDomain(getDefaultSiteId())}/blog/${post.slug}`,
         }));
         totalCount = dbCount;
       } else {
@@ -261,7 +269,7 @@ export async function GET(request: NextRequest) {
 
       totalCount = filteredPosts.length;
       const paginatedPosts = filteredPosts.slice(offset, offset + limit);
-      content = paginatedPosts.map((p) => transformStaticPost(p, locale));
+      content = await Promise.all(paginatedPosts.map((p) => transformStaticPost(p, locale)));
     }
 
     // Calculate pagination metadata
@@ -321,7 +329,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to fetch content",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );

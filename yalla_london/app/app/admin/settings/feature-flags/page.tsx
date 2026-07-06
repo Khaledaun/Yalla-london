@@ -50,7 +50,10 @@ export default function FeatureFlagsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Feature Flags</h1>
           <p className="text-sm text-gray-500 mt-1">Manage feature flags and settings</p>
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+        <button
+          onClick={() => window.location.reload()}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
           <RefreshCw size={16} />
           <span>Refresh Flags</span>
         </button>

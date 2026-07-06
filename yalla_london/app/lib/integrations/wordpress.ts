@@ -376,7 +376,7 @@ export class WordPressClient {
     meta?: { title?: string; alt_text?: string; caption?: string },
   ): Promise<WPMedia> {
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: mimeType });
+    const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
     formData.append("file", blob, filename);
     if (meta?.title) formData.append("title", meta.title);
     if (meta?.alt_text) formData.append("alt_text", meta.alt_text);

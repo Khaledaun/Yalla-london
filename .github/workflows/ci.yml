@@ -972,6 +972,8 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           DIRECT_URL: ${{ env.DIRECT_URL }}
           NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
+
+      - name: Run test suite with coverage
         working-directory: ${{ env.APP_DIR }}
         run: |
           set -e

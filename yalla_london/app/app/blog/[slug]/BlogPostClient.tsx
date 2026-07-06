@@ -39,6 +39,19 @@ interface AuthorData {
   instagram_url: string | null;
 }
 
+// Reviewer interface for E-E-A-T "Experience" signal (July 2026)
+interface ReviewerData {
+  id: string;
+  name: string;
+  bio: string;
+  profile_photo: string | null;
+  expertise: string[];
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  website_url: string | null;
+  verified: boolean;
+}
+
 interface BlogPostData {
   id: string;
   title_en: string;
@@ -60,6 +73,10 @@ interface BlogPostData {
     slug: string;
   } | null;
   author: AuthorData | null;
+  // Reviewer fields for E-E-A-T "Experience" signal (July 2026)
+  reviewer: ReviewerData | null;
+  reviewed_at: string | null;
+  reviewer_byline: string | null;
   siteId?: string;
   unsplash_attribution?: string;
 }
@@ -1038,6 +1055,114 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
                     </div>
                   </div>
                 </BrandCardLight>
+
+                {/* ─── Reviewer Card (E-E-A-T "Experience" signal) ─── */}
+                {post.reviewer && (
+                  <BrandCardLight className="mt-6 p-6 md:p-8 border-l-4 border-l-green-600" hoverable={false}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className={`text-xs font-semibold uppercase tracking-wider text-green-700 ${isRTL ? "font-arabic tracking-normal" : "font-body"}`}>
+                        {language === "en" ? "Verified by Expert" : "تم التحقق بواسطة خبير"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      {post.reviewer.profile_photo ? (
+                        <Image
+                          src={post.reviewer.profile_photo}
+                          alt={post.reviewer.name}
+                          width={56}
+                          height={56}
+                          className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-green-200"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-heading font-bold text-lg shrink-0">
+                          {post.reviewer.name
+                            .split(" ")
+                            .map((w) => w[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className={`font-bold text-yl-charcoal ${isRTL ? "font-arabic tracking-normal" : "font-heading"}`}>
+                            {post.reviewer.name}
+                          </h4>
+                          {post.reviewer.verified && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              {language === "en" ? "Verified" : "موثق"}
+                            </span>
+                          )}
+                        </div>
+                        {post.reviewer.expertise && post.reviewer.expertise.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {post.reviewer.expertise.slice(0, 3).map((exp) => (
+                              <span
+                                key={exp}
+                                className="inline-block px-2 py-0.5 bg-yl-gray-100 text-yl-gray-600 text-xs rounded"
+                              >
+                                {exp}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {post.reviewer.bio && (
+                          <p className={`text-sm text-yl-gray-500 leading-relaxed mb-2 ${isRTL ? "font-arabic tracking-normal" : "font-body"}`}>
+                            {post.reviewer.bio}
+                          </p>
+                        )}
+                        {post.reviewer_byline && (
+                          <p className={`text-xs text-yl-gray-400 italic mb-2 ${isRTL ? "font-arabic tracking-normal" : "font-body"}`}>
+                            &ldquo;{post.reviewer_byline}&rdquo;
+                          </p>
+                        )}
+                        {post.reviewed_at && (
+                          <p className={`text-xs text-yl-gray-400 ${isRTL ? "font-arabic tracking-normal" : "font-body"}`}>
+                            {language === "en"
+                              ? `Reviewed on ${new Date(post.reviewed_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+                              : `تمت المراجعة في ${new Date(post.reviewed_at).toLocaleDateString("ar-SA", { day: "numeric", month: "long", year: "numeric" })}`}
+                          </p>
+                        )}
+                        {(post.reviewer.linkedin_url || post.reviewer.twitter_url || post.reviewer.website_url) && (
+                          <div className="flex gap-3 mt-3">
+                            {post.reviewer.linkedin_url && (
+                              <a
+                                href={post.reviewer.linkedin_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-yl-gray-500/50 hover:text-green-600 transition-colors text-xs font-medium"
+                              >
+                                LinkedIn
+                              </a>
+                            )}
+                            {post.reviewer.twitter_url && (
+                              <a
+                                href={post.reviewer.twitter_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-yl-gray-500/50 hover:text-green-600 transition-colors text-xs font-medium"
+                              >
+                                X/Twitter
+                              </a>
+                            )}
+                            {post.reviewer.website_url && (
+                              <a
+                                href={post.reviewer.website_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-yl-gray-500/50 hover:text-green-600 transition-colors text-xs font-medium"
+                              >
+                                {language === "en" ? "Website" : "الموقع"}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </BrandCardLight>
+                )}
 
                 {/* ─── Mobile Share Buttons (bottom) ─── */}
                 <BrandCardLight className="mt-8 p-5 bg-yl-gray-100" hoverable={false}>

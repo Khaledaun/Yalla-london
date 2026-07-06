@@ -32,6 +32,18 @@ create_pre_migration_backup() {
 verify_prisma_client() {
     echo "🔍 Verifying Prisma client..."
     
+    # Set placeholder env vars for Prisma schema validation if not already set
+    # These are only needed for schema validation during generation, not for actual DB connection
+    if [ -z "$DATABASE_URL" ]; then
+        export DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+        echo "   ℹ️  Using placeholder DATABASE_URL for Prisma client generation"
+    fi
+    
+    if [ -z "$DIRECT_URL" ]; then
+        export DIRECT_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+        echo "   ℹ️  Using placeholder DIRECT_URL for Prisma client generation"
+    fi
+    
     # Generate Prisma client if needed
     npx prisma generate --schema prisma/schema.prisma || {
         echo "   ⚠️  Prisma client generation failed, using existing client"

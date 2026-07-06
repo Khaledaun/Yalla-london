@@ -155,6 +155,11 @@ model BlogPost {
   // is preserved instead of returning 404.
   canonical_slug     String?
 
+  // Human reviewer (July 2026) — E-E-A-T: real person who verified the content
+  reviewer_id        String?  // Links to Reviewer who reviewed this article
+  reviewed_at        DateTime? // When the review was applied
+  reviewer_byline    String?  // Cached byline: "Reviewed by [Name], London food expert"
+
   // Multi-tenant and soft delete
   siteId       String?
   deletedAt    DateTime? // Soft delete support
@@ -162,6 +167,9 @@ model BlogPost {
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])
   place        Place?   @relation(fields: [place_id], references: [id])
+  
+  // Human reviewer relations
+  content_reviews ContentReview[]
 
   @@index([page_type])
   @@index([place_id])
@@ -177,6 +185,7 @@ model BlogPost {
   @@index([trace_id])
   @@index([photo_order_status])
   @@index([canonical_slug])
+  @@index([reviewer_id])
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2872,6 +2881,9 @@ model ArticleDraft {
   @@index([current_phase, created_at])
   @@index([quality_score])
   @@index([site_id, current_phase])
+  // Human reviewer relations
+  content_reviews     ContentReview[]
+
   @@index([site_id, current_phase, updated_at])   // build-runner every 15min: find drafts to process
   @@index([site_id, current_phase, phase_attempts]) // diagnostic-agent: recovery checks
   @@index([created_at])
@@ -5173,4 +5185,201 @@ model ChromeAuditReport {
   @@index([uploadedAt])
   @@index([pageSlug])
   @@map("chrome_audit_reports")
+}
+
+// =============================================================================
+// REVIEWER SYSTEM — Human content reviewers for E-E-A-T compliance
+// External contributors who review AI-generated content, add first-hand
+// experience, and provide the authenticity signals Google requires.
+// =============================================================================
+
+/// Reviewer — Human content reviewer profile with OTP-based auth
+/// Reviewers don't write content from scratch — they review AI drafts,
+/// add genuine first-hand experience, upload real photos, and verify facts.
+model Reviewer {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  
+  // Profile (filled during onboarding)
+  name                String?
+  slug                String?  @unique // for public author page URL
+  bio                 String?  @db.Text
+  avatar_url          String?
+  
+  // E-E-A-T credentials
+  location            String?  // "London, UK"
+  years_in_location   Int?     // How long they've lived there
+  expertise_areas     String[] @default([]) // ["halal-food", "luxury-hotels", "family-travel"]
+  languages           String[] @default(["en"]) // ["en", "ar"]
+  
+  // Social proof (optional, for public display)
+  linkedin_url        String?
+  instagram_url       String?
+  twitter_url         String?
+  website_url         String?
+  
+  // Status
+  status              String   @default("pending_onboard") // pending_onboard, active, suspended
+  is_verified         Boolean  @default(false) // Admin has verified their identity
+  
+  // Site assignment (which sites they can review for)
+  site_ids            String[] @default([])
+  
+  // Terms acceptance
+  accepted_terms_at   DateTime?
+  photo_ownership_agreed Boolean @default(false)
+  
+  // Timestamps
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  last_active_at      DateTime?
+  
+  // Relations
+  sessions            ReviewerSession[]
+  reviews             ContentReview[]
+  photos              ReviewerPhoto[]
+  
+  @@index([status])
+  @@index([email])
+  @@map("reviewers")
+}
+
+/// ReviewerSession — OTP-based authentication sessions
+model ReviewerSession {
+  id              String   @id @default(cuid())
+  reviewer_id     String?  // null if reviewer doesn't exist yet (new signup)
+  email           String
+  otp_code        String   // 6-digit code
+  otp_expires_at  DateTime
+  is_used         Boolean  @default(false)
+  
+  // Session token (created after OTP verification)
+  session_token   String?  @unique
+  session_expires DateTime?
+  
+  // Device info for security
+  ip_address      String?
+  user_agent      String?
+  
+  created_at      DateTime @default(now())
+  
+  reviewer        Reviewer? @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+  
+  @@index([email, otp_code])
+  @@index([session_token])
+  @@index([otp_expires_at])
+  @@map("reviewer_sessions")
+}
+
+/// ContentReview — Assignment of content to reviewer with hidden time tracking
+/// Tracks the full review lifecycle from assignment to approval
+model ContentReview {
+  id                  String   @id @default(cuid())
+  reviewer_id         String
+  site_id             String
+  
+  // Content reference (one of these)
+  article_draft_id    String?  // For reviewing drafts before publish
+  blog_post_id        String?  // For reviewing published posts that need updates
+  
+  // Assignment
+  assigned_at         DateTime @default(now())
+  assigned_by         String?  // admin user ID
+  instructions        String?  @db.Text // Specific guidance for this review
+  
+  // Hidden time tracking (reviewer doesn't see this)
+  first_opened_at     DateTime? // When they first loaded the review page
+  last_activity_at    DateTime? // Last edit/interaction
+  total_active_seconds Int      @default(0) // Accumulated active time
+  
+  // Review status
+  status              String   @default("assigned") // assigned, in_progress, submitted, approved, rejected, revision_requested
+  priority            String   @default("normal") // urgent, high, normal, low
+  due_date            DateTime?
+  
+  // Reviewer's contributions
+  title_edit          String?  // Their edited title
+  content_edit        String?  @db.Text // Their edited content (full HTML)
+  meta_title_edit     String?
+  meta_description_edit String?
+  
+  // First-hand experience additions
+  experience_notes    String?  @db.Text // Their personal experience/tips
+  facts_verified      Boolean  @default(false)
+  insider_tips_added  Int      @default(0) // Count of tips they added
+  
+  // Submission
+  submitted_at        DateTime?
+  reviewer_notes      String?  @db.Text // Notes to admin
+  
+  // Admin review
+  admin_reviewed_at   DateTime?
+  admin_reviewed_by   String?
+  admin_feedback      String?  @db.Text
+  approval_status     String?  // approved, rejected, revision_requested
+  
+  // Final application
+  applied_to_content_at DateTime? // When edits were merged to the article
+  
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  
+  reviewer            Reviewer @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+  article_draft       ArticleDraft? @relation(fields: [article_draft_id], references: [id], onDelete: SetNull)
+  blog_post           BlogPost? @relation(fields: [blog_post_id], references: [id], onDelete: SetNull)
+  photos              ReviewerPhoto[]
+  
+  @@index([reviewer_id, status])
+  @@index([site_id, status])
+  @@index([status, due_date])
+  @@index([article_draft_id])
+  @@index([blog_post_id])
+  @@map("content_reviews")
+}
+
+/// ReviewerPhoto — Photos uploaded or linked by reviewers
+/// Tracks ownership declaration and license verification
+model ReviewerPhoto {
+  id                  String   @id @default(cuid())
+  reviewer_id         String
+  content_review_id   String?  // Which review this photo is for
+  
+  // Photo details
+  url                 String   // Stored URL (S3 or external)
+  thumbnail_url       String?
+  filename            String?
+  alt_text            String?
+  caption             String?
+  
+  // Ownership & licensing
+  license_type        String   // owned | licensed | unsplash | creative_commons | stock
+  ownership_declared  Boolean  @default(false) // They confirmed they own/can use it
+  declaration_text    String?  // "I took this photo on [date] at [location]"
+  
+  // For licensed/stock photos
+  source_url          String?  // Link to original source for verification
+  license_details     String?  // License name/number
+  photographer_credit String?  // Attribution required
+  
+  // Photo metadata
+  taken_at            DateTime? // When the photo was taken
+  location            String?   // Where it was taken
+  
+  // Verification
+  is_verified         Boolean  @default(false) // Admin verified the license
+  verified_at         DateTime?
+  verified_by         String?
+  
+  // Usage tracking
+  used_in_article_id  String?  // Which BlogPost uses this photo
+  
+  created_at          DateTime @default(now())
+  
+  reviewer            Reviewer @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+  content_review      ContentReview? @relation(fields: [content_review_id], references: [id], onDelete: SetNull)
+  
+  @@index([reviewer_id])
+  @@index([content_review_id])
+  @@index([license_type])
+  @@map("reviewer_photos")
 }

@@ -14,7 +14,7 @@ import {
   LayoutDashboard, Building2, PieChart, Users, ShoppingCart,
   Newspaper, Share2, FolderOpen, BookOpen, Paintbrush, Github,
   Monitor, Timer, FlaskConical, Terminal, MessageCircle,
-  Megaphone, Blocks, Database, Shield, TestTube2,
+  Megaphone, Blocks, Database, Shield, TestTube2, UserCheck,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -72,6 +72,18 @@ const navigation = [
       { label: 'Conversations',     href: '/admin/agent/conversations' },
       { label: 'Yacht Inquiries',   href: '/admin/yachts/inquiries' },
       { label: 'Team',              href: '/admin/team' },
+    ],
+  },
+  // ─── 4B. REVIEWERS (E-E-A-T "Experience" signal) ────────────
+  {
+    id: 'reviewers',
+    label: 'REVIEWERS',
+    icon: UserCheck,
+    items: [
+      { label: 'All Reviewers',      href: '/admin/reviewers' },
+      { label: 'Content Reviews',    href: '/admin/content-reviews' },
+      { label: 'Pending Approvals',  href: '/admin/content-reviews?status=pending' },
+      { label: 'Review Analytics',   href: '/admin/reviewers/analytics' },
     ],
   },
   // ─── 5. COMMERCE & BOOKINGS ───────────────────────────────────

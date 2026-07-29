@@ -3,8 +3,12 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, isYachtSite } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
+import {
+  getFallbackItineraryList,
+  getFallbackDestinationOptions,
+} from "@/lib/zenitha/fallback-fleet";
 import {
   Navigation,
   Clock,
@@ -102,6 +106,15 @@ export default async function ItinerariesPage({
     ]);
   } catch (e) {
     console.warn("[itineraries-page] DB query failed:", e);
+  }
+
+  // Unseeded yacht site → serve curated fallback itineraries so the hub is
+  // never an empty grid before the DB is populated.
+  if (itineraries.length === 0 && isYachtSite(siteId)) {
+    itineraries = getFallbackItineraryList() as ItineraryWithDest[];
+    if (destinations.length === 0) {
+      destinations = getFallbackDestinationOptions();
+    }
   }
 
   // Apply server-side filters from URL searchParams

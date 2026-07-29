@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, Users, Heart, Briefcase, Globe } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';
+import { getFallbackFeaturedYachts } from '@/lib/zenitha/fallback-fleet';
 
 // ─── Types ──────────────────────────────────────────────────
 type Locale = 'en' | 'ar';
@@ -121,7 +122,7 @@ function HeroSection({ locale }: { locale: Locale }) {
 
           <div className="flex gap-3 flex-wrap">
             <Link
-              href="/charter-planner"
+              href="/yachts"
               className="inline-flex items-center gap-2 no-underline transition-all duration-300 hover:shadow-lg"
               style={{
                 padding: '14px 32px',
@@ -181,10 +182,66 @@ function TrustBar({ locale }: { locale: Locale }) {
 }
 
 // ─── Featured Yachts Section ─────────────────────────────────
+interface FeaturedYacht {
+  name: string;
+  slug: string;
+  type: string;
+  length: number | null;
+  cabins: number;
+  berths: number;
+  pricePerWeekLow: number | null;
+  currency: string;
+  rating: number | null;
+  halalCateringAvailable: boolean;
+  image?: string;
+  images?: string[] | null;
+  destinationName?: string | null;
+  destination?: { name?: string | null } | null;
+}
+
+const YACHT_TYPE_LABEL: Record<string, { en: string; ar: string }> = {
+  SAILBOAT: { en: 'Sailing Yacht', ar: 'يخت شراعي' },
+  CATAMARAN: { en: 'Catamaran', ar: 'كاتاماران' },
+  MOTOR_YACHT: { en: 'Motor Yacht', ar: 'يخت آلي' },
+  GULET: { en: 'Gulet', ar: 'غوليت' },
+  SUPERYACHT: { en: 'Superyacht', ar: 'يخت فاخر' },
+  POWER_CATAMARAN: { en: 'Power Catamaran', ar: 'كاتاماران آلي' },
+};
+
+function formatWeekPrice(amount: number | null, currency: string) {
+  if (!amount) return null;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`;
+  }
+}
+
 function FeaturedYachtsSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
   const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const sectionRef = useScrollRevealClass<HTMLDivElement>();
+  const gridRef = useScrollRevealClass<HTMLDivElement>();
+
+  // Seed instantly with the curated fallback fleet so there is never an empty
+  // flash, then refine with live data from /api/yachts (which itself serves the
+  // same fallback until the DB is seeded — so this is always populated).
+  const [yachts, setYachts] = useState<FeaturedYacht[]>(() => getFallbackFeaturedYachts(3));
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/yachts?featured=true&limit=6')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data?.yachts?.length) return;
+        setYachts((data.yachts as FeaturedYacht[]).slice(0, 3));
+      })
+      .catch(() => {
+        /* keep fallback set */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <section className="py-20 bg-white">
@@ -199,36 +256,73 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        {/* Fleet Preview — links to full search */}
-        <div ref={sectionRef} className="z-reveal-fadeUp">
-          <div
-            className="relative rounded-2xl overflow-hidden"
-            style={{
-              minHeight: '420px',
-              backgroundImage: `url(${PHOTOS.catamaran})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundColor: 'var(--z-navy, #0F1621)',
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-[var(--z-navy)]/85 via-[var(--z-navy)]/60 to-[var(--z-navy)]/30" />
-            <div className="relative z-10 p-10 sm:p-14 flex flex-col justify-center" style={{ minHeight: '420px' }}>
-              <h3 className="font-heading text-xl sm:text-2xl font-semibold text-white mb-3">
-                {t({ en: 'Your Perfect Yacht Awaits', ar: 'يختك المثالي بانتظارك' })}
-              </h3>
-              <p className="font-body text-white/80 max-w-lg mb-8 leading-relaxed">
-                {t({
-                  en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean and Gulf charters.',
-                  ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في المتوسط والخليج.',
-                })}
-              </p>
-              <div>
-                <Link href="/fleet" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
-                  {t({ en: 'Explore Our Fleet', ar: 'استكشف أسطولنا' })} <ArrowRight size={18} />
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Real featured yacht cards */}
+        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list" aria-label="Featured yachts">
+          {yachts.map((y, i) => {
+            const img = y.image || y.images?.[0] || PHOTOS.motorYacht;
+            const typeLabel = YACHT_TYPE_LABEL[y.type] || { en: y.type, ar: y.type };
+            const price = formatWeekPrice(y.pricePerWeekLow, y.currency || 'EUR');
+            const dest = y.destinationName || y.destination?.name || null;
+            return (
+              <Link
+                key={y.slug || i}
+                href={`/yachts/${y.slug}`}
+                className="group block no-underline rounded-2xl overflow-hidden bg-white border border-[var(--z-champagne)] transition-all duration-300 hover:shadow-xl z-reveal-fadeUp z-reveal-stagger"
+                role="listitem"
+              >
+                {/* Photo */}
+                <div
+                  className="relative h-56 overflow-hidden"
+                  style={{ backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'var(--z-navy)' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/50 to-transparent" />
+                  <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-heading font-semibold uppercase tracking-wide" style={{ background: 'var(--z-gold)', color: 'var(--z-navy)' }}>
+                    {t(typeLabel)}
+                  </span>
+                  {y.halalCateringAvailable && (
+                    <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-[11px] font-heading font-semibold" style={{ background: 'rgba(255,255,255,0.92)', color: 'var(--z-navy)' }}>
+                      {t({ en: 'Halal', ar: 'حلال' })}
+                    </span>
+                  )}
+                </div>
+                {/* Body */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-heading text-lg font-semibold text-[var(--z-navy)] group-hover:text-[var(--z-gold-dark)] transition-colors">
+                      {y.name}
+                    </h3>
+                    {y.rating ? (
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--z-navy)] whitespace-nowrap">
+                        <Star size={14} className="fill-[var(--z-gold)] text-[var(--z-gold)]" /> {y.rating}
+                      </span>
+                    ) : null}
+                  </div>
+                  {dest && (
+                    <p className="text-sm font-body text-[var(--z-aegean)] mt-1">{dest}</p>
+                  )}
+                  <div className="flex items-center gap-4 mt-3 text-sm font-body text-[var(--z-aegean)]">
+                    {y.length ? <span>{y.length}m</span> : null}
+                    <span>{y.cabins} {t({ en: 'cabins', ar: 'مقصورات' })}</span>
+                    <span>{y.berths} {t({ en: 'guests', ar: 'ضيوف' })}</span>
+                  </div>
+                  {price && (
+                    <p className="mt-4 font-display text-[var(--z-navy)]">
+                      <span className="text-xs font-body text-[var(--z-aegean)]">{t({ en: 'from', ar: 'من' })} </span>
+                      <span className="text-lg font-bold">{price}</span>
+                      <span className="text-xs font-body text-[var(--z-aegean)]"> / {t({ en: 'week', ar: 'أسبوع' })}</span>
+                    </p>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Explore full fleet */}
+        <div className="text-center mt-12">
+          <Link href="/yachts" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
+            {t({ en: 'Explore the Full Fleet', ar: 'استكشف الأسطول كاملاً' })} <ArrowRight size={18} />
+          </Link>
         </div>
       </div>
     </section>

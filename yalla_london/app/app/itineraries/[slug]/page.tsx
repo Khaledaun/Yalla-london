@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig, getSiteDescription } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription, isYachtSite } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
+import { getFallbackItineraryPageData } from "@/lib/zenitha/fallback-fleet";
 import {
   Navigation,
   Clock,
@@ -104,6 +105,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   } catch (e) {
     console.warn("[itinerary-detail] metadata DB query failed:", e);
+  }
+
+  if (title === `Itinerary | ${siteName}` && isYachtSite(siteId)) {
+    const fb = getFallbackItineraryPageData(slug);
+    if (fb) {
+      title = `${fb.itinerary.title_en} | ${siteName}`;
+      description = fb.itinerary.description_en?.substring(0, 155) || description;
+      heroImage = fb.itinerary.heroImage || undefined;
+    }
   }
 
   const alternates = await getLocaleAlternates(`/itineraries/${slug}`);
@@ -286,6 +296,17 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
     }
   } catch (e) {
     console.warn("[itinerary-detail] DB query failed:", e);
+  }
+
+  // Unseeded yacht site → serve the curated fallback itinerary so the page
+  // renders fully instead of 404ing before the DB is populated.
+  if (!itinerary && isYachtSite(siteId)) {
+    const fb = getFallbackItineraryPageData(slug);
+    if (fb) {
+      itinerary = fb.itinerary as ItineraryRow;
+      recommendedYachts = fb.recommendedYachts as YachtRow[];
+      relatedItineraries = fb.relatedItineraries as RelatedRow[];
+    }
   }
 
   if (!itinerary) {

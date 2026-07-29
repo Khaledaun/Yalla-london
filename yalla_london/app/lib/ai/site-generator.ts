@@ -182,7 +182,7 @@ Provide:
 
 Return as JSON.`;
 
-  return generateJSON(prompt, { ...options, systemPrompt });
+  return generateJSON(prompt, { taskType: "content_generation", calledFrom: "site-generator:contentPlan", ...options, systemPrompt });
 }
 
 /**
@@ -238,7 +238,7 @@ Provide:
 
 Return as JSON.`;
 
-  return generateJSON(prompt, { ...options, systemPrompt });
+  return generateJSON(prompt, { taskType: "content_generation", calledFrom: "site-generator:branding", ...options, systemPrompt });
 }
 
 /**
@@ -274,5 +274,5 @@ Provide:
 
 Return as JSON.`;
 
-  return generateJSON(prompt, { ...options, systemPrompt });
+  return generateJSON(prompt, { taskType: "topic_research", calledFrom: "site-generator:analyzeCompetitor", ...options, systemPrompt });
 }

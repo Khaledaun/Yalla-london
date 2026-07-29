@@ -1,21 +1,19 @@
 'use client'
 
 import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
-import { PDFGenerator } from '@/components/admin/pdf-generator'
+import { PDFWorkshop } from '@/components/admin/pdf-workshop'
 
 export default function PDFGeneratorPage() {
   return (
-    <MophyAdminLayout pageTitle="PDF Generator">
+    <MophyAdminLayout pageTitle="PDF Workshop">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AI PDF Generator</h1>
-            <p className="text-gray-500 dark:text-gray-400">
-              Create professional PDF guides using Claude AI
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">PDF Workshop</h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            Choose a template, fill in the details, generate, edit with AI prompts, then publish.
+          </p>
         </div>
-        <PDFGenerator />
+        <PDFWorkshop />
       </div>
     </MophyAdminLayout>
   )

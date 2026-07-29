@@ -57,8 +57,9 @@ export function validateSEOEnvironment(): SEOEnvValidationResult {
     {
       name: "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL",
       required: false,
-      description: "GSC service account email for indexing API",
+      description: "GSC/GA4 service account email for indexing and analytics API",
       present: !!(
+        process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
         process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
         process.env.GSC_CLIENT_EMAIL
       ),
@@ -66,8 +67,9 @@ export function validateSEOEnvironment(): SEOEnvValidationResult {
     {
       name: "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY",
       required: false,
-      description: "GSC service account private key",
+      description: "GSC/GA4 service account private key",
       present: !!(
+        process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
         process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
         process.env.GSC_PRIVATE_KEY
       ),
@@ -114,11 +116,14 @@ export function validateSEOEnvironment(): SEOEnvValidationResult {
 
   // Check for GSC credentials completeness
   const hasGSCEmail = !!(
+    process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
     process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
     process.env.GSC_CLIENT_EMAIL
   );
   const hasGSCKey = !!(
-    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY
+    process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
+    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+    process.env.GSC_PRIVATE_KEY
   );
   if (hasGSCEmail !== hasGSCKey) {
     warnings.push(

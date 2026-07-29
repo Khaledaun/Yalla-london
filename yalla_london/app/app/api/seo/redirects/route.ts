@@ -299,7 +299,8 @@ async function getRedirectStats(): Promise<NextResponse> {
 }
 
 async function validateRedirects(): Promise<NextResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const baseUrl = getSiteDomain(getDefaultSiteId());
   
   // In production, test each redirect to ensure target URLs are valid
   const validationResults = [

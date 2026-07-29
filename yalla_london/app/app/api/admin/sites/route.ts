@@ -61,7 +61,7 @@ function getConfigSites() {
 export const GET = withAdminAuth(async (request: NextRequest) => {
   // Try database first, fall back to config/sites.ts
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     const sites = await prisma.site.findMany({
       where: { is_active: true },
       orderBy: { created_at: "desc" },
@@ -92,6 +92,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
+    const { prisma } = await import("@/lib/db");
     const site = await prisma.site.findUnique({
       where: { id: siteId },
       select: SITE_SELECT,

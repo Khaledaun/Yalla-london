@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import NextImage from 'next/image';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -71,12 +73,13 @@ interface MediaLibraryProps {
   maxSelection?: number;
 }
 
-export function MediaLibrary({ 
+export function MediaLibrary({
   onSelect,
   selectionMode = 'single',
   allowedTypes = ['image', 'video', 'document'],
   maxSelection = 1
 }: MediaLibraryProps) {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -112,14 +115,15 @@ export function MediaLibrary({
       formData.append('file', file);
       
       try {
-        const response = await fetch('/api/media/upload', {
+        const response = await fetch('/api/admin/media/upload', {
           method: 'POST',
           body: formData
         });
-        
+
         const result = await response.json();
         if (result.success) {
-          setMediaItems(prev => [result.item, ...prev]);
+          const item = result.data || result.item;
+          setMediaItems(prev => [item, ...prev]);
         }
       } catch (error) {
         console.error('Upload failed:', error);
@@ -169,7 +173,8 @@ export function MediaLibrary({
   };
 
   const deleteMediaItem = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this media item?')) return;
+    const ok = await confirm({ title: 'Delete Media Item', message: 'Are you sure you want to delete this media item?', variant: 'danger' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/media/library/${itemId}`, {
@@ -241,11 +246,15 @@ export function MediaLibrary({
     >
       <div className="aspect-square bg-gray-100 relative">
         {item.type === 'image' ? (
-          <img
+          <NextImage
             src={item.urls.thumbnail}
             alt={item.altText || item.title}
+            width={0}
+            height={0}
+            sizes="100vw"
             className="w-full h-full object-cover"
-            loading="lazy"
+            style={{ width: '100%', height: '100%' }}
+            unoptimized
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-200">
@@ -333,11 +342,13 @@ export function MediaLibrary({
       {/* Thumbnail */}
       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
         {item.type === 'image' ? (
-          <img
+          <NextImage
             src={item.urls.thumbnail}
             alt={item.altText || item.title}
+            width={64}
+            height={64}
             className="w-full h-full object-cover"
-            loading="lazy"
+            unoptimized
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -592,6 +603,7 @@ export function MediaLibrary({
           </Card>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

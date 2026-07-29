@@ -154,7 +154,7 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
               priority={index === 0}
             />
             {/* Elegant Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-burgundy-900/90 via-burgundy-900/40 to-burgundy-900/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-london-900/90 via-london-900/40 to-london-900/20" />
             {/* Subtle pattern overlay */}
             <div className="absolute inset-0 bg-pattern-arabesque opacity-30" />
           </div>
@@ -166,9 +166,9 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
               {slide.category && (
                 <Link
                   href={`/${locale === 'ar' ? 'ar/' : ''}blog?category=${slide.category.slug}`}
-                  className="inline-flex items-center gap-2 mb-6 px-5 py-2 bg-gold-400/90 backdrop-blur-sm text-burgundy-900 rounded-full text-sm font-semibold uppercase tracking-wider hover:bg-gold-300 transition-colors shadow-lg"
+                  className="inline-flex items-center gap-2 mb-6 px-5 py-2 bg-gold-400/90 backdrop-blur-sm text-london-900 rounded-full text-sm font-semibold uppercase tracking-wider hover:bg-gold-300 transition-colors shadow-lg"
                 >
-                  <span className="w-1.5 h-1.5 bg-burgundy-800 rounded-full" />
+                  <span className="w-1.5 h-1.5 bg-london-800 rounded-full" />
                   {slide.category.name}
                 </Link>
               )}
@@ -185,13 +185,13 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
 
               {/* Excerpt */}
               {slide.excerpt && (
-                <p className="text-lg md:text-xl text-cream-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-lg md:text-xl text-yl-gray-200 mb-8 max-w-2xl mx-auto leading-relaxed">
                   {slide.excerpt}
                 </p>
               )}
 
               {/* Meta Info */}
-              <div className="flex items-center justify-center gap-6 text-cream-300 text-sm">
+              <div className="flex items-center justify-center gap-6 text-yl-gray-300 text-sm">
                 {slide.publishedAt && (
                   <div className="flex items-center gap-2">
                     <Calendar size={16} className="text-gold-400" />
@@ -209,7 +209,7 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
               {/* Read More Button */}
               <Link
                 href={`/${locale === 'ar' ? 'ar/' : ''}blog/${slide.slug}`}
-                className="inline-flex items-center gap-2 mt-8 px-8 py-3.5 bg-white text-burgundy-800 rounded-lg font-semibold shadow-elegant hover:bg-cream-100 hover:shadow-hover transition-all duration-300 hover:-translate-y-1"
+                className="inline-flex items-center gap-2 mt-8 px-8 py-3.5 bg-white text-london-800 rounded-lg font-semibold shadow-md hover:bg-yl-gray-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
               >
                 <span>{locale === 'ar' ? 'اقرأ المزيد' : 'Read More'}</span>
                 <ChevronRight size={18} className={isRTL ? 'rotate-180' : ''} />
@@ -222,14 +222,14 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
       {/* Navigation Arrows */}
       <button
         onClick={isRTL ? nextSlide : prevSlide}
-        className={`absolute ${isRTL ? 'right-6' : 'left-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-burgundy-900 transition-all duration-300 hover:scale-110 border border-white/20`}
+        className={`absolute ${isRTL ? 'right-6' : 'left-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-london-900 transition-all duration-300 hover:scale-110 border border-white/20`}
         aria-label="Previous slide"
       >
         <ChevronLeft size={28} />
       </button>
       <button
         onClick={isRTL ? prevSlide : nextSlide}
-        className={`absolute ${isRTL ? 'left-6' : 'right-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-burgundy-900 transition-all duration-300 hover:scale-110 border border-white/20`}
+        className={`absolute ${isRTL ? 'left-6' : 'right-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-london-900 transition-all duration-300 hover:scale-110 border border-white/20`}
         aria-label="Next slide"
       >
         <ChevronRight size={28} />

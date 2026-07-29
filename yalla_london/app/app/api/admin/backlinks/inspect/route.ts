@@ -2,6 +2,8 @@
  * Phase 4C Backlink Inspector API
  * Entity extraction and backlink analysis for published content
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
@@ -167,8 +169,8 @@ export async function POST(request: NextRequest) {
       }
     ] : [];
 
-    // Calculate overall SEO score
-    const seoScore = Math.floor(70 + (Math.random() * 25)); // Random score between 70-95
+    // SEO score placeholder — real scoring computed by pipeline audit phase
+    const seoScore = 0;
 
     // Create SEO audit result with backlink analysis
     const auditResult = await prisma.seoAuditResult.create({

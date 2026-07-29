@@ -9,6 +9,8 @@
  *   const posts = await db.blogPost.findMany(); // Auto-filtered by site_id
  */
 
+// Import directly from prisma.ts to avoid circular dependency
+// (lib/db.ts re-exports from this file)
 import { prisma } from '@/lib/prisma';
 import { TenantMismatchError } from './assertions';
 

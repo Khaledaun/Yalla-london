@@ -24,10 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const baseUrl = getSiteDomain(siteId);
+
     const config = {
       defaultLanguage: 'en' as const,
       supportedLanguages: ['en', 'ar'] as Array<'en' | 'ar'>,
-      baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com',
+      baseUrl,
       urlStructure: 'subdirectory' as const
     };
 
@@ -36,13 +40,13 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'generate_hreflang':
         return await handleGenerateHreflang(multilingualEngine, articleId, data);
-      
+
       case 'detect_duplicates':
         return await handleDetectDuplicates(multilingualEngine);
-      
+
       case 'generate_locale_schema':
-        return await handleGenerateLocaleSchema(multilingualEngine, articleId, language, data);
-      
+        return await handleGenerateLocaleSchema(multilingualEngine, articleId, language, data, siteId);
+
       case 'validate_hreflang':
         return await handleValidateHreflang(multilingualEngine, data);
       
@@ -92,10 +96,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+      const siteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+
       const config = {
         defaultLanguage: 'en' as const,
         supportedLanguages: ['en', 'ar'] as Array<'en' | 'ar'>,
-        baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com',
+        baseUrl: getSiteDomain(siteId),
         urlStructure: 'subdirectory' as const
       };
 
@@ -316,7 +323,8 @@ async function handleGenerateLocaleSchema(
   engine: MultilingualSeoEngine,
   articleId: string,
   language: 'en' | 'ar',
-  data: any
+  data: any,
+  siteId?: string
 ) {
   if (!articleId || !language) {
     return NextResponse.json(
@@ -341,8 +349,9 @@ async function handleGenerateLocaleSchema(
   }
 
   // Generate base schema
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
-  const schemaGenerator = new SchemaGenerator(baseUrl, {});
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const resolvedBaseUrl = getSiteDomain(siteId || getDefaultSiteId());
+  const schemaGenerator = new SchemaGenerator(resolvedBaseUrl, {});
   
   const baseSchema = schemaGenerator.generateArticle({
     title: article.title,

@@ -1,0 +1,106 @@
+/* ═══════════════════════════════════════════════════════════════
+   ZENITHA · LUXURY — Design Tokens (CSS Custom Properties)
+   The parent brand. A holding company for extraordinary experiences.
+   Version 1.0 · Zenitha.Luxury LLC · Delaware, USA
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── CORE PALETTE (matched to brand identity system) ─── */
+  --zl-obsidian:      #0C0C0C;   /* Brand black — primary backgrounds   */
+  --zl-midnight:      #111111;   /* Rich dark — elevated surfaces       */
+  --zl-charcoal:      #161616;   /* Dark surfaces — cards, panels       */
+  --zl-smoke:         #5A5248;   /* Stone — borders, dividers on dark   */
+  --zl-mist:          #9E9080;   /* Muted — secondary text, captions    */
+  --zl-platinum:      #D4AF6A;   /* Gold muted — light mode accents     */
+  --zl-cream:         #F0EBE1;   /* Brand cream — light backgrounds     */
+  --zl-ivory:         #FDFCF9;   /* Near-white surface                  */
+  --zl-white:         #FFFFFF;
+
+  /* ─── GOLD PALETTE (from brand identity) ─── */
+  --zl-gold:          #C49A2A;   /* Primary gold — main accent          */
+  --zl-gold-light:    #C9A84C;   /* Warm gold — hover, highlights       */
+  --zl-gold-deep:     #A07B1E;   /* Deep gold — pressed state           */
+  --zl-champagne:     #D4AF6A;   /* Soft gold — backgrounds, cards      */
+  --zl-brass:         #B8934A;   /* Supporting gold accent              */
+
+  /* ─── TYPOGRAPHY (brand identity fonts) ─── */
+  --zl-font-display:  'Cormorant Garamond', Georgia, serif;
+  --zl-font-heading:  'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zl-font-body:     'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zl-font-label:    'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zl-font-arabic:   'IBM Plex Sans Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
+
+  /* ─── FONT SIZES ─── */
+  --zl-text-xs:       0.75rem;   /* 12px */
+  --zl-text-sm:       0.875rem;  /* 14px */
+  --zl-text-base:     1rem;      /* 16px */
+  --zl-text-lg:       1.125rem;  /* 18px */
+  --zl-text-xl:       1.25rem;   /* 20px */
+  --zl-text-2xl:      1.5rem;    /* 24px */
+  --zl-text-3xl:      1.875rem;  /* 30px */
+  --zl-text-4xl:      2.25rem;   /* 36px */
+  --zl-text-5xl:      3rem;      /* 48px */
+  --zl-text-6xl:      3.75rem;   /* 60px */
+  --zl-text-display:  5rem;      /* 80px */
+
+  /* ─── LETTER SPACING ─── */
+  --zl-tracking-tight:   -0.025em;
+  --zl-tracking-normal:   0;
+  --zl-tracking-wide:     0.05em;
+  --zl-tracking-wider:    0.1em;
+  --zl-tracking-widest:   0.25em;
+  --zl-tracking-luxury:   0.4em;   /* Signature luxury spacing */
+
+  /* ─── SPACING (8px base grid) ─── */
+  --zl-space-1:   4px;
+  --zl-space-2:   8px;
+  --zl-space-3:   12px;
+  --zl-space-4:   16px;
+  --zl-space-5:   20px;
+  --zl-space-6:   24px;
+  --zl-space-8:   32px;
+  --zl-space-10:  40px;
+  --zl-space-12:  48px;
+  --zl-space-16:  64px;
+  --zl-space-20:  80px;
+  --zl-space-24:  96px;
+  --zl-space-32:  128px;
+
+  /* ─── BORDER RADIUS ─── */
+  --zl-radius-none:   0;
+  --zl-radius-sm:     2px;   /* Minimal — luxury prefers sharp edges */
+  --zl-radius-md:     4px;
+  --zl-radius-lg:     8px;
+  --zl-radius-xl:     12px;
+  --zl-radius-full:   9999px;
+
+  /* ─── SHADOWS ─── */
+  --zl-shadow-sm:       0 1px 3px rgba(0,0,0,0.12);
+  --zl-shadow-md:       0 4px 16px rgba(0,0,0,0.18);
+  --zl-shadow-lg:       0 8px 32px rgba(0,0,0,0.25);
+  --zl-shadow-xl:       0 16px 64px rgba(0,0,0,0.35);
+  --zl-shadow-gold:     0 2px 24px rgba(196,169,108,0.18);
+  --zl-shadow-gold-lg:  0 8px 40px rgba(196,169,108,0.25);
+
+  /* ─── GRADIENTS ─── */
+  --zl-gradient-hero:    linear-gradient(160deg, #0A0A0A 0%, #1A1208 50%, #0A0A0A 100%);
+  --zl-gradient-gold:    linear-gradient(135deg, #C4A96C 0%, #EAD9BB 50%, #9A7A42 100%);
+  --zl-gradient-dark:    linear-gradient(180deg, #141414 0%, #0A0A0A 100%);
+  --zl-gradient-overlay: linear-gradient(180deg, rgba(10,10,10,0) 0%, rgba(10,10,10,0.9) 100%);
+  --zl-gradient-subtle:  linear-gradient(180deg, #FDFCF9 0%, #F5F0E8 100%);
+
+  /* ─── MOTION ─── */
+  --zl-ease-luxury:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --zl-ease-in:      cubic-bezier(0.4, 0, 1, 1);
+  --zl-ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --zl-duration-fast:   150ms;
+  --zl-duration-base:   300ms;
+  --zl-duration-slow:   600ms;
+  --zl-duration-drift:  1200ms;
+
+  /* ─── CONTAINERS ─── */
+  --zl-container:       1360px;  /* Max content width */
+  --zl-container-wide:  1600px;  /* Full-bleed hero sections */
+  --zl-container-text:  760px;   /* Optimal reading width */
+  --zl-container-tight: 560px;   /* Narrow editorial content */
+}

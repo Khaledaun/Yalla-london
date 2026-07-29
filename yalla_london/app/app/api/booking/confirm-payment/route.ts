@@ -8,6 +8,7 @@ import { stripePayments } from '@/lib/integrations/payment-booking'
 import { notifications } from '@/lib/integrations/notifications'
 import { emailMarketing } from '@/lib/integrations/email-marketing'
 import { apiLimiter } from '@/lib/rate-limit'
+import { getBaseUrl } from '@/lib/url-utils'
 
 export async function POST(request: NextRequest) {
   const blocked = apiLimiter(request);
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email
     if (customerEmail) {
+      const baseUrl = await getBaseUrl()
       const confirmationSubject = 'Booking Confirmed - Yalla London'
       const confirmationContent = `
         <div style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
           </div>
           <p>We look forward to seeing you at this exclusive London experience!</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://yalla-london.com/events" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View My Bookings</a>
+            <a href="${baseUrl}/events" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View My Bookings</a>
           </div>
         </div>
       `

@@ -3,6 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withTenantAuth } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";
+import {
+  informationArticles as baseInfoArticles,
+  informationSections,
+} from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
+
+// Combine all information hub articles for stats
+const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
 interface DashboardMetrics {
   sessions: number;
@@ -118,16 +126,17 @@ export const GET = withTenantAuth(
           where: {
             status: "pending",
             scheduled_time: { gte: now },
+            site_id: siteId,
           },
         }),
         db.blogPost.count({
           where: { published: false },
         }),
         prisma.scheduledContent.count({
-          where: { status: "pending" },
+          where: { status: "pending", site_id: siteId },
         }),
         prisma.topicProposal.count({
-          where: { status: { in: ["planned", "queued", "ready"] } },
+          where: { status: { in: ["planned", "queued", "ready"] }, site_id: siteId },
         }),
         db.blogPost.aggregate({
           _avg: { seo_score: true },
@@ -135,7 +144,7 @@ export const GET = withTenantAuth(
         }),
         // Recent unpublished posts (ready to publish)
         db.blogPost.findMany({
-          where: { published: false, deletedAt: null },
+          where: { published: false,  },
           select: {
             id: true,
             title_en: true,
@@ -150,7 +159,7 @@ export const GET = withTenantAuth(
         }),
         // Upcoming topic proposals
         prisma.topicProposal.findMany({
-          where: { status: { in: ["planned", "queued", "ready"] } },
+          where: { status: { in: ["planned", "queued", "ready"] }, site_id: siteId },
           select: {
             id: true,
             title: true,
@@ -262,6 +271,20 @@ export const GET = withTenantAuth(
         // metrics.conversionRate = await getGA4ConversionRate(timeRange);
       }
 
+      // Information Hub stats (from static data + DB fallback)
+      const publishedInfoArticles = allInfoArticles.filter((a) => a.published);
+      const draftInfoArticles = allInfoArticles.filter((a) => !a.published);
+      const publishedInfoSections = informationSections.filter(
+        (s) => s.published,
+      );
+      const avgInfoSeoScore =
+        publishedInfoArticles.length > 0
+          ? Math.round(
+              publishedInfoArticles.reduce((sum, a) => sum + (a.seo_score || 0), 0) /
+                publishedInfoArticles.length,
+            )
+          : 0;
+
       // Recent activity from audit logs
       const recentActivity = await prisma.auditLog.findMany({
         take: 10,
@@ -286,6 +309,15 @@ export const GET = withTenantAuth(
         totalTopics: totalTopics,
         seoScore: Math.round(avgSeoScore._avg.seo_score || 0),
         automationJobs: scheduledContent + reviewContent,
+        // Information Hub stats
+        informationHub: {
+          totalArticles: allInfoArticles.length,
+          publishedArticles: publishedInfoArticles.length,
+          draftArticles: draftInfoArticles.length,
+          totalSections: informationSections.length,
+          publishedSections: publishedInfoSections.length,
+          avgSeoScore: avgInfoSeoScore,
+        },
         // Lists for dashboard widgets
         recentDrafts: recentDrafts.map((post: any) => ({
           id: post.id,

@@ -1,0 +1,142 @@
+{
+  "brand": "Yalla London",
+  "parent": "Zenitha.Luxury LLC",
+  "domain": "yalla-london.com",
+  "version": "2.0",
+  "updated": "2026-04-05",
+
+  "colors": {
+    "primary": { "name": "London Red", "hex": "#C8322B", "rgb": "200,50,43", "usage": "CTAs, brand identity, links" },
+    "secondary": { "name": "Yalla Gold", "hex": "#C49A2A", "rgb": "196,154,42", "usage": "Accents, highlights, dividers, kicker labels" },
+    "accent": { "name": "Thames Blue", "hex": "#3B7EA1", "rgb": "59,126,161", "usage": "Interactive elements, LDN badge, stamp seal" },
+    "charcoal": { "name": "Charcoal", "hex": "#1C1917", "rgb": "28,25,23", "usage": "Primary text, dark backgrounds" },
+    "cream": { "name": "Cream", "hex": "#FAF8F4", "rgb": "250,248,244", "usage": "Page background, light mode" },
+    "navy": { "name": "Dark Navy", "hex": "#0F1621", "rgb": "15,22,33", "usage": "Hero backgrounds, footer, dark sections" },
+    "parchment": { "name": "Parchment", "hex": "#EDE9E1", "rgb": "237,233,225", "usage": "Off-white surface" },
+    "sand": { "name": "Sand", "hex": "#D6D0C4", "rgb": "214,208,196", "usage": "Borders, dividers" }
+  },
+
+  "gradients": {
+    "brand": "linear-gradient(135deg, #C8322B 0%, #8b1f1c 100%)",
+    "gold": "linear-gradient(135deg, #C49A2A 0%, #d9b938 100%)",
+    "tricolor": "linear-gradient(90deg, #C8322B, #C49A2A, #3B7EA1)"
+  },
+
+  "typography": {
+    "display": { "font": "Anybody", "weights": [400, 600, 700, 800], "usage": "Headlines, hero text, logos" },
+    "body": { "font": "Source Serif 4", "weights": [400, 600, 700], "usage": "Body text, articles, descriptions" },
+    "mono": { "font": "IBM Plex Mono", "weights": [300, 400, 500], "usage": "Labels, metadata, prices, timestamps" },
+    "arabic": { "font": "Noto Sans Arabic", "weights": [400, 500, 600, 700], "usage": "All Arabic text" }
+  },
+
+  "signature_elements": {
+    "tri_color_bar": {
+      "description": "3px horizontal stripe — Red | Gold | Blue. Used at page top, between sections, above footer.",
+      "file": "elements/yalla-color-bar.svg",
+      "colors": ["#C8322B", "#C49A2A", "#3B7EA1"]
+    },
+    "stamp_seal": {
+      "description": "Double-circle passport stamp with 'YALLA LONDON' outer ring, 'LDN' center, 'GATE Y · 1st CLASS' bottom. Cardinal dots at 9/12/3 o'clock in red/gold/blue.",
+      "files": ["stamps/yalla-stamp-seal.svg", "stamps/yalla-stamp-seal-transparent.svg", "stamps/yalla-stamp-1000px.png"],
+      "usage": "PDF covers, Etsy products, footer decoration, hero watermark"
+    },
+    "gold_rule": {
+      "description": "2px gold (#C49A2A) horizontal line, typically 40-60px wide. Placed below logos, above article content, between heading and body.",
+      "color": "#C49A2A",
+      "height": "2px",
+      "widths": ["40px", "56px", "80px"]
+    },
+    "boarding_pass_meta": {
+      "description": "Three-column metadata row: GATE Y | CLASS 1st | TO LONDON. Used in PDF covers and Etsy product covers.",
+      "columns": [
+        { "label": "GATE", "value": "Y" },
+        { "label": "CLASS", "value": "1st" },
+        { "label": "TO", "value": "LONDON" }
+      ]
+    },
+    "kicker_label": {
+      "description": "Gold (#C49A2A) uppercase mono text above headings. 10px, bold, tracking 0.25em.",
+      "examples": ["THE DEFINITIVE LONDON GUIDE", "LUXURY TRAVEL GUIDE", "EDITOR'S PICK"]
+    },
+    "watermark": {
+      "description": "Faded brand stamp at 2-8% opacity, rotated 8-12deg, used as background decoration.",
+      "file": "stamps/yalla-watermark-500px.png",
+      "opacity_range": "0.02 to 0.08"
+    }
+  },
+
+  "logos": {
+    "primary_light": { "file": "logos/yalla-primary-light.svg", "usage": "Header, light backgrounds" },
+    "primary_dark": { "file": "logos/yalla-primary-dark.svg", "usage": "Dark backgrounds" },
+    "horizontal_on_dark": { "file": "logos/yalla-horizontal-transparent-on-dark.svg", "usage": "Footer, dark sections" },
+    "horizontal_on_light": { "file": "logos/yalla-horizontal-transparent-on-light.svg", "usage": "Light sections" },
+    "stacked_light": { "file": "logos/yalla-stacked-light.svg", "usage": "Square placements, social media" },
+    "stacked_dark": { "file": "logos/yalla-stacked-dark.svg", "usage": "Square placements, dark bg" },
+    "wordmark_light": { "file": "logos/yalla-wordmark-light.svg", "usage": "Text-only logo, light bg" },
+    "wordmark_dark": { "file": "logos/yalla-wordmark-dark.svg", "usage": "Text-only logo, dark bg" },
+    "arabic_light": { "file": "logos/yalla-arabic-light.svg", "usage": "Arabic markets, RTL layouts" },
+    "arabic_dark": { "file": "logos/yalla-arabic-dark.svg", "usage": "Arabic markets, dark bg" },
+    "mono_white": { "file": "logos/yalla-mono-white.svg", "usage": "Watermarks, overlays on images" },
+    "mono_black": { "file": "logos/yalla-mono-black.svg", "usage": "Print, monochrome contexts" },
+    "icon_512": { "file": "logos/yalla-icon-512.png", "usage": "App icon, large square" }
+  },
+
+  "social_icons": {
+    "avatar_dark": "social/yalla-avatar-dark.svg",
+    "avatar_light": "social/yalla-avatar-light.svg",
+    "favicon_dark": "social/yalla-favicon-dark.svg",
+    "favicon_light": "social/yalla-favicon-light.svg",
+    "social_thumb_dark": "social/yalla-social-thumb-dark.svg",
+    "social_thumb_light": "social/yalla-social-thumb-light.svg"
+  },
+
+  "canva_template_specs": {
+    "pdf_cover_a4": {
+      "width": 1200,
+      "height": 1600,
+      "templates": [
+        { "name": "Boarding Pass", "description": "Cream background, boarding pass border with perforated tear line, YALLA wordmark + LDN badge top-left, boarding pass metadata, large serif title center, stamp seal in right stub" },
+        { "name": "Red & Gold Editorial", "description": "Red-to-dark gradient, gold accent lines, YALLA wordmark, large white serif title, boarding pass metadata, tricolor bar" },
+        { "name": "Cream Stamp", "description": "Cream background, double border frame, centered layout, YALLA wordmark, destination in red, large serif title, stamp seal below" },
+        { "name": "Thames Blue", "description": "Deep blue gradient, faded LONDON watermark, gold stamp seal top-right, gold kicker + gold accent line, white serif title, boarding pass metadata" },
+        { "name": "Magazine Split", "description": "62/38 split — dark charcoal left panel with content, red-to-gold gradient right panel with large stamp seal" },
+        { "name": "Charcoal Luxury", "description": "Dark charcoal background, gold border frame, centered YALLA wordmark + stamp seal + serif title, boarding pass metadata at bottom" }
+      ]
+    },
+    "etsy_listing": {
+      "width": 1200,
+      "height": 800,
+      "description": "Tricolor bar top+bottom, YALLA wordmark + LDN badge top-left, gold accent line, boarding pass metadata, gold kicker label, large left-aligned serif title, stamp seal bottom-right"
+    },
+    "social_post_square": {
+      "width": 1080,
+      "height": 1080,
+      "description": "Dark navy background, tricolor bar at top, YALLA wordmark centered, gold rule, content area, stamp seal watermark at 5% opacity"
+    },
+    "social_post_story": {
+      "width": 1080,
+      "height": 1920,
+      "description": "Full-bleed hero image with dark gradient overlay, tricolor bar at top, YALLA wordmark, gold kicker, large serif title, CTA button in London Red"
+    },
+    "email_header": {
+      "width": 600,
+      "height": 200,
+      "description": "Navy background, tricolor bar at top, YALLA wordmark + LDN badge centered, gold accent line below"
+    }
+  },
+
+  "design_rules": {
+    "spacing": "8px base grid. Component padding: 16px. Between components: 24px. Between sections: 48-64px.",
+    "border_radius": "Cards: 14px. Buttons: 8px. Tags/badges: full (rounded-full). Inputs: 8px.",
+    "shadows": "Cards: 0 1px 3px rgba(28,25,23,0.04). Hover: 0 8px 24px rgba(28,25,23,0.08).",
+    "transitions": "All interactive: 300ms ease. Hover lifts: -translate-y-1. Active press: scale(0.97).",
+    "min_touch_target": "44px on mobile (per Apple HIG).",
+    "never": [
+      "Never use letter-spacing on Arabic text",
+      "Never use font-weight below 400 for Arabic",
+      "Never hardcode hex colors — use CSS variables or brand-kit tokens",
+      "Never use bg-white — use var(--admin-card-bg) or bg-yl-cream",
+      "Never skip the tri-color bar between major page sections"
+    ]
+  }
+}

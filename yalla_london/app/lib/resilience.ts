@@ -10,14 +10,15 @@ const SAFETY_MARGIN_MS = 5_000;
 
 /**
  * Creates a deadline checker for Vercel serverless functions.
- * Call `isExpired()` inside loops to exit before the 60s timeout.
+ * Call `isExpired()` inside loops to exit before the timeout.
  *
  * @param marginMs - Safety margin before the hard limit (default 5s)
+ * @param totalTimeoutMs - Total function timeout (default 60s; use route's maxDuration for longer routes)
  * @returns Object with `isExpired()`, `remainingMs()`, and `startTime`
  */
-export function createDeadline(marginMs = SAFETY_MARGIN_MS) {
+export function createDeadline(marginMs = SAFETY_MARGIN_MS, totalTimeoutMs = VERCEL_FUNCTION_TIMEOUT_MS) {
   const startTime = Date.now();
-  const deadline = startTime + VERCEL_FUNCTION_TIMEOUT_MS - marginMs;
+  const deadline = startTime + totalTimeoutMs - marginMs;
   return {
     startTime,
     isExpired: () => Date.now() >= deadline,
@@ -49,7 +50,7 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
 export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
-  retryOptions?: RetryOptions
+  retryOptions?: RetryOptions,
 ): Promise<Response> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
   let lastError: Error | null = null;
@@ -65,9 +66,7 @@ export async function fetchWithRetry(
         if (retryAfter) {
           // Retry-After can be seconds or an HTTP date
           const seconds = parseInt(retryAfter, 10);
-          delayMs = isNaN(seconds)
-            ? Math.max(0, new Date(retryAfter).getTime() - Date.now())
-            : seconds * 1_000;
+          delayMs = isNaN(seconds) ? Math.max(0, new Date(retryAfter).getTime() - Date.now()) : seconds * 1_000;
         } else {
           // Exponential backoff: 1s, 2s, 4s, ...
           delayMs = Math.min(opts.baseDelayMs * Math.pow(2, attempt), opts.maxDelayMs);
@@ -75,7 +74,7 @@ export async function fetchWithRetry(
 
         console.warn(
           `[fetchWithRetry] ${response.status} on attempt ${attempt + 1}/${opts.maxRetries + 1}, ` +
-          `retrying in ${delayMs}ms: ${url}`
+            `retrying in ${delayMs}ms: ${url}`,
         );
         await sleep(delayMs);
         continue;
@@ -89,7 +88,7 @@ export async function fetchWithRetry(
         const delayMs = Math.min(opts.baseDelayMs * Math.pow(2, attempt), opts.maxDelayMs);
         console.warn(
           `[fetchWithRetry] Network error on attempt ${attempt + 1}/${opts.maxRetries + 1}, ` +
-          `retrying in ${delayMs}ms: ${url} — ${lastError.message}`
+            `retrying in ${delayMs}ms: ${url} — ${lastError.message}`,
         );
         await sleep(delayMs);
         continue;
@@ -106,19 +105,18 @@ export async function fetchWithRetry(
  * Wraps a promise with a timeout. Rejects if the promise doesn't settle
  * within the specified duration.
  */
-export function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  label = "Operation"
-): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label = "Operation"): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
-      timeoutMs
-    );
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
     promise
-      .then((result) => { clearTimeout(timer); resolve(result); })
-      .catch((error) => { clearTimeout(timer); reject(error); });
+      .then((result) => {
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
   });
 }
 
@@ -136,14 +134,29 @@ interface SiteLoopResult<T> {
 /**
  * Iterates over all site IDs with deadline awareness.
  * Skips remaining sites if the timeout approaches.
- * Catches per-site errors without failing the whole loop.
+ * Each per-site callback is wrapped in a timeout so a single slow site
+ * cannot consume the entire budget.
  */
 export async function forEachSite<T>(
   siteIds: string[],
   fn: (siteId: string) => Promise<T>,
-  marginMs = SAFETY_MARGIN_MS
+  marginMs = SAFETY_MARGIN_MS,
+  totalTimeoutMs = VERCEL_FUNCTION_TIMEOUT_MS,
 ): Promise<SiteLoopResult<T>> {
-  const deadline = createDeadline(marginMs);
+  const deadline = createDeadline(marginMs, totalTimeoutMs);
+  // Per-site budget: divide remaining time equally.
+  //
+  // The 45s cap only applies when the caller hasn't passed a custom
+  // totalTimeoutMs — i.e. running on the default Vercel 60s function timeout.
+  // Crons with `maxDuration: 300` in vercel.json explicitly pass a larger
+  // budget (e.g. seo-agent passes ~280s); they should be able to use the
+  // full per-site allocation. Without this guard the seo-agent always
+  // killed each site at 45s even though it had 280s available — causing
+  // the "Site yalla-london timed out after 45000ms" failures we saw in
+  // §16 of the daily briefing.
+  const usingDefaultTimeout = totalTimeoutMs <= VERCEL_FUNCTION_TIMEOUT_MS;
+  const evenShare = Math.floor((totalTimeoutMs - marginMs) / Math.max(siteIds.length, 1));
+  const perSiteMaxMs = usingDefaultTimeout ? Math.min(45_000, evenShare) : evenShare;
   const result: SiteLoopResult<T> = {
     results: {},
     errors: {},
@@ -161,8 +174,17 @@ export async function forEachSite<T>(
       continue;
     }
 
+    // Use the smaller of per-site budget or remaining deadline time (with 2s buffer)
+    const siteTimeout = Math.min(perSiteMaxMs, deadline.remainingMs() - 2_000);
+    if (siteTimeout < 3_000) {
+      result.skipped.push(siteId);
+      result.timedOut = true;
+      console.warn(`[forEachSite] Insufficient time for ${siteId} (${siteTimeout}ms left), skipping`);
+      continue;
+    }
+
     try {
-      result.results[siteId] = await fn(siteId);
+      result.results[siteId] = await withTimeout(fn(siteId), siteTimeout, `Site ${siteId}`);
       result.completed++;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -174,11 +196,7 @@ export async function forEachSite<T>(
 
   // Add remaining sites as skipped if we timed out
   if (result.timedOut) {
-    const processedSites = new Set([
-      ...Object.keys(result.results),
-      ...Object.keys(result.errors),
-      ...result.skipped,
-    ]);
+    const processedSites = new Set([...Object.keys(result.results), ...Object.keys(result.errors), ...result.skipped]);
     for (const siteId of siteIds) {
       if (!processedSites.has(siteId)) {
         result.skipped.push(siteId);

@@ -7,7 +7,7 @@ on:
       - 'yalla_london/app/**'
       - '.github/workflows/staging-ci.yml'
   pull_request:
-    branches: [ staging, main ]
+    branches: [ staging, main, 'claude/**' ]
     paths:
       - 'yalla_london/app/**'
 

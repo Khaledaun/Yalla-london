@@ -804,8 +804,8 @@ export function ContentPipelinePanel() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-green-600">+23%</p>
-                  <p className="text-sm text-gray-500">vs last month</p>
+                  <p className="text-3xl font-bold text-gray-400">&mdash;</p>
+                  <p className="text-sm text-gray-500">No data</p>
                 </div>
               </CardContent>
             </Card>
@@ -816,8 +816,8 @@ export function ContentPipelinePanel() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-blue-600">8.4%</p>
-                  <p className="text-sm text-gray-500">avg engagement</p>
+                  <p className="text-3xl font-bold text-gray-400">&mdash;</p>
+                  <p className="text-sm text-gray-500">No data</p>
                 </div>
               </CardContent>
             </Card>
@@ -828,8 +828,8 @@ export function ContentPipelinePanel() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-purple-600">12.1%</p>
-                  <p className="text-sm text-gray-500">content to action</p>
+                  <p className="text-3xl font-bold text-gray-400">&mdash;</p>
+                  <p className="text-sm text-gray-500">No data</p>
                 </div>
               </CardContent>
             </Card>

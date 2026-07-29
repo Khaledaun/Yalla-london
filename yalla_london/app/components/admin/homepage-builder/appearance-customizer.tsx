@@ -21,12 +21,13 @@ export interface AppearanceCustomizerProps {
 }
 
 const fontFamilies = [
+  { value: 'Anybody', label: 'Anybody (Display)' },
+  { value: 'Source Serif 4', label: 'Source Serif 4 (Editorial)' },
   { value: 'Inter', label: 'Inter (Modern Sans-serif)' },
   { value: 'Roboto', label: 'Roboto (Google Sans-serif)' },
   { value: 'Open Sans', label: 'Open Sans (Friendly Sans-serif)' },
   { value: 'Lato', label: 'Lato (Humanist Sans-serif)' },
   { value: 'Montserrat', label: 'Montserrat (Geometric Sans-serif)' },
-  { value: 'Playfair Display', label: 'Playfair Display (Elegant Serif)' },
   { value: 'Merriweather', label: 'Merriweather (Readable Serif)' },
   { value: 'Georgia', label: 'Georgia (Classic Serif)' }
 ];
@@ -66,7 +67,7 @@ const presetThemes = [
     name: 'Elegant Gold',
     primaryColor: '#D97706',
     secondaryColor: '#B45309',
-    fontFamily: 'Playfair Display'
+    fontFamily: 'Source Serif 4'
   }
 ];
 

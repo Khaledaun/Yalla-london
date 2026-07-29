@@ -3,8 +3,15 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArticleEditor } from '@/components/admin/article-editor';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { Save, Eye, FileText, AlertTriangle } from 'lucide-react';
+import {
+  AdminPageHeader,
+  AdminButton,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminStatusBadge,
+} from '@/components/admin/admin-ui';
 
 interface BlogPostAdmin {
   id: string;
@@ -60,10 +67,10 @@ export default function EditArticlePage() {
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await fetch(`/api/admin/content?id=${articleId}`);
         const data = await response.json();
-        
+
         if (data.success && data.data) {
           setArticle(data.data);
         } else {
@@ -83,147 +90,161 @@ export default function EditArticlePage() {
   }, [articleId]);
 
   const handleSave = async () => {
-    // This will be handled by the ArticleEditor component
-    console.log('Save triggered from edit page');
+    if (!article) return;
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${article.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: false }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Save failed');
+      }
+      alert('Draft saved successfully');
+    } catch (err) {
+      alert('Save failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   const handlePublish = async () => {
-    // This will be handled by the ArticleEditor component
-    console.log('Publish triggered from edit page');
+    if (!article) return;
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${article.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: article.published ? 'unpublish' : 'publish' }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Action failed');
+      }
+      const result = await response.json();
+      alert(result.message || 'Success');
+      setArticle(prev => prev ? { ...prev, published: !prev.published } : prev);
+    } catch (err) {
+      alert('Action failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
-          <p className="text-sm text-gray-500 mt-1">Loading article...</p>
-        </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-gray-200 rounded-lg"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="h-64 bg-gray-200 rounded-lg"></div>
-              <div className="h-96 bg-gray-200 rounded-lg"></div>
-            </div>
-            <div className="space-y-4">
-              <div className="h-40 bg-gray-200 rounded-lg"></div>
-              <div className="h-60 bg-gray-200 rounded-lg"></div>
-            </div>
-          </div>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Edit Article"
+          subtitle="Loading article..."
+          backHref="/admin/articles"
+        />
+        <AdminLoadingState label="Loading article..." />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
-        </div>
-        <div className="text-center py-12">
-          <div className="text-red-600 mb-4">
-            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Article</h3>
-          <p className="text-gray-500 mb-4">{error}</p>
-          <div className="space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
-            </Button>
-            <Button
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </Button>
-          </div>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Edit Article"
+          subtitle="Something went wrong"
+          backHref="/admin/articles"
+        />
+        <AdminAlertBanner
+          severity="critical"
+          message="Error Loading Article"
+          detail={error}
+        />
+        <AdminEmptyState
+          icon={AlertTriangle}
+          title="Could not load article"
+          description={error}
+          action={
+            <div className="flex items-center gap-2">
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                onClick={() => router.back()}
+              >
+                Go Back
+              </AdminButton>
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </AdminButton>
+            </div>
+          }
+        />
       </div>
     );
   }
 
   if (!article) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
-        </div>
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Article Not Found</h3>
-          <p className="text-gray-500 mb-4">The article you're looking for doesn't exist or has been deleted.</p>
-          <Button
-            variant="outline"
-            onClick={() => router.push('/admin/articles')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Articles
-          </Button>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Edit Article"
+          subtitle="Article not found"
+          backHref="/admin/articles"
+        />
+        <AdminEmptyState
+          icon={FileText}
+          title="Article Not Found"
+          description="The article you are looking for does not exist or has been deleted."
+          action={
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push('/admin/articles')}
+            >
+              Back to Articles
+            </AdminButton>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Edit: {article.title_en}</h1>
-          <p className="text-sm text-gray-500 mt-1">Modify article content and settings</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/admin/articles')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Articles
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            {article.published ? 'View Live' : 'Preview'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSave}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save Draft
-          </Button>
-          <Button
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={handlePublish}
-          >
-            {article.published ? 'Update' : 'Publish'}
-          </Button>
-        </div>
-      </div>
-      <Suspense fallback={
-        <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-gray-200 rounded-lg"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="h-64 bg-gray-200 rounded-lg"></div>
-              <div className="h-96 bg-gray-200 rounded-lg"></div>
-            </div>
-            <div className="space-y-4">
-              <div className="h-40 bg-gray-200 rounded-lg"></div>
-              <div className="h-60 bg-gray-200 rounded-lg"></div>
-            </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title={`Edit: ${article.title_en}`}
+        subtitle="Modify article content and settings"
+        backHref="/admin/articles"
+        action={
+          <div className="flex items-center gap-2">
+            <AdminStatusBadge status={article.published ? 'published' : 'draft'} />
+            <AdminButton
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
+            >
+              <Eye size={14} />
+              {article.published ? 'View Live' : 'Preview'}
+            </AdminButton>
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              onClick={handleSave}
+            >
+              <Save size={14} />
+              Save Draft
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="sm"
+              onClick={handlePublish}
+            >
+              {article.published ? 'Update' : 'Publish'}
+            </AdminButton>
           </div>
-        </div>
-      }>
-        <ArticleEditor 
-          mode="edit" 
+        }
+      />
+
+      <Suspense fallback={<AdminLoadingState label="Loading editor..." />}>
+        <ArticleEditor
+          mode="edit"
           initialData={article}
           onSave={handleSave}
           onPublish={handlePublish}
@@ -232,4 +253,3 @@ export default function EditArticlePage() {
     </div>
   );
 }
-

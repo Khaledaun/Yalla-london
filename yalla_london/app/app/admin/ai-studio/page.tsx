@@ -1,424 +1,312 @@
 'use client'
 
-import { useState } from 'react'
-import { 
-  Brain, 
-  Plus, 
-  Settings, 
-  BarChart3, 
-  Zap, 
-  Eye, 
-  Copy,
-  Play,
-  Pause,
-  Edit,
-  Trash2,
-  CheckCircle,
-  AlertCircle,
-  Clock
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Brain, Play, Copy, Loader2, CheckCircle, AlertCircle,
+  MessageSquare, ChevronDown, ChevronUp, Sparkles,
 } from 'lucide-react'
+import {
+  AdminCard, AdminPageHeader, AdminButton, AdminStatusBadge,
+  AdminLoadingState, AdminEmptyState, AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 
-export default function AIStudio() {
-  const [activeTab, setActiveTab] = useState('prompts')
-  const [isLoading, setIsLoading] = useState(false)
+interface Task {
+  id: string
+  name: string
+  description: string
+  category: string
+}
 
-  const tabs = [
-    { id: 'prompts', name: 'Prompts', icon: Brain },
-    { id: 'models', name: 'Models & Providers', icon: Settings },
-    { id: 'routing', name: 'Routing & Automation', icon: Zap },
-    { id: 'usage', name: 'Token Usage & Cost', icon: BarChart3 }
-  ]
+interface RunResult {
+  taskId: string
+  runId: string
+  status: 'success' | 'error'
+  result?: string
+  structuredOutput?: Record<string, unknown>
+  error?: string
+  timestamps: { started: string; completed: string; durationMs: number }
+}
 
-  const prompts = [
-    {
-      id: 1,
-      name: 'Event Guide Generator',
-      version: '2.1',
-      locale: 'en',
-      category: 'generation',
-      pageType: 'event',
-      isActive: true,
-      usageCount: 45,
-      lastUsed: '2024-01-14T10:30:00Z'
-    },
-    {
-      id: 2,
-      name: 'Shopping Guide Generator',
-      version: '1.8',
-      locale: 'ar',
-      category: 'generation',
-      pageType: 'shopping',
-      isActive: true,
-      usageCount: 32,
-      lastUsed: '2024-01-14T09:15:00Z'
-    },
-    {
-      id: 3,
-      name: 'SEO Audit Prompt',
-      version: '1.5',
-      locale: 'en',
-      category: 'seo_audit',
-      pageType: null,
-      isActive: false,
-      usageCount: 18,
-      lastUsed: '2024-01-13T16:45:00Z'
+interface RecentRun {
+  id: string
+  taskType: string
+  provider: string
+  model: string
+  tokens: number
+  cost: number
+  success: boolean
+  createdAt: string
+}
+
+export default function AITaskRunner() {
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [recentRuns, setRecentRuns] = useState<RecentRun[]>([])
+  const [selectedTask, setSelectedTask] = useState('')
+  const [prompt, setPrompt] = useState('')
+  const [running, setRunning] = useState(false)
+  const [results, setResults] = useState<RunResult[]>([])
+  const [explaining, setExplaining] = useState<string | null>(null)
+  const [explanations, setExplanations] = useState<Record<string, string>>({})
+  const [expandedResult, setExpandedResult] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/ai-tasks')
+      if (!res.ok) return
+      const data = await res.json()
+      setTasks(data.tasks || [])
+      setRecentRuns(data.recentRuns || [])
+    } catch {
+      // API may not be deployed yet
+    } finally {
+      setLoading(false)
     }
-  ]
+  }, [])
 
-  const providers = [
-    {
-      id: 1,
-      name: 'OpenAI',
-      displayName: 'OpenAI GPT-4',
-      providerType: 'llm',
-      isActive: true,
-      lastTested: '2024-01-14T08:00:00Z',
-      testStatus: 'success',
-      usageCount: 156,
-      costEst: 45.67
-    },
-    {
-      id: 2,
-      name: 'Anthropic',
-      displayName: 'Claude 3.5 Sonnet',
-      providerType: 'llm',
-      isActive: true,
-      lastTested: '2024-01-14T08:00:00Z',
-      testStatus: 'success',
-      usageCount: 89,
-      costEst: 23.45
-    },
-    {
-      id: 3,
-      name: 'Google',
-      displayName: 'Gemini Pro',
-      providerType: 'llm',
-      isActive: false,
-      lastTested: '2024-01-13T10:00:00Z',
-      testStatus: 'failed',
-      usageCount: 12,
-      costEst: 3.21
+  useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  const runTask = async () => {
+    if (!selectedTask || !prompt.trim()) return
+    setRunning(true)
+    try {
+      const res = await fetch('/api/admin/ai-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId: selectedTask, prompt: prompt.trim() }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const result = await res.json()
+      setResults(prev => [result, ...prev])
+      setExpandedResult(result.runId)
+      fetchTasks() // Refresh recent runs
+    } catch (err) {
+      setResults(prev => [{
+        taskId: selectedTask,
+        runId: `error-${Date.now()}`,
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Failed to run task',
+        timestamps: { started: new Date().toISOString(), completed: new Date().toISOString(), durationMs: 0 },
+      }, ...prev])
+    } finally {
+      setRunning(false)
     }
-  ]
-
-  const routingRules = [
-    {
-      id: 1,
-      routeName: 'topic_research',
-      primaryProvider: 'OpenAI GPT-4',
-      fallbackProvider: 'Claude 3.5 Sonnet',
-      isActive: true,
-      successRate: 98.5,
-      avgResponseTime: 2.3
-    },
-    {
-      id: 2,
-      routeName: 'content_generation',
-      primaryProvider: 'Claude 3.5 Sonnet',
-      fallbackProvider: 'OpenAI GPT-4',
-      isActive: true,
-      successRate: 96.2,
-      avgResponseTime: 4.1
-    },
-    {
-      id: 3,
-      routeName: 'seo_audit',
-      primaryProvider: 'OpenAI GPT-4',
-      fallbackProvider: null,
-      isActive: true,
-      successRate: 99.1,
-      avgResponseTime: 1.8
-    }
-  ]
-
-  const usageStats = {
-    totalTokens: 125430,
-    totalCost: 72.33,
-    dailyBudget: 100,
-    weeklyBudget: 500,
-    monthlyBudget: 2000
   }
 
+  const explainResult = async (result: RunResult) => {
+    setExplaining(result.runId)
+    try {
+      const res = await fetch('/api/admin/ai-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'explain', output: result }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setExplanations(prev => ({ ...prev, [result.runId]: data.explanation }))
+    } catch {
+      setExplanations(prev => ({ ...prev, [result.runId]: 'Could not generate explanation.' }))
+    } finally {
+      setExplaining(null)
+    }
+  }
+
+  const copyJson = (data: unknown) => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).catch(() => {})
+  }
+
+  const selectedTaskDef = tasks.find(t => t.id === selectedTask)
+
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Brain className="h-8 w-8 text-purple-500" />
-              AI Tools & Prompt Studio
-            </h1>
-            <p className="text-gray-600 mt-1">Your control tower for all AI operations</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Total Cost Today</div>
-              <div className="text-lg font-semibold text-gray-900">
-                ${usageStats.totalCost.toFixed(2)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="AI Task Runner"
+        subtitle="Run structured AI tasks"
+      />
 
-      {/* Tabs */}
-      <div className="mb-8">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.name}
-              </button>
+      {/* Task selector */}
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Brain style={{ width: 18, height: 18, color: '#3B7EA1' }} />
+          <AdminSectionLabel>AI Task Runner</AdminSectionLabel>
+        </div>
+
+        {/* Task dropdown */}
+        <div className="mb-3">
+          <select
+            value={selectedTask}
+            onChange={(e) => setSelectedTask(e.target.value)}
+            className="admin-select w-full"
+          >
+            <option value="">Select a task...</option>
+            {tasks.map(t => (
+              <option key={t.id} value={t.id}>[{t.category}] {t.name}</option>
             ))}
-          </nav>
+          </select>
+          {selectedTaskDef && (
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 4 }}>{selectedTaskDef.description}</p>
+          )}
         </div>
-      </div>
 
-      {/* Tab Content */}
-      {activeTab === 'prompts' && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Prompt Templates</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors">
-              <Plus className="h-4 w-4" />
-              Add Prompt
-            </button>
+        {/* Prompt input */}
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Enter your prompt or paste content to analyze..."
+          rows={4}
+          className="admin-input w-full mb-3"
+          style={{ fontSize: 13, resize: 'vertical' }}
+        />
+
+        {/* Run button */}
+        <AdminButton
+          variant="primary"
+          size="lg"
+          onClick={runTask}
+          disabled={running || !selectedTask || !prompt.trim()}
+          loading={running}
+        >
+          <Play style={{ width: 16, height: 16 }} />
+          {running ? 'Running...' : 'Run Task'}
+        </AdminButton>
+      </AdminCard>
+
+      {/* Results */}
+      {results.length > 0 && (
+        <div className="mb-5">
+          <AdminSectionLabel>Results ({results.length})</AdminSectionLabel>
+
+          <div className="space-y-3">
+            {results.map(result => {
+              const isExpanded = expandedResult === result.runId
+              return (
+                <AdminCard key={result.runId}>
+                  {/* Header */}
+                  <button
+                    onClick={() => setExpandedResult(isExpanded ? null : result.runId)}
+                    className="w-full flex items-center gap-3 text-left"
+                  >
+                    {result.status === 'success'
+                      ? <CheckCircle style={{ width: 16, height: 16, color: '#2D5A3D', flexShrink: 0 }} />
+                      : <AlertCircle style={{ width: 16, height: 16, color: '#C8322B', flexShrink: 0 }} />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#1C1917' }}>
+                        {tasks.find(t => t.id === result.taskId)?.name || result.taskId}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#78716C', marginLeft: 8 }}>
+                        {result.timestamps.durationMs}ms
+                      </span>
+                    </div>
+                    {isExpanded ? <ChevronUp style={{ width: 16, height: 16, color: '#78716C' }} /> : <ChevronDown style={{ width: 16, height: 16, color: '#78716C' }} />}
+                  </button>
+
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(214,208,196,0.6)' }}>
+                      {result.error && (
+                        <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(200,50,43,0.06)' }}>
+                          <p style={{ fontSize: 12, color: '#C8322B' }}>{result.error}</p>
+                        </div>
+                      )}
+
+                      {/* Structured output */}
+                      {result.structuredOutput && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <AdminSectionLabel>JSON Output</AdminSectionLabel>
+                            <button onClick={() => copyJson(result.structuredOutput)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all hover:bg-stone-100"
+                                    style={{ fontSize: 10, color: '#3B7EA1' }}>
+                              <Copy style={{ width: 12, height: 12 }} /> Copy JSON
+                            </button>
+                          </div>
+                          <pre className="p-3 rounded-lg overflow-x-auto text-xs admin-card-inset"
+                               style={{ color: '#1C1917', maxHeight: 300 }}>
+                            {JSON.stringify(result.structuredOutput, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Raw text output */}
+                      {result.result && !result.structuredOutput && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <AdminSectionLabel>Output</AdminSectionLabel>
+                            <button onClick={() => copyJson(result.result)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all hover:bg-stone-100"
+                                    style={{ fontSize: 10, color: '#3B7EA1' }}>
+                              <Copy style={{ width: 12, height: 12 }} /> Copy
+                            </button>
+                          </div>
+                          <div className="p-3 rounded-lg overflow-x-auto text-sm admin-card-inset"
+                               style={{ color: '#1C1917', maxHeight: 300, whiteSpace: 'pre-wrap' }}>
+                            {result.result}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Explain button */}
+                      <div className="mt-3 flex items-center gap-2">
+                        <AdminButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => explainResult(result)}
+                          disabled={explaining === result.runId}
+                          loading={explaining === result.runId}
+                        >
+                          <MessageSquare style={{ width: 14, height: 14 }} />
+                          Explain in Plain English
+                        </AdminButton>
+                      </div>
+
+                      {/* Explanation */}
+                      {explanations[result.runId] && (
+                        <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'rgba(196,154,42,0.06)', borderLeft: '3px solid #C49A2A' }}>
+                          <p style={{ fontSize: 12, color: '#44403C', lineHeight: 1.5 }}>{explanations[result.runId]}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </AdminCard>
+              )
+            })}
           </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 gap-4">
-            {prompts.map((prompt) => (
-              <div key={prompt.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{prompt.name}</h3>
-                      <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                        v{prompt.version}
-                      </span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        prompt.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {prompt.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${prompt.locale === 'en' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
-                        {prompt.locale.toUpperCase()}
-                      </span>
-                      <span>{prompt.category}</span>
-                      {prompt.pageType && <span>{prompt.pageType}</span>}
-                      <span>Used {prompt.usageCount} times</span>
-                      <span>Last used: {new Date(prompt.lastUsed).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Play className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-red-400 hover:text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+      {/* Recent runs from API */}
+      {recentRuns.length > 0 && (
+        <div>
+          <AdminSectionLabel>Recent Runs</AdminSectionLabel>
+          <div className="space-y-1">
+            {recentRuns.map(run => (
+              <AdminCard key={run.id} className="!py-2 !px-3">
+                <div className="flex items-center gap-3">
+                  {run.success
+                    ? <CheckCircle style={{ width: 12, height: 12, color: '#2D5A3D' }} />
+                    : <AlertCircle style={{ width: 12, height: 12, color: '#C8322B' }} />
+                  }
+                  <span style={{ fontSize: 12, color: '#1C1917', flex: 1 }}>{run.taskType}</span>
+                  <span style={{ fontSize: 10, color: '#78716C' }}>{run.provider}</span>
+                  <span style={{ fontSize: 10, color: '#78716C' }}>{run.tokens?.toLocaleString()} tok</span>
+                  {run.cost != null && <span style={{ fontSize: 10, color: '#C49A2A' }}>${run.cost.toFixed(4)}</span>}
                 </div>
-              </div>
+              </AdminCard>
             ))}
           </div>
         </div>
       )}
 
-      {activeTab === 'models' && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Models & Providers</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors">
-              <Plus className="h-4 w-4" />
-              Add Provider
-            </button>
-          </div>
+      {/* Loading / empty state */}
+      {loading && <AdminLoadingState label="Loading tasks..." />}
 
-          <div className="grid grid-cols-1 gap-4">
-            {providers.map((provider) => (
-              <div key={provider.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{provider.displayName}</h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        provider.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {provider.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        provider.testStatus === 'success'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {provider.testStatus === 'success' ? (
-                          <><CheckCircle className="h-3 w-3 inline mr-1" />Connected</>
-                        ) : (
-                          <><AlertCircle className="h-3 w-3 inline mr-1" />Failed</>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span>{provider.providerType}</span>
-                      <span>Used {provider.usageCount} times</span>
-                      <span>Cost: ${provider.costEst.toFixed(2)}</span>
-                      <span>Last tested: {new Date(provider.lastTested).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Settings className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Play className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'routing' && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Routing & Automation</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors">
-              <Plus className="h-4 w-4" />
-              Add Route
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {routingRules.map((rule) => (
-              <div key={rule.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{rule.routeName}</h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        rule.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {rule.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="text-gray-600">Primary Provider</div>
-                        <div className="font-medium text-gray-900">{rule.primaryProvider}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">Fallback Provider</div>
-                        <div className="font-medium text-gray-900">{rule.fallbackProvider || 'None'}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">Success Rate</div>
-                        <div className="font-medium text-gray-900">{rule.successRate}%</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Settings className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'usage' && (
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Token Usage & Cost</h2>
-          
-          {/* Usage Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Tokens</p>
-                  <p className="text-2xl font-bold text-gray-900">{usageStats.totalTokens.toLocaleString()}</p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-blue-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Cost</p>
-                  <p className="text-2xl font-bold text-gray-900">${usageStats.totalCost.toFixed(2)}</p>
-                </div>
-                <Zap className="h-8 w-8 text-green-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Daily Budget</p>
-                  <p className="text-2xl font-bold text-gray-900">${usageStats.dailyBudget}</p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Monthly Budget</p>
-                  <p className="text-2xl font-bold text-gray-900">${usageStats.monthlyBudget}</p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-purple-500" />
-              </div>
-            </div>
-          </div>
-
-          {/* Usage Charts Placeholder */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Trends</h3>
-            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500">Usage charts will be implemented here</p>
-            </div>
-          </div>
-        </div>
+      {!loading && tasks.length === 0 && (
+        <AdminEmptyState
+          icon={Sparkles}
+          title="AI Task Runner loading..."
+          description="Tasks will appear when the API is deployed."
+        />
       )}
     </div>
   )

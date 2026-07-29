@@ -1,0 +1,36 @@
+{
+  "name": "yalla-video",
+  "version": "1.0.0",
+  "description": "Yalla London branded video system — Remotion compositions + CLI",
+  "type": "module",
+  "scripts": {
+    "preview": "npx remotion preview src/index.ts",
+    "studio": "node render.mjs",
+    "render:intro": "npx remotion render src/index.ts BrandIntro out/brand-intro.mp4",
+    "render:outro": "npx remotion render src/index.ts BrandOutro out/brand-outro.mp4",
+    "render:overlay": "npx remotion render src/index.ts StoryOverlay out/overlay.mov --codec=prores --prores-profile=4444",
+    "render:all": "node render.mjs --all",
+    "build": "npx tsc --noEmit"
+  },
+  "keywords": ["remotion", "yalla-london", "video", "branded-content"],
+  "author": "Zenitha.Luxury LLC",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@remotion/cli": "^4.0.445",
+    "@remotion/google-fonts": "^4.0.445",
+    "@remotion/media-utils": "^4.0.445",
+    "@remotion/player": "^4.0.445",
+    "chalk": "^5.6.2",
+    "inquirer": "^13.3.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.445",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "^4.0.445",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.2"
+  }
+}

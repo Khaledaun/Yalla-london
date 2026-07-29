@@ -1,0 +1,56 @@
+/* ═══════════════════════════════════════════════════════════════
+   WORLD THROUGH MY EYES (WTME) — Design Tokens
+   A Zenitha.Luxury LLC travel discovery platform.
+   Brand: Circular badge logo, blue-to-green diagonal wave,
+   adventurous + curious + personal voice.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── CORE PALETTE ─── */
+  --wtme-sky-blue:    #07A4F2;   /* Primary — logo ring, UI accent     */
+  --wtme-blue:        #068DD0;   /* Secondary — CTAs, links            */
+  --wtme-green:       #03AD62;   /* CTA accent, nature elements        */
+  --wtme-dark-teal:   #007965;   /* Deep nature, footer backgrounds    */
+  --wtme-lime:        #85C342;   /* Leaf accent, secondary green       */
+  --wtme-gold:        #FFC417;   /* Sun element, highlight accent      */
+  --wtme-burgundy:    #9B1749;   /* Mountain/tent accent, warm pop     */
+  --wtme-black:       #000000;   /* Text, headings                     */
+  --wtme-white:       #FFFFFF;   /* Backgrounds                        */
+
+  /* ─── DERIVED PALETTE ─── */
+  --wtme-sky-blue-10: rgba(7, 164, 242, 0.1);   /* Subtle blue backgrounds */
+  --wtme-green-10:    rgba(3, 173, 98, 0.1);     /* Subtle green backgrounds */
+  --wtme-gold-10:     rgba(255, 196, 23, 0.1);   /* Subtle gold backgrounds  */
+
+  /* ─── TYPOGRAPHY ─── */
+  --wtme-font-display:  'Gilroy', 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  --wtme-font-body:     'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  --wtme-font-arabic:   'Noto Sans Arabic', Tahoma, sans-serif;
+
+  /* ─── SIGNATURE GRADIENT (diagonal blue→green wave) ─── */
+  --wtme-gradient-wave:  linear-gradient(135deg, #07A4F2 0%, #068DD0 30%, #03AD62 70%, #007965 100%);
+  --wtme-gradient-hero:  linear-gradient(160deg, #07A4F2 0%, #03AD62 100%);
+  --wtme-gradient-cta:   linear-gradient(90deg, #068DD0 0%, #03AD62 100%);
+  --wtme-gradient-dark:  linear-gradient(180deg, #000000 0%, #007965 100%);
+
+  /* ─── SPACING (8px base grid) ─── */
+  --wtme-space-1:   4px;
+  --wtme-space-2:   8px;
+  --wtme-space-3:   12px;
+  --wtme-space-4:   16px;
+  --wtme-space-6:   24px;
+  --wtme-space-8:   32px;
+  --wtme-space-12:  48px;
+  --wtme-space-16:  64px;
+
+  /* ─── BORDERS & RADIUS ─── */
+  --wtme-radius-sm:   6px;
+  --wtme-radius-md:   12px;
+  --wtme-radius-lg:   16px;
+  --wtme-radius-full: 9999px;
+
+  /* ─── SHADOWS ─── */
+  --wtme-shadow-card:    0 2px 8px rgba(0, 0, 0, 0.08);
+  --wtme-shadow-hover:   0 4px 16px rgba(7, 164, 242, 0.15);
+  --wtme-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
+}

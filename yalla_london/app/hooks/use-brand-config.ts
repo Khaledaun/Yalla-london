@@ -17,6 +17,7 @@ export function useBrandConfig() {
     navigation,
     categories,
     colors: brandConfig.colors,
+    logos: brandConfig.logos,
     contact: brandConfig.contact,
     seo: brandConfig.seo,
     businessType: brandConfig.businessType,

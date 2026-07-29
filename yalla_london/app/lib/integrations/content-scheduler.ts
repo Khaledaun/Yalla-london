@@ -182,7 +182,7 @@ export class ContentScheduler {
 
   // Generate unique ID
   private generateId(): string {
-    return `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `content_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
   }
 
   // Database operations (implement based on your database)

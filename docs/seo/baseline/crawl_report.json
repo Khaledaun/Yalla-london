@@ -1,0 +1,416 @@
+{
+  "generated": "2026-02-19",
+  "tool": "static-analysis",
+  "site": "yalla-london",
+  "framework": "Next.js 14 App Router",
+  "host": "Vercel Pro",
+  "database": "Prisma ORM + Supabase PostgreSQL",
+  "summary": {
+    "total_page_tsx_files": 106,
+    "public_pages": 28,
+    "admin_pages": 78,
+    "api_routes": 269,
+    "dynamic_public_routes": 7,
+    "dynamic_admin_routes": 4,
+    "dynamic_api_routes": 23,
+    "cron_routes": 22,
+    "cron_scheduled_in_vercel_json": 17,
+    "total_findings": 23,
+    "critical": 4,
+    "high": 7,
+    "medium": 8,
+    "low": 4,
+    "note": "Counts from filesystem analysis of page.tsx and route.ts files. Actual public URL count is higher due to dynamic routes (blog slugs, categories, info articles, events, news, shop products, walking routes)."
+  },
+  "pages": {
+    "total": 106,
+    "public": 28,
+    "admin": 78,
+    "api": 269,
+    "public_static": [
+      { "path": "/", "template": "homepage", "has_metadata": "inherited_from_root_layout", "in_sitemap": true },
+      { "path": "/about", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/contact", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/privacy", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/terms", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/affiliate-disclosure", "template": "static", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/offline", "template": "pwa_fallback", "has_metadata": "none", "in_sitemap": false, "should_noindex": true },
+      { "path": "/recommendations", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/experiences", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/hotels", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/events", "template": "listing", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/brand-guidelines", "template": "internal", "has_metadata": "static_page", "in_sitemap": false, "note": "revalidate=0" },
+      { "path": "/brand-showcase", "template": "internal", "has_metadata": "static_page", "in_sitemap": false, "note": "revalidate=0" }
+    ],
+    "public_dynamic": [
+      { "path": "/blog", "template": "blog_listing", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/blog/[slug]", "template": "blog_detail", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/blog/category/[slug]", "template": "category_listing", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/information", "template": "info_hub_landing", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/information/articles", "template": "info_articles_listing", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/information/articles/[slug]", "template": "info_article_detail", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/information/[section]", "template": "info_section", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/news", "template": "news_listing", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/news/[slug]", "template": "news_detail", "has_metadata": "generateMetadata", "in_sitemap": true, "revalidate": 600 },
+      { "path": "/london-by-foot", "template": "walking_routes_listing", "has_metadata": "static_page", "in_sitemap": false },
+      { "path": "/london-by-foot/[slug]", "template": "walking_route_detail", "has_metadata": "generateMetadata", "in_sitemap": false },
+      { "path": "/shop", "template": "shop_listing", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/shop/[slug]", "template": "shop_detail", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/shop/download", "template": "shop_download", "has_metadata": "none", "in_sitemap": false, "should_noindex": true },
+      { "path": "/shop/purchases", "template": "shop_purchases", "has_metadata": "none", "in_sitemap": false, "should_noindex": true }
+    ],
+    "admin_pages_count": 78,
+    "admin_pages_note": "All under /admin/* prefix. Correctly excluded from robots.txt and sitemap. No SEO metadata needed."
+  },
+  "sitemap": {
+    "file": "app/sitemap.ts",
+    "type": "dynamic (Next.js MetadataRoute.Sitemap)",
+    "total_url_categories": 8,
+    "estimated_total_urls": "100-200 (6 static + ~20 static blogs + DB blogs + DB events + ~8 categories + ~15 info sections + ~20 info articles + DB news)",
+    "includes_hreflang": true,
+    "hreflang_format": "en/ar (should be en-GB/ar-SA)",
+    "hreflang_includes_x_default": false,
+    "multi_site_aware": true,
+    "db_integration": true,
+    "edge_cached": true,
+    "cache_header": "s-maxage=3600, stale-while-revalidate=86400",
+    "categories_in_sitemap": [
+      "static_pages (6: /, /blog, /recommendations, /events, /about, /contact)",
+      "static_blog_posts (yalla-london only, from data files)",
+      "db_blog_posts (per siteId, deduped against static slugs)",
+      "db_events (per siteId or siteId null, NO hreflang)",
+      "categories (from static data)",
+      "information_hub (2: /information, /information/articles)",
+      "information_sections (from static data, published only)",
+      "information_articles (from static + extended data, published only)",
+      "news_landing (1: /news)",
+      "db_news_items (per siteId, limit 100)"
+    ],
+    "missing_from_sitemap": [
+      "/experiences",
+      "/hotels",
+      "/privacy",
+      "/terms",
+      "/affiliate-disclosure",
+      "/shop",
+      "/shop/[slug]",
+      "/london-by-foot",
+      "/london-by-foot/[slug]",
+      "/offline",
+      "/brand-guidelines",
+      "/brand-showcase"
+    ]
+  },
+  "robots": {
+    "file": "app/robots.ts",
+    "type": "dynamic (Next.js MetadataRoute.Robots)",
+    "multi_site_aware": true,
+    "rules_count": 11,
+    "user_agents_configured": [
+      "* (default -- allow /, disallow /admin/ and /api/)",
+      "Googlebot (allow /, disallow /admin/ and /api/)",
+      "Google-Extended (allow / -- for AI training/Gemini/AI Overview)",
+      "GPTBot (allow /, disallow /admin/ and /api/)",
+      "ChatGPT-User (allow /)",
+      "ClaudeBot (allow /)",
+      "anthropic-ai (allow /)",
+      "PerplexityBot (allow /)",
+      "Bingbot (allow /, disallow /admin/ and /api/)",
+      "FacebookBot (allow /)",
+      "Applebot (allow /)",
+      "cohere-ai (allow /)"
+    ],
+    "blocked_paths": ["/admin/", "/api/"],
+    "sitemap_reference": true,
+    "sitemap_url_format": "{baseUrl}/sitemap.xml"
+  },
+  "internal_links": {
+    "header_navigation": {
+      "link_count_estimate": 7,
+      "links": ["Home (/)", "Blog (/blog)", "Recommendations (/recommendations)", "Events (/events)", "Information (/information)", "About (/about)", "Contact (/contact)"],
+      "note": "Rendered by DynamicHeader component. May vary by site config."
+    },
+    "footer_navigation": {
+      "sections": [
+        "Quick Links (home, blog, events, about, contact)",
+        "Categories (hotel guides, restaurant reviews, shopping, events, culture)",
+        "Resources (privacy, terms, affiliate disclosure)",
+        "Social media links"
+      ]
+    },
+    "per_article_links": {
+      "related_articles": "3-6 per blog post (getRelatedArticles function, DB + static merge)",
+      "internal_links_in_content": "Pre-publication gate requires minimum 3 internal links per article.",
+      "breadcrumb_links": "Blog detail pages include BreadcrumbList schema (Home > Blog > Post)"
+    }
+  },
+  "redirect_analysis": {
+    "non_www_to_www": {
+      "type": "301",
+      "location": "middleware.ts",
+      "domains": [
+        "yalla-london.com -> www.yalla-london.com",
+        "arabaldives.com -> www.arabaldives.com",
+        "yallariviera.com -> www.yallariviera.com",
+        "yallaistanbul.com -> www.yallaistanbul.com",
+        "yallathailand.com -> www.yallathailand.com"
+      ]
+    },
+    "arabic_route_rewriting": {
+      "pattern": "/ar/* -> /* (rewrite, not redirect)",
+      "location": "middleware.ts",
+      "mechanism": "NextResponse.rewrite with x-locale: ar header"
+    },
+    "legacy_domain_redirects": [
+      "gulfmaldives.com -> arabaldives",
+      "arabbali.com -> thailand",
+      "luxuryescapes.me -> french-riviera"
+    ]
+  },
+  "status_code_analysis": {
+    "404_handling": {
+      "blog_slug": "HTTP 404 via notFound() when slug not found",
+      "news_slug": "HTTP 404 via notFound()",
+      "info_article_slug": "HTTP 404 via notFound()",
+      "generic": "Next.js default 404 page for unmatched routes"
+    },
+    "soft_404_risk": [
+      { "page": "/shop/[slug]", "risk": "Unknown -- needs verification that nonexistent product slugs return 404" },
+      { "page": "/london-by-foot/[slug]", "risk": "Unknown -- needs verification" }
+    ]
+  },
+  "orphan_page_analysis": {
+    "potentially_orphaned": [
+      { "path": "/shop/download", "reason": "Only reachable after purchase. No navigation link. Not in sitemap.", "action": "Add noindex" },
+      { "path": "/shop/purchases", "reason": "Only reachable after purchase. No navigation link. Not in sitemap.", "action": "Add noindex" },
+      { "path": "/offline", "reason": "PWA offline fallback. Only shown without network.", "action": "Add noindex" },
+      { "path": "/affiliate-disclosure", "reason": "May only be linked from footer. Not in sitemap. No metadata.", "action": "Add to sitemap and add metadata" }
+    ]
+  },
+  "seo_infrastructure": {
+    "indexnow": {
+      "enabled": true,
+      "batch_submission": true,
+      "window_days": 7,
+      "key_file_route": true,
+      "delegation": "seo-agent discovers URLs (writes pending status), seo/cron submits with exponential backoff"
+    },
+    "pre_publication_gate": {
+      "enabled": true,
+      "fail_closed": true,
+      "checks_count": 11,
+      "checks": [
+        "Route validation (EN)",
+        "Route validation (AR)",
+        "Meta title (30-60 chars)",
+        "Meta description (70-160 chars)",
+        "Content length (800+ words, 500 blocker)",
+        "Heading hierarchy (1 H1, 2+ H2, no heading skips)",
+        "Word count check",
+        "Readability (Flesch-Kincaid grade <= 12)",
+        "Image alt text coverage",
+        "E-E-A-T author attribution",
+        "Structured data presence"
+      ]
+    },
+    "standards_file": {
+      "path": "lib/seo/standards.ts",
+      "version": "2026-02-18",
+      "source": "Google Search Central + Quality Rater Guidelines Sept 2025"
+    },
+    "llms_txt": {
+      "enabled": true,
+      "dynamic_per_site": true,
+      "file": "app/llms.txt/route.ts",
+      "noindex": true
+    }
+  },
+  "crawl_budget_considerations": {
+    "admin_blocked": "robots.txt disallows /admin/ and /api/ for all user agents",
+    "isr_pages": {
+      "revalidate_600s": ["blog/*", "information/*", "news/*"],
+      "note": "10-minute ISR appropriate for pipeline-generated content"
+    },
+    "cdn_cache_headers": {
+      "content_pages": "s-maxage=600, stale-while-revalidate=3600",
+      "static_pages": "s-maxage=3600, stale-while-revalidate=86400",
+      "static_assets": "max-age=31536000, immutable",
+      "sitemap_robots": "s-maxage=3600, stale-while-revalidate=86400",
+      "admin": "no-store, no-cache, must-revalidate"
+    }
+  },
+  "findings": [
+    {
+      "id": "SEO-001",
+      "severity": "CRITICAL",
+      "category": "Schema / Multi-site",
+      "title": "StructuredData component hardcodes Yalla London",
+      "description": "6+ hardcoded 'Yalla London' references in structured-data.tsx: author name (L88-89), publisher name (L92-93), logo path 'yalla-london-logo.svg' (L20, L51, L274), fallback URL 'https://yalla-london.com' (L13).",
+      "file": "components/structured-data.tsx",
+      "lines": [13, 20, 51, 88, 89, 92, 93, 274]
+    },
+    {
+      "id": "SEO-002",
+      "severity": "CRITICAL",
+      "category": "Multi-site / Hreflang",
+      "title": "HreflangTags fallback hardcoded to yalla-london.com",
+      "file": "components/hreflang-tags.tsx",
+      "lines": [21]
+    },
+    {
+      "id": "SEO-003",
+      "severity": "CRITICAL",
+      "category": "Multi-site / Layout",
+      "title": "Root layout hardcodes London-specific values (theme-color, geo, PWA title, OG alt)",
+      "file": "app/layout.tsx",
+      "lines": [43, 99, 103, 107, 108, 109, 110]
+    },
+    {
+      "id": "SEO-004",
+      "severity": "CRITICAL",
+      "category": "Schema / Deprecated",
+      "title": "FAQPage schema still generated (deprecated Aug 2023)",
+      "file": "components/structured-data.tsx",
+      "lines": [189, 200]
+    },
+    {
+      "id": "SEO-005",
+      "severity": "HIGH",
+      "category": "Sitemap / Hreflang",
+      "title": "Sitemap hreflang uses en/ar instead of en-GB/ar-SA",
+      "file": "app/sitemap.ts"
+    },
+    {
+      "id": "SEO-006",
+      "severity": "HIGH",
+      "category": "Sitemap / Hreflang",
+      "title": "Sitemap missing x-default alternate",
+      "file": "app/sitemap.ts"
+    },
+    {
+      "id": "SEO-007",
+      "severity": "HIGH",
+      "category": "Sitemap / Hreflang",
+      "title": "Events in sitemap have NO hreflang alternates",
+      "file": "app/sitemap.ts",
+      "lines": [155, 173]
+    },
+    {
+      "id": "SEO-008",
+      "severity": "HIGH",
+      "category": "Sitemap",
+      "title": "8+ indexable public pages missing from sitemap",
+      "file": "app/sitemap.ts"
+    },
+    {
+      "id": "SEO-009",
+      "severity": "HIGH",
+      "category": "Sitemap",
+      "title": "No per-language sitemaps",
+      "file": "app/sitemap.ts"
+    },
+    {
+      "id": "SEO-010",
+      "severity": "HIGH",
+      "category": "Sitemap",
+      "title": "No sitemap index file for scaling",
+      "file": "app/sitemap.ts"
+    },
+    {
+      "id": "SEO-011",
+      "severity": "HIGH",
+      "category": "Layout / Hreflang",
+      "title": "Root layout HreflangTags only covers path='/'",
+      "file": "app/layout.tsx",
+      "lines": [89]
+    },
+    {
+      "id": "SEO-012",
+      "severity": "MEDIUM",
+      "category": "Schema",
+      "title": "No ItemList schema on listing pages",
+      "file": "app/blog/page.tsx, app/information/page.tsx"
+    },
+    {
+      "id": "SEO-013",
+      "severity": "MEDIUM",
+      "category": "Schema",
+      "title": "Blog category CollectionPage hardcodes Yalla London",
+      "file": "app/blog/category/[slug]/page.tsx",
+      "lines": [166, 169, 172, 176]
+    },
+    {
+      "id": "SEO-014",
+      "severity": "MEDIUM",
+      "category": "Schema",
+      "title": "No breadcrumb schema on information hub pages",
+      "file": "app/information/**"
+    },
+    {
+      "id": "SEO-015",
+      "severity": "MEDIUM",
+      "category": "Sitemap / Schema",
+      "title": "Shop pages absent from sitemap, no Product schema",
+      "file": "app/shop/**, app/sitemap.ts"
+    },
+    {
+      "id": "SEO-016",
+      "severity": "MEDIUM",
+      "category": "Schema",
+      "title": "News schema working (CollectionPage+ItemList on listing, NewsArticle on detail)",
+      "file": "app/news/**"
+    },
+    {
+      "id": "SEO-017",
+      "severity": "MEDIUM",
+      "category": "Config / Multi-site",
+      "title": "brandConfig is global not per-site",
+      "file": "config/brand-config.ts"
+    },
+    {
+      "id": "SEO-018",
+      "severity": "MEDIUM",
+      "category": "Metadata / Canonical",
+      "title": "Static page canonicals may not be page-specific",
+      "file": "app/about/layout.tsx, etc."
+    },
+    {
+      "id": "SEO-019",
+      "severity": "MEDIUM",
+      "category": "Schema",
+      "title": "No SearchAction schema (intentional -- no site search)",
+      "file": "N/A"
+    },
+    {
+      "id": "SEO-020",
+      "severity": "LOW",
+      "category": "Sitemap",
+      "title": "currentDate used as lastModified for static pages",
+      "file": "app/sitemap.ts",
+      "lines": [28]
+    },
+    {
+      "id": "SEO-021",
+      "severity": "LOW",
+      "category": "Performance",
+      "title": "Inline CWV tracking script (~45 lines, synchronous)",
+      "file": "app/layout.tsx",
+      "lines": [172, 218]
+    },
+    {
+      "id": "SEO-022",
+      "severity": "LOW",
+      "category": "OG / Meta",
+      "title": "Static OG image across all pages",
+      "file": "app/layout.tsx",
+      "lines": [39]
+    },
+    {
+      "id": "SEO-023",
+      "severity": "LOW",
+      "category": "Indexing / Robots",
+      "title": "No noindex on /shop/download, /shop/purchases, /offline",
+      "file": "app/shop/download/page.tsx, app/shop/purchases/page.tsx, app/offline/page.tsx"
+    }
+  ]
+}

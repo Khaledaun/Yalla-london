@@ -1,0 +1,237 @@
+{
+  "id": "workflow-yalla-content-revenue-2026",
+  "name": "yalla-content-to-revenue-pipeline",
+  "description": "Yalla London Content-to-Revenue Pipeline: Topic Research -> Content Generation -> SEO Gate -> Publishing -> Indexing -> Monitoring. Highest priority pipeline - daily automated content production across all active sites.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-pipeline",
+      "type": "start",
+      "name": "start-pipeline",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Daily Cron Trigger (5am UTC)" }
+    },
+    {
+      "id": "agent-topic-research",
+      "type": "subAgent",
+      "name": "weekly-topic-research",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "description": "Weekly Topic Research Agent",
+        "prompt": "Research trending topics, seasonal events, and high-intent keywords for all active sites. Check Google Trends, competitor content gaps, and TopicProposal backlog. Generate topic proposals with primary_keyword, longtails, questions, confidence_score, and suggested_page_type. Save to TopicProposal table with site_id. Sources: Google Search Central changelog, Search Engine Roundtable, competitor sitemaps.",
+        "model": "sonnet",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-trends-monitor",
+      "type": "subAgent",
+      "name": "trends-monitor",
+      "position": { "x": 250, "y": 420 },
+      "data": {
+        "description": "Trends Monitor Agent",
+        "prompt": "Monitor real-time trending topics for all active sites. Check London news, Maldives travel trends, French Riviera events, Istanbul tourism, Thailand seasonal peaks. Feed trending topics into TopicProposal table with source=trends and high urgency. Runs daily at 6am UTC.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "switch-topic-source",
+      "type": "switch",
+      "name": "topic-source-router",
+      "position": { "x": 500, "y": 280 },
+      "data": {
+        "evaluationTarget": "TopicProposal source and priority",
+        "branches": [
+          { "id": "b-db-topic", "label": "DB Topic", "condition": "TopicProposal found with status=ready" },
+          { "id": "b-trending", "label": "Trending", "condition": "Trending topic with high urgency" },
+          { "id": "b-fallback", "label": "Template Fallback", "condition": "No DB topics available", "isDefault": true }
+        ],
+        "outputPorts": 3
+      }
+    },
+    {
+      "id": "agent-content-builder",
+      "type": "subAgent",
+      "name": "content-builder-8phase",
+      "position": { "x": 750, "y": 250 },
+      "data": {
+        "description": "Content Builder (8-Phase Pipeline)",
+        "prompt": "Execute 8-phase content pipeline for claimed topic:\n1. Research: Gather data, competitor analysis, authority sources\n2. Outline: H2/H3 structure, 4-6 sections, keyword placement plan\n3. Drafting: 1500-2000 words, first-hand experience signals, sensory details\n4. Assembly: Merge sections, add 3+ internal links, 2+ affiliate links, CTA\n5. Images: Generate/source featured image, alt text for all images\n6. SEO: Meta title (50-60ch), meta description (120-160ch), Article schema, keywords\n7. Scoring: Quality gate (70+ required), word count, heading hierarchy, links\n8. Reservoir: Store in ArticleDraft table with quality scores\n\nE-E-A-T compliance: Include insider tips, specific prices/hours, personal observations.\nAnti-AI-detection: Vary sentence length, use contractions, avoid generic phrases.\nJan 2026 Authenticity Update: First-hand experience signals are mandatory.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "ifelse-quality-gate",
+      "type": "ifElse",
+      "name": "quality-gate-check",
+      "position": { "x": 1050, "y": 250 },
+      "data": {
+        "evaluationTarget": "Quality score from Phase 7 scoring",
+        "branches": [
+          { "id": "b-pass", "label": "Score >= 70", "condition": "qualityScore >= 70 AND wordCount >= 1000" },
+          { "id": "b-fail", "label": "Score < 70", "condition": "qualityScore < 70 OR wordCount < 1000" }
+        ],
+        "outputPorts": 2
+      }
+    },
+    {
+      "id": "agent-content-selector",
+      "type": "subAgent",
+      "name": "content-selector",
+      "position": { "x": 1300, "y": 180 },
+      "data": {
+        "description": "Content Selector & Publisher",
+        "prompt": "Select best articles from reservoir (ArticleDraft status=reservoir, qualityScore >= 70). Run pre-publication gate (13 checks): route existence, Arabic routes, SEO minimums, SEO score, heading hierarchy, word count (1000+), internal links (3+), readability, image alt text, author attribution, structured data, authenticity signals, affiliate links. If gate passes: promote to BlogPost (published=true, bilingual). If gate blocks: mark as failed with reason.",
+        "model": "sonnet",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-rejected-handler",
+      "type": "subAgent",
+      "name": "rejected-content-handler",
+      "position": { "x": 1300, "y": 380 },
+      "data": {
+        "description": "Rejected Content Handler",
+        "prompt": "Handle articles that failed quality gate. Log rejection reasons to CronJobLog. If score 50-69: flag for editorial review. If score < 50: mark as rejected. Track rejection patterns to improve future generation prompts.",
+        "model": "haiku",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-seo-gate",
+      "type": "subAgent",
+      "name": "pre-publication-gate",
+      "position": { "x": 1550, "y": 180 },
+      "data": {
+        "description": "Pre-Publication SEO Gate (13 checks)",
+        "prompt": "Run 13 pre-publication checks:\n1. Route existence\n2. Arabic route check\n3. SEO minimums (title, meta title, meta desc, content length)\n4. SEO score (blocks <50, warns <70)\n5. Heading hierarchy (1 H1, 2+ H2, no skipped levels)\n6. Word count (1000 blocker, 1200 target)\n7. Internal links (3 minimum)\n8. Readability (Flesch-Kincaid <= 12)\n9. Image alt text\n10. Author attribution (E-E-A-T)\n11. Structured data presence\n12. Authenticity signals (Jan 2026 - 3+ experience markers)\n13. Affiliate links (revenue requirement)\n\nBlockers prevent publishing. Warnings logged for editorial review.",
+        "model": "haiku",
+        "color": "orange",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-schema-injector",
+      "type": "subAgent",
+      "name": "schema-injector",
+      "position": { "x": 1800, "y": 120 },
+      "data": {
+        "description": "Enhanced Schema Injector",
+        "prompt": "Auto-inject JSON-LD structured data for published BlogPosts. Generate Article schema with author, datePublished, headline, image, publisher. Add BreadcrumbList, Organization, and WebSite schemas. Use site-specific branding from config/sites.ts. Validate against schema.org standards. Never generate deprecated types (FAQPage, HowTo, etc.).",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-seo-indexing",
+      "type": "subAgent",
+      "name": "seo-indexing-agent",
+      "position": { "x": 1800, "y": 280 },
+      "data": {
+        "description": "SEO Indexing Agent (IndexNow + Sitemap)",
+        "prompt": "Submit newly published URLs for indexing:\n1. IndexNow API: Batch submit URLs (up to 10,000) with site key\n2. Sitemap: Auto-update sitemap.xml with new URLs\n3. GSC: Submit sitemap to Google Search Console\n\nRuns 3x daily (7am, 1pm, 8pm UTC). 7-day catchup window for missed submissions. Track submission status in BlogPost.indexnow_status. seo-agent discovers URLs (pending), seo/cron submits with exponential backoff.",
+        "model": "haiku",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-affiliate-injection",
+      "type": "subAgent",
+      "name": "affiliate-injection",
+      "position": { "x": 2050, "y": 200 },
+      "data": {
+        "description": "Affiliate Link Injection",
+        "prompt": "Inject monetization links into published articles. Per-site affiliate partners:\n- London: HalalBooking, Booking.com, GetYourGuide, Viator\n- Maldives: HalalBooking, Booking.com, Agoda\n- French Riviera: Booking.com, Boatbookings, TheFork, GetYourGuide\n- Istanbul: HalalBooking, Booking.com, GetYourGuide, Viator\n- Thailand: HalalBooking, Booking.com, Agoda, Klook\n\nUse descriptive anchor text. Never 'click here'. Scope by siteId to prevent cross-site contamination. Runs daily at 9am UTC.",
+        "model": "haiku",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-seo-monitor",
+      "type": "subAgent",
+      "name": "seo-performance-monitor",
+      "position": { "x": 2300, "y": 200 },
+      "data": {
+        "description": "SEO Performance Monitor",
+        "prompt": "Monitor published content performance:\n- Track indexing status (indexed/not_indexed/error)\n- Monitor CTR from GSC data (flag <1% after 30 days for auto-rewrite)\n- Check Core Web Vitals: LCP <= 2.5s, INP <= 200ms, CLS <= 0.1\n- Run weekly SEO health reports per site\n- Flag ranking drops, crawl errors, and schema validation issues\n- Report to admin dashboard for iPhone visibility",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "ifelse-ctr-check",
+      "type": "ifElse",
+      "name": "ctr-performance-check",
+      "position": { "x": 2550, "y": 200 },
+      "data": {
+        "evaluationTarget": "CTR after 30 days indexed",
+        "branches": [
+          { "id": "b-ok", "label": "CTR >= 1%", "condition": "ctr >= 0.01 after 30 days" },
+          { "id": "b-low", "label": "CTR < 1%", "condition": "ctr < 0.01 after 30 days" }
+        ],
+        "outputPorts": 2
+      }
+    },
+    {
+      "id": "agent-auto-rewrite",
+      "type": "subAgent",
+      "name": "auto-rewrite-agent",
+      "position": { "x": 2800, "y": 300 },
+      "data": {
+        "description": "Auto-Rewrite Agent (Low CTR)",
+        "prompt": "Triggered when published content has CTR < 1% after 30 days indexed. Analyze why content underperforms: weak title? Poor meta description? Missing search intent? Rewrite meta title and description for better SERP appeal. If content quality issues detected, flag for full content refresh through the 8-phase pipeline.",
+        "model": "sonnet",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-revenue",
+      "type": "end",
+      "name": "end-revenue",
+      "position": { "x": 2800, "y": 150 },
+      "data": { "label": "Revenue Generation (Affiliate Clicks)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-topics", "from": "start-pipeline", "to": "agent-topic-research", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-trends", "from": "start-pipeline", "to": "agent-trends-monitor", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-topics-switch", "from": "agent-topic-research", "to": "switch-topic-source", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-trends-switch", "from": "agent-trends-monitor", "to": "switch-topic-source", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-switch-builder-db", "from": "switch-topic-source", "to": "agent-content-builder", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-switch-builder-trend", "from": "switch-topic-source", "to": "agent-content-builder", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-switch-builder-fallback", "from": "switch-topic-source", "to": "agent-content-builder", "fromPort": "branch-2", "toPort": "input" },
+    { "id": "conn-builder-gate", "from": "agent-content-builder", "to": "ifelse-quality-gate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-gate-pass", "from": "ifelse-quality-gate", "to": "agent-content-selector", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-gate-fail", "from": "ifelse-quality-gate", "to": "agent-rejected-handler", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-selector-seogate", "from": "agent-content-selector", "to": "agent-seo-gate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-seogate-schema", "from": "agent-seo-gate", "to": "agent-schema-injector", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-seogate-indexing", "from": "agent-seo-gate", "to": "agent-seo-indexing", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-schema-affiliate", "from": "agent-schema-injector", "to": "agent-affiliate-injection", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-indexing-affiliate", "from": "agent-seo-indexing", "to": "agent-affiliate-injection", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-affiliate-monitor", "from": "agent-affiliate-injection", "to": "agent-seo-monitor", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-monitor-ctr", "from": "agent-seo-monitor", "to": "ifelse-ctr-check", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-ctr-ok", "from": "ifelse-ctr-check", "to": "end-revenue", "fromPort": "branch-0", "toPort": "in" },
+    { "id": "conn-ctr-low", "from": "ifelse-ctr-check", "to": "agent-auto-rewrite", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-rewrite-builder", "from": "agent-auto-rewrite", "to": "agent-content-builder", "fromPort": "output", "toPort": "input" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["content-pipeline", "seo", "revenue", "multi-site", "daily-automation"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

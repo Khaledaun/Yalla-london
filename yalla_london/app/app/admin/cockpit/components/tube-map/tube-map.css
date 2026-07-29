@@ -1,0 +1,307 @@
+/* ─── Tube Map CSS ──���──────────────────────────────────────────────────────── */
+/* Uses CSS custom properties for per-site branding via getBrandProfile()      */
+
+.tube-map-container {
+  position: relative;
+  width: 100%;
+  min-height: 340px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: #0F1419;
+  border-radius: 12px;
+}
+
+.tube-map-inner {
+  position: relative;
+  width: 1200px;
+  height: 460px;
+  min-width: 1200px;
+}
+
+/* ─── SVG Lines ──────────────────────────────────────────────────────────── */
+
+.tube-line-path {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke-opacity 0.3s ease;
+}
+
+.tube-line-path.line-healthy { stroke-opacity: 1; }
+.tube-line-path.line-slow { stroke-opacity: 0.6; }
+.tube-line-path.line-blocked { stroke-opacity: 1; stroke-dasharray: 12 6; }
+.tube-line-path.line-inactive { stroke-opacity: 0.2; }
+
+/* ─── Stations ──────────────────────────────────────��────────────────────── */
+
+.tube-station {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tube-station-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid var(--station-line-color, #3B7EA1);
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tube-station:hover .tube-station-circle,
+.tube-station:focus-visible .tube-station-circle {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.15);
+}
+
+.tube-station.interchange .tube-station-circle {
+  width: 30px;
+  height: 30px;
+  border-width: 4px;
+  background: #FFFFFF;
+}
+
+/* Station has articles */
+.tube-station.has-articles .tube-station-circle {
+  background: var(--station-line-color, #3B7EA1);
+}
+
+/* Station health indicators */
+.tube-station.station-stuck .tube-station-circle {
+  animation: pulse-amber 2s ease-in-out infinite;
+}
+
+.tube-station.station-error .tube-station-circle {
+  animation: pulse-red 1.2s ease-in-out infinite;
+}
+
+/* Station count badge */
+.tube-station-count {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--station-line-color, #3B7EA1);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+  z-index: 11;
+}
+
+/* Station label */
+.tube-station-label {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  text-align: center;
+}
+
+.tube-station.interchange .tube-station-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+
+/* ─── Trains (article dots) ──────────────────────────────────────────────── */
+
+.tube-train {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--train-color, #FFFFFF);
+  z-index: 15;
+  transform: translate(-50%, -50%);
+  transition: transform 0.6s ease-in-out, opacity 0.3s ease;
+  box-shadow: 0 0 6px var(--train-color, rgba(255,255,255,0.5));
+  pointer-events: none;
+}
+
+.tube-train.train-stuck {
+  background: #F59E0B;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  animation: pulse-amber 2s ease-in-out infinite;
+}
+
+.tube-train.train-error {
+  background: #EF4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+.tube-train.train-moving {
+  animation: train-move-glow 0.6s ease-in-out;
+}
+
+/* ─── Published celebration flash ────────────────────────────────────────── */
+
+.station-celebration {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(45, 212, 100, 0.4);
+  transform: translate(-50%, -50%) scale(0);
+  animation: celebrate-flash 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ─── Activity overlay ───────────────────────────────────────────────────── */
+
+.activity-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(15, 20, 25, 0.95) 20%);
+  padding: 32px 16px 12px;
+  z-index: 20;
+}
+
+.activity-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+.activity-entry .agent-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.activity-entry .time-ago {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ─── Line legend ────────────────────────────────────────────────────────── */
+
+.line-legend {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.line-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.line-legend-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.line-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ─── Animations ─────��───────────────────────────────────────────────────── */
+
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@keyframes train-move-glow {
+  0% { box-shadow: 0 0 6px var(--train-color, rgba(255,255,255,0.5)); }
+  50% { box-shadow: 0 0 16px var(--train-color, rgba(255,255,255,0.8)); }
+  100% { box-shadow: 0 0 6px var(--train-color, rgba(255,255,255,0.5)); }
+}
+
+@keyframes celebrate-flash {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
+/* ─── Loading skeleton ───────────���───────────────────────────────────────── */
+
+.tube-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+}
+
+/* ─── KPI progress bar (above map) ───────────────────────────────────────── */
+
+.kpi-bar {
+  display: flex;
+  gap: 2px;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.05);
+  margin-bottom: 8px;
+}
+
+.kpi-segment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  position: relative;
+}
+
+.kpi-segment:hover { opacity: 0.8; }
+.kpi-segment.kpi-green { background: #2D5A3D; }
+.kpi-segment.kpi-amber { background: #92400E; }
+.kpi-segment.kpi-red { background: #991B1B; }
+.kpi-segment.kpi-gray { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); }

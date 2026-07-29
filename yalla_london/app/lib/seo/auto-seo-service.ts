@@ -9,6 +9,7 @@ import { enhancedSchemaInjector } from './enhanced-schema-injector';
 import { dynamicInternalLinking } from './dynamic-internal-linking';
 import { aiSEOAudit } from './ai-seo-audit';
 import { enhancedSitemapGenerator } from './enhanced-sitemap-generator';
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from '@/config/sites';
 
 export interface ContentData {
   id: string;
@@ -29,16 +30,26 @@ export class AutoSEOService {
   private schemaGenerator: SchemaGenerator;
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
+  constructor(baseUrl?: string, siteId?: string) {
+    const resolvedSiteId = siteId || getDefaultSiteId();
+    if (!baseUrl) {
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(resolvedSiteId);
+    }
     this.baseUrl = baseUrl;
+
+    const config = getSiteConfig(resolvedSiteId);
+    const siteName = config?.name || 'Yalla London';
+    const siteDesc = config?.destination ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide';
+    const domain = config?.domain || 'zenitha.luxury';
+
     this.schemaGenerator = new SchemaGenerator(baseUrl, {
-      siteName: 'Yalla London',
-      description: 'Luxury London travel guide',
+      siteName,
+      description: siteDesc,
       contact: {
-        email: 'hello@yalla-london.com',
+        email: `info@${domain}`,
         social: {
-          twitter: 'https://twitter.com/yallalondon',
-          instagram: 'https://instagram.com/yallalondon'
+          twitter: 'https://twitter.com/zenithaluxury',
+          instagram: 'https://instagram.com/zenithaluxury'
         }
       }
     });
@@ -411,9 +422,15 @@ export class AutoSEOService {
     if (title.length <= maxLength) {
       return title;
     }
-    
-    // Truncate and add ellipsis
-    return title.substring(0, maxLength - 3) + '...';
+
+    // Truncate at the last word boundary (never mid-word, never an ellipsis —
+    // ellipsis + mid-word cuts read as broken in the SERP and suppress CTR).
+    const cut = title.substring(0, maxLength);
+    const lastSpace = cut.lastIndexOf(' ');
+    let out = lastSpace > maxLength * 0.5 ? cut.substring(0, lastSpace) : cut;
+    // Strip a trailing connective left by the cut ("...Guide for" → "...Guide")
+    out = out.replace(/\s+(?:for|to|in|and|with|the|of|a|an|by|on|at|from|or)$/i, '').trim();
+    return out.replace(/\s*[|–:,-]\s*$/, '').trim();
   }
 
   /**

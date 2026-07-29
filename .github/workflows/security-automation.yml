@@ -910,8 +910,10 @@ jobs:
         set -e
         echo "🔧 Setting up dependency audit tools..."
         
-        # Ensure we have the latest npm for better audit results
-        npm install -g npm@latest
+        # npm@latest now resolves to npm@12, which requires Node 22+ and fails
+        # with EBADENGINE on the Node 20.x this workflow runs. Pin to npm@11,
+        # which supports Node ^20.17.0 (satisfied by NODE_VERSION 20.18.1).
+        npm install -g npm@11
         
         # Check if yarn and npm are available
         echo "📋 Tool versions:"

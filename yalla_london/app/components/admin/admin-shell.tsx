@@ -47,7 +47,7 @@ const navigation = [
 
 const settingsNav = [
   { id: 'theme', label: 'Theme', icon: Palette, href: '/admin/settings/theme' },
-  { id: 'api-keys', label: 'API Keys', icon: Key, href: '/admin/command-center/settings/api-keys' },
+  { id: 'api-keys', label: 'API Keys', icon: Key, href: '/admin/settings?tab=api-keys' },
   { id: 'roles', label: 'Roles', icon: Users, href: '/admin/settings/roles' },
   { id: 'site', label: 'Site Settings', icon: Globe, href: '/admin/site' },
 ]

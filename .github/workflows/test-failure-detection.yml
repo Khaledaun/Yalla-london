@@ -20,7 +20,7 @@ jobs:
   test-job-1:
     name: Test Job 1 (Critical)
     runs-on: ubuntu-latest
-    if: env.SIMULATE_SKIP != 'test-job-1'
+    if: ${{ github.event.inputs.simulate_skip != 'test-job-1' }}
     
     steps:
       - name: Checkout code
@@ -42,7 +42,7 @@ jobs:
   test-job-2:
     name: Test Job 2 (Critical)
     runs-on: ubuntu-latest
-    if: env.SIMULATE_SKIP != 'test-job-2'
+    if: ${{ github.event.inputs.simulate_skip != 'test-job-2' }}
     
     steps:
       - name: Checkout code
@@ -64,7 +64,7 @@ jobs:
   test-job-3:
     name: Test Job 3 (Non-Critical)
     runs-on: ubuntu-latest
-    if: env.SIMULATE_SKIP != 'test-job-3'
+    if: ${{ github.event.inputs.simulate_skip != 'test-job-3' }}
     
     steps:
       - name: Checkout code

@@ -5,8 +5,6 @@ import {
   useRef,
   useState,
   ReactNode,
-  TouchEvent,
-  WheelEvent,
 } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -36,7 +34,6 @@ const ScrollExpandHero = ({
   const [scrollProgress, setScrollProgress] = useState<number>(0);
   const [showContent, setShowContent] = useState<boolean>(false);
   const [mediaFullyExpanded, setMediaFullyExpanded] = useState<boolean>(false);
-  const [touchStartY, setTouchStartY] = useState<number>(0);
   const [isMobileState, setIsMobileState] = useState<boolean>(false);
 
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -48,86 +45,50 @@ const ScrollExpandHero = ({
   }, [mediaType]);
 
   useEffect(() => {
+    // On mobile/touch devices, skip scroll-hijacking entirely — auto-expand immediately
+    // This fixes the INP violation where passive:false + preventDefault() blocked ALL touch for 3s
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768;
+    if (isTouchDevice) {
+      setScrollProgress(1);
+      setMediaFullyExpanded(true);
+      setShowContent(true);
+      return undefined;
+    }
+
+    // Desktop-only: scroll-expand animation via wheel events
+    // Use passive:true to avoid blocking main thread (INP impact)
     const handleWheel = (e: globalThis.WheelEvent) => {
-      if (mediaFullyExpanded && e.deltaY < 0 && window.scrollY <= 5) {
-        setMediaFullyExpanded(false);
-        e.preventDefault();
-      } else if (!mediaFullyExpanded) {
-        e.preventDefault();
-        const scrollDelta = e.deltaY * 0.0009;
-        const newProgress = Math.min(
-          Math.max(scrollProgress + scrollDelta, 0),
-          1
-        );
-        setScrollProgress(newProgress);
+      if (mediaFullyExpanded) return; // normal scrolling once expanded
 
-        if (newProgress >= 1) {
-          setMediaFullyExpanded(true);
-          setShowContent(true);
-        } else if (newProgress < 0.75) {
-          setShowContent(false);
-        }
+      const scrollDelta = e.deltaY * 0.0009;
+      const newProgress = Math.min(
+        Math.max(scrollProgress + scrollDelta, 0),
+        1
+      );
+      setScrollProgress(newProgress);
+
+      if (newProgress >= 1) {
+        setMediaFullyExpanded(true);
+        setShowContent(true);
+      } else if (newProgress < 0.75) {
+        setShowContent(false);
       }
     };
 
-    const handleTouchStart = (e: globalThis.TouchEvent) => {
-      setTouchStartY(e.touches[0].clientY);
-    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
 
-    const handleTouchMove = (e: globalThis.TouchEvent) => {
-      if (!touchStartY) return;
-
-      const touchY = e.touches[0].clientY;
-      const deltaY = touchStartY - touchY;
-
-      if (mediaFullyExpanded && deltaY < -20 && window.scrollY <= 5) {
-        setMediaFullyExpanded(false);
-        e.preventDefault();
-      } else if (!mediaFullyExpanded) {
-        e.preventDefault();
-        const scrollFactor = deltaY < 0 ? 0.008 : 0.005;
-        const scrollDelta = deltaY * scrollFactor;
-        const newProgress = Math.min(
-          Math.max(scrollProgress + scrollDelta, 0),
-          1
-        );
-        setScrollProgress(newProgress);
-
-        if (newProgress >= 1) {
-          setMediaFullyExpanded(true);
-          setShowContent(true);
-        } else if (newProgress < 0.75) {
-          setShowContent(false);
-        }
-
-        setTouchStartY(touchY);
-      }
-    };
-
-    const handleTouchEnd = (): void => {
-      setTouchStartY(0);
-    };
-
-    const handleScroll = (): void => {
-      if (!mediaFullyExpanded) {
-        window.scrollTo(0, 0);
-      }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('touchstart', handleTouchStart, { passive: false });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
+    // Auto-expand after 3s if desktop user hasn't scrolled through the hero manually
+    const autoExpandTimer = setTimeout(() => {
+      setScrollProgress(1);
+      setMediaFullyExpanded(true);
+      setShowContent(true);
+    }, 3000);
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
+      clearTimeout(autoExpandTimer);
     };
-  }, [scrollProgress, mediaFullyExpanded, touchStartY]);
+  }, [scrollProgress, mediaFullyExpanded]);
 
   useEffect(() => {
     const checkIfMobile = (): void => {
@@ -142,7 +103,7 @@ const ScrollExpandHero = ({
 
   const mediaWidth = 300 + scrollProgress * (isMobileState ? 650 : 1250);
   const mediaHeight = 400 + scrollProgress * (isMobileState ? 200 : 400);
-  const textTranslateX = scrollProgress * (isMobileState ? 180 : 150);
+  const textTranslateX = Math.min(scrollProgress * (isMobileState ? 80 : 150), isMobileState ? 80 : 150);
 
   // Split title into words for animation
   const titleWords = title.split(' ');
@@ -152,7 +113,8 @@ const ScrollExpandHero = ({
   return (
     <div
       ref={sectionRef}
-      className="transition-colors duration-700 ease-in-out overflow-x-hidden bg-cream-50"
+      className="transition-colors duration-700 ease-in-out overflow-x-hidden bg-yl-cream"
+      style={!mediaFullyExpanded ? { overscrollBehavior: 'none' } : undefined}
     >
       <section className="relative flex flex-col items-center justify-start min-h-[100dvh]">
         <div className="relative w-full flex flex-col items-center min-h-[100dvh]">
@@ -166,17 +128,13 @@ const ScrollExpandHero = ({
             <Image
               src={bgImageSrc}
               alt="London skyline"
-              width={1920}
-              height={1080}
-              className="w-screen h-screen"
-              style={{
-                objectFit: 'cover',
-                objectPosition: 'center',
-              }}
+              fill
+              sizes="100vw"
+              className="w-full h-full object-cover object-center"
               priority
             />
             {/* Elegant overlay with brand gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-burgundy-900/40 via-burgundy-900/20 to-burgundy-900/60" />
+            <div className="absolute inset-0 bg-gradient-to-b from-london-900/40 via-london-900/20 to-london-900/60" />
             {/* Subtle pattern overlay */}
             <div className="absolute inset-0 bg-pattern-arabesque opacity-30" />
           </motion.div>
@@ -191,7 +149,7 @@ const ScrollExpandHero = ({
                   height: `${mediaHeight}px`,
                   maxWidth: '95vw',
                   maxHeight: '85vh',
-                  boxShadow: '0 25px 80px rgba(139, 21, 56, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 25px 80px rgba(200, 50, 43, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
                 }}
               >
                 {mediaType === 'video' ? (
@@ -216,7 +174,7 @@ const ScrollExpandHero = ({
                       />
                       <div className="absolute inset-0 z-10 pointer-events-none" />
                       <motion.div
-                        className="absolute inset-0 bg-burgundy-900/30 rounded-card"
+                        className="absolute inset-0 bg-london-900/30 rounded-card"
                         initial={{ opacity: 0.7 }}
                         animate={{ opacity: 0.4 - scrollProgress * 0.3 }}
                         transition={{ duration: 0.2 }}
@@ -239,7 +197,7 @@ const ScrollExpandHero = ({
                       />
                       <div className="absolute inset-0 z-10 pointer-events-none" />
                       <motion.div
-                        className="absolute inset-0 bg-burgundy-900/30 rounded-card"
+                        className="absolute inset-0 bg-london-900/30 rounded-card"
                         initial={{ opacity: 0.7 }}
                         animate={{ opacity: 0.4 - scrollProgress * 0.3 }}
                         transition={{ duration: 0.2 }}
@@ -251,13 +209,13 @@ const ScrollExpandHero = ({
                     <Image
                       src={mediaSrc}
                       alt={title || 'London'}
-                      width={1920}
-                      height={1080}
+                      fill
+                      sizes="(max-width: 768px) 95vw, 1200px"
                       className="w-full h-full object-cover rounded-card"
                       priority
                     />
                     <motion.div
-                      className="absolute inset-0 bg-burgundy-900/40 rounded-card"
+                      className="absolute inset-0 bg-london-900/40 rounded-card"
                       initial={{ opacity: 0.7 }}
                       animate={{ opacity: 0.5 - scrollProgress * 0.3 }}
                       transition={{ duration: 0.2 }}
@@ -289,19 +247,19 @@ const ScrollExpandHero = ({
               {/* Animated Title - Splits and moves apart */}
               <div className="flex items-center justify-center text-center gap-4 w-full relative z-10 flex-col mix-blend-normal">
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-cream-50 drop-shadow-lg"
+                  className="text-3xl sm:text-4xl md:text-6xl lg:text-8xl font-serif font-bold text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(-${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {firstHalf}
                 </motion.h1>
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-cream-50 drop-shadow-lg"
+                  className="text-3xl sm:text-4xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {secondHalf}
@@ -319,7 +277,7 @@ const ScrollExpandHero = ({
 
             {/* Content revealed after expansion */}
             <motion.section
-              className="flex flex-col w-full px-8 py-16 md:px-16 lg:py-24 bg-cream-50"
+              className="flex flex-col w-full px-8 py-16 md:px-16 lg:py-24 bg-yl-cream"
               initial={{ opacity: 0 }}
               animate={{ opacity: showContent ? 1 : 0 }}
               transition={{ duration: 0.7 }}

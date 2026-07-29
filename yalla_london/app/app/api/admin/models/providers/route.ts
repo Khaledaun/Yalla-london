@@ -2,6 +2,8 @@
  * Phase 4C LLM Model Providers API
  * Manage AI model providers with encrypted API keys
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
@@ -30,38 +32,44 @@ const ModelProviderSchema = z.object({
 
 const UpdateModelProviderSchema = ModelProviderSchema.partial();
 
+// Derive a consistent 32-byte key for AES-256
+function getKeyBuffer(): Buffer {
+  if (Buffer.isBuffer(ENCRYPTION_KEY)) return ENCRYPTION_KEY;
+  return crypto.scryptSync(String(ENCRYPTION_KEY), 'model-provider-salt', 32);
+}
+
 // AES-GCM encryption/decryption functions
 function encryptApiKey(plaintext: string): string {
   const algorithm = 'aes-256-gcm';
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipher(algorithm, ENCRYPTION_KEY);
-  
+  const cipher = crypto.createCipheriv(algorithm, new Uint8Array(getKeyBuffer()), new Uint8Array(iv));
+
   let encrypted = cipher.update(plaintext, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  
+
   const authTag = cipher.getAuthTag();
-  
+
   return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
 }
 
 function decryptApiKey(encryptedData: string): string {
   const algorithm = 'aes-256-gcm';
   const parts = encryptedData.split(':');
-  
+
   if (parts.length !== 3) {
     throw new Error('Invalid encrypted data format');
   }
-  
+
   const iv = Buffer.from(parts[0], 'hex');
   const authTag = Buffer.from(parts[1], 'hex');
   const encrypted = parts[2];
-  
-  const decipher = crypto.createDecipher(algorithm, ENCRYPTION_KEY);
-  decipher.setAuthTag(authTag);
-  
+
+  const decipher = crypto.createDecipheriv(algorithm, new Uint8Array(getKeyBuffer()), new Uint8Array(iv));
+  decipher.setAuthTag(new Uint8Array(authTag));
+
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
-  
+
   return decrypted;
 }
 

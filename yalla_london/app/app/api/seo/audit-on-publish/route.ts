@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'SEO audit failed' 
+        error: 'SEO audit failed' 
       },
       { status: 500 }
     );
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Failed to get audit status' 
+        error: 'Failed to get audit status' 
       },
       { status: 500 }
     );

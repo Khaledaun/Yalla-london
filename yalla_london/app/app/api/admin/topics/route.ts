@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +10,10 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url);
     const locale = searchParams.get("locale");
     const status = searchParams.get("status");
+    const siteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
 
-    // Build where clause
-    const where: any = {};
+    // Build where clause — always scoped by site
+    const where: any = { site_id: siteId };
     if (locale) where.locale = locale;
     if (status) where.status = status;
 
@@ -29,7 +31,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     });
 
     // Get pipeline stats
-    const stats = await getPipelineStats();
+    const stats = await getPipelineStats(siteId);
 
     // Get next 7 days schedule
     const nextWeek = new Date();
@@ -37,6 +39,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     const upcomingSchedule = await prisma.topicProposal.findMany({
       where: {
+        site_id: siteId,
         planned_at: {
           gte: new Date(),
           lte: nextWeek,
@@ -128,6 +131,8 @@ async function handleCreateTopic(data: any) {
       authority_links_json: data.authority_links_json,
       intent: data.intent || "info",
       suggested_page_type: data.suggested_page_type || "guide",
+      source_weights_json: data.source_weights_json || { source: "admin-manual" },
+      site_id: data.site_id || getDefaultSiteId(),
       evergreen: data.evergreen !== undefined ? data.evergreen : true,
       season: data.season,
       planned_at: data.planned_at,
@@ -216,7 +221,8 @@ async function handleRescheduleTopic(data: any) {
   return NextResponse.json({ success: true, topic });
 }
 
-async function getPipelineStats() {
+async function getPipelineStats(siteId?: string) {
+  const siteFilter = siteId ? { site_id: siteId } : {};
   const [
     plannedCount,
     queuedCount,
@@ -225,12 +231,12 @@ async function getPipelineStats() {
     enCount,
     arCount,
   ] = await Promise.all([
-    prisma.topicProposal.count({ where: { status: "planned" } }),
-    prisma.topicProposal.count({ where: { status: "queued" } }),
-    prisma.topicProposal.count({ where: { status: "ready" } }),
-    prisma.topicProposal.count({ where: { status: "published" } }),
-    prisma.topicProposal.count({ where: { locale: "en" } }),
-    prisma.topicProposal.count({ where: { locale: "ar" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, status: "planned" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, status: "queued" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, status: "ready" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, status: "published" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, locale: "en" } }),
+    prisma.topicProposal.count({ where: { ...siteFilter, locale: "ar" } }),
   ]);
 
   return {

@@ -5,13 +5,14 @@
  * PUT    /api/admin/domains/[id]         - Update domain
  * DELETE /api/admin/domains/[id]         - Delete domain
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     const domain = await prisma.domain.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         site: {
           select: {
@@ -57,11 +59,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     const body = await request.json();
     const { is_primary, ssl_status } = body;
 
     const existingDomain = await prisma.domain.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingDomain) {
@@ -80,7 +83,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const domain = await prisma.domain.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         is_primary: is_primary ?? existingDomain.is_primary,
         ssl_status: ssl_status ?? existingDomain.ssl_status,
@@ -114,8 +117,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     const domain = await prisma.domain.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!domain) {
@@ -128,7 +132,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Don't allow deleting the primary domain unless it's the only one
     if (domain.is_primary) {
       const otherDomains = await prisma.domain.count({
-        where: { site_id: domain.site_id, id: { not: params.id } },
+        where: { site_id: domain.site_id, id: { not: id } },
       });
 
       if (otherDomains > 0) {
@@ -140,7 +144,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.domain.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({

@@ -4,11 +4,16 @@ import { WorkflowControlDashboard } from '@/components/admin/workflow-control-da
 
 export default function WorkflowPage() {
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Content Workflow</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Manage your content generation pipeline from topics to publishing
+    <div className="max-w-7xl mx-auto space-y-4">
+      <div>
+        <h1 style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 24, color: "#1C1917", letterSpacing: -0.5 }}>
+          Workflow Control
+        </h1>
+        <div style={{ fontFamily: "'IBM Plex Sans Arabic',sans-serif", fontSize: 12, color: "#78716C", letterSpacing: 0, marginTop: 2 }}>
+          التحكم في سير العمل
+        </div>
+        <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#78716C", marginTop: 6, textTransform: "uppercase", letterSpacing: 1 }}>
+          Manage content generation pipeline · topic → draft → publish → index
         </p>
       </div>
       <WorkflowControlDashboard />

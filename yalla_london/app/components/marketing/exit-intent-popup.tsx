@@ -10,8 +10,9 @@
  * - Session-aware (won't show repeatedly)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Gift, FileText, Mail, Loader2, CheckCircle, Clock, Sparkles } from 'lucide-react';
+import { safeLocalGet, safeLocalSet, safeSessionGet, safeSessionSet } from '@/lib/safe-storage';
 
 interface ExitIntentPopupProps {
   variant?: 'guide' | 'discount' | 'newsletter' | 'custom';
@@ -118,14 +119,14 @@ export function ExitIntentPopup({
   const shouldShow = useCallback(() => {
     if (typeof window === 'undefined') return false;
 
-    const dismissed = localStorage.getItem('exit_popup_dismissed');
+    const dismissed = safeLocalGet('exit_popup_dismissed');
     if (dismissed) {
       const dismissedDate = new Date(dismissed);
       const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceDismissed < cookieDays) return false;
     }
 
-    if (showOnce && sessionStorage.getItem('exit_popup_shown')) {
+    if (showOnce && safeSessionGet('exit_popup_shown')) {
       return false;
     }
 
@@ -138,7 +139,7 @@ export function ExitIntentPopup({
 
     hasTriggered.current = true;
     setIsVisible(true);
-    sessionStorage.setItem('exit_popup_shown', 'true');
+    safeSessionSet('exit_popup_shown', 'true');
     onShow?.();
 
     // Track event
@@ -152,7 +153,7 @@ export function ExitIntentPopup({
 
   // Exit intent detection
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     // Wait for minimum delay before enabling
     timeoutRef.current = setTimeout(() => {
@@ -209,7 +210,7 @@ export function ExitIntentPopup({
   // Handle close
   const handleClose = () => {
     setIsVisible(false);
-    localStorage.setItem('exit_popup_dismissed', new Date().toISOString());
+    safeLocalSet('exit_popup_dismissed', new Date().toISOString());
     onClose?.();
   };
 
@@ -276,23 +277,23 @@ export function ExitIntentPopup({
           className="bg-white rounded-2xl max-w-md w-full p-8 text-center animate-in fade-in zoom-in duration-300"
           dir={isArabic ? 'rtl' : 'ltr'}
         >
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-600" />
+          <div className="w-20 h-20 bg-yl-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-yl-charcoal" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.successTitle}</h3>
-          <p className="text-gray-600 mb-6">
+          <h3 className="text-2xl font-bold text-yl-charcoal mb-2">{t.successTitle}</h3>
+          <p className="text-yl-gray-500 mb-6">
             {variant === 'guide' && t.successGuide}
             {variant === 'discount' && t.successDiscount}
             {variant === 'newsletter' && t.successNewsletter}
           </p>
           {variant === 'discount' && (
-            <div className="bg-yellow-50 border-2 border-dashed border-yellow-400 rounded-lg p-4 mb-6">
-              <span className="text-2xl font-mono font-bold text-yellow-700">{discountCode}</span>
+            <div className="bg-yl-gray-100 border-2 border-dashed border-yl-gold rounded-lg p-4 mb-6">
+              <span className="text-2xl font-mono font-bold text-yl-gold">{discountCode}</span>
             </div>
           )}
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 underline"
+            className="text-yl-gray-500 hover:text-yl-charcoal underline"
           >
             {isArabic ? 'إغلاق' : 'Close'}
           </button>
@@ -330,25 +331,25 @@ export function ExitIntentPopup({
 
   const colorClasses = {
     blue: {
-      bg: 'bg-blue-600',
-      hover: 'hover:bg-blue-700',
-      light: 'bg-blue-100',
-      text: 'text-blue-600',
-      gradient: 'from-blue-600 to-indigo-700',
+      bg: 'bg-yl-red',
+      hover: 'hover:bg-yl-red',
+      light: 'bg-yl-red/20',
+      text: 'text-yl-red',
+      gradient: 'from-yl-red to-[#a82924]',
     },
     amber: {
-      bg: 'bg-amber-500',
-      hover: 'hover:bg-amber-600',
-      light: 'bg-amber-100',
-      text: 'text-amber-600',
-      gradient: 'from-amber-500 to-orange-600',
+      bg: 'bg-yl-gold',
+      hover: 'hover:bg-yl-gold',
+      light: 'bg-yl-gold/20',
+      text: 'text-yl-gold',
+      gradient: 'from-yl-gold to-yl-gold',
     },
     purple: {
-      bg: 'bg-purple-600',
-      hover: 'hover:bg-purple-700',
-      light: 'bg-purple-100',
-      text: 'text-purple-600',
-      gradient: 'from-purple-600 to-pink-600',
+      bg: 'bg-yl-blue',
+      hover: 'hover:bg-yl-blue',
+      light: 'bg-yl-blue/20',
+      text: 'text-yl-blue',
+      gradient: 'from-yl-blue to-yl-blue',
     },
   };
 
@@ -363,7 +364,7 @@ export function ExitIntentPopup({
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
+          className="absolute top-4 right-4 p-2 text-yl-gray-500 hover:text-yl-charcoal hover:bg-yl-gray-100 rounded-full transition-colors z-10"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -406,7 +407,7 @@ export function ExitIntentPopup({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t.emailPlaceholder}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              className="w-full px-4 py-3 border border-yl-gray-200 rounded-lg focus:ring-2 focus:ring-yl-red focus:border-transparent text-lg"
               disabled={status === 'loading'}
               autoFocus
             />
@@ -427,13 +428,13 @@ export function ExitIntentPopup({
               )}
             </button>
 
-            <p className="text-gray-400 text-xs text-center">{t.privacy}</p>
+            <p className="text-yl-gray-500 text-xs text-center">{t.privacy}</p>
           </form>
 
           {variant === 'discount' && (
             <button
               onClick={handleClose}
-              className="w-full mt-3 text-gray-400 hover:text-gray-600 text-sm underline"
+              className="w-full mt-3 text-yl-gray-500 hover:text-yl-charcoal text-sm underline"
             >
               {t.noThanks}
             </button>

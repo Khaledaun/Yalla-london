@@ -18,6 +18,23 @@ async function signupHandler(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 },
+      );
+    }
+
+    // SECURITY: Enforce password complexity
+    if (password.length < 12) {
+      return NextResponse.json(
+        { error: "Password must be at least 12 characters long" },
+        { status: 400 },
+      );
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -33,11 +50,12 @@ async function signupHandler(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user with hashed password
     const user = await prisma.user.create({
       data: {
         email,
         name: `${firstName} ${lastName}`.trim() || null,
+        passwordHash: hashedPassword,
       },
     });
 

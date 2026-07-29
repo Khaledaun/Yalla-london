@@ -1,0 +1,158 @@
+{
+  "id": "workflow-yalla-master-orchestration-2026",
+  "name": "yalla-master-orchestration",
+  "description": "Yalla London Master Orchestration: Shows how all 7 pipelines interconnect and feed data to each other. The central nervous system of the Zenitha Content Network.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-master",
+      "type": "start",
+      "name": "start-master",
+      "position": { "x": 50, "y": 400 },
+      "data": { "label": "Zenitha Content Network — Daily Operations" }
+    },
+    {
+      "id": "pipeline-content",
+      "type": "subAgent",
+      "name": "pipeline-1-content-to-revenue",
+      "position": { "x": 350, "y": 150 },
+      "data": {
+        "description": "Pipeline 1: Content-to-Revenue (Daily) — HIGHEST PRIORITY",
+        "prompt": "Topic Research → Content Builder (8 phases) → Quality Gate → Content Selector → Pre-Publication Gate (13 checks) → Schema Injection → Indexing → Affiliate Injection → SEO Monitor → CTR Check → Auto-Rewrite (loop)\n\nSchedule: Daily 5am UTC\nOwns: TopicProposal → ArticleDraft → BlogPost lifecycle\nOutput: Published, indexed articles with affiliate links generating revenue\nKPIs: 2 articles/site/day, quality score ≥ 70, 3+ internal links, 2+ affiliate links",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-seo",
+      "type": "subAgent",
+      "name": "pipeline-2-seo-audit-fix",
+      "position": { "x": 350, "y": 300 },
+      "data": {
+        "description": "Pipeline 2: SEO Audit & Fix (Weekly)",
+        "prompt": "Crawl → Technical Audit → Content Audit → CWV Audit → Severity Router → Auto-Fix / Log Warnings → Report → Validate\n\nSchedule: Weekly, Sunday 5am UTC\nOwns: Site-wide SEO health, auto-fixes, compliance\nOutput: Weekly SEO health report, auto-fixed meta tags & schema\nKPIs: SEO score ≥ 70, CWV all green, 0 broken links",
+        "model": "sonnet",
+        "color": "orange",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-analytics",
+      "type": "subAgent",
+      "name": "pipeline-3-analytics-intelligence",
+      "position": { "x": 350, "y": 450 },
+      "data": {
+        "description": "Pipeline 3: Analytics Intelligence (Daily)",
+        "prompt": "Data Collection → Traffic Analysis → Revenue Tracking → Audience Segmentation → Action Dispatch → Dashboard Report\n\nSchedule: Daily 3am UTC\nOwns: GA4 data, GSC data, revenue metrics, audience segments\nOutput: Daily analytics report, cross-pipeline action triggers\nKPIs: Organic sessions +20%/month, CTR ≥ 3%, RPV trending up",
+        "model": "haiku",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-frontend",
+      "type": "subAgent",
+      "name": "pipeline-4-frontend-excellence",
+      "position": { "x": 350, "y": 600 },
+      "data": {
+        "description": "Pipeline 4: Frontend Excellence (On-Demand)",
+        "prompt": "Performance Audit → Accessibility Audit → Priority Router → CWV Fix / A11Y Fix / Optimize → Test & Validate → Deploy\n\nSchedule: On-demand (triggered by CWV alerts or manual)\nOwns: Page speed, accessibility, responsive design, UX\nOutput: Optimized frontend, Lighthouse scores, CWV improvements\nKPIs: Lighthouse Perf ≥ 80, A11Y ≥ 90, LCP ≤ 2.5s",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-growth",
+      "type": "subAgent",
+      "name": "pipeline-5-growth-social",
+      "position": { "x": 750, "y": 150 },
+      "data": {
+        "description": "Pipeline 5: Growth & Social (Weekly)",
+        "prompt": "Strategy → Content Repurposing → Community Building → Multi-Platform Distribution → Engagement Tracking → Iterate\n\nSchedule: Weekly, Monday 10am UTC\nOwns: Social media presence, brand growth, community\nOutput: 3-5 social posts/site/week, engagement reports\nKPIs: Follower growth, engagement rate, social referral traffic",
+        "model": "haiku",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-cro",
+      "type": "subAgent",
+      "name": "pipeline-6-conversion-optimization",
+      "position": { "x": 750, "y": 300 },
+      "data": {
+        "description": "Pipeline 6: Conversion Optimization (Bi-Weekly)",
+        "prompt": "Data Analysis → Hypothesis Generation → A/B Test Design → Test Monitoring → Result Analysis → Implement Winner / Learn & Iterate\n\nSchedule: Bi-weekly, 1st & 15th, 8am UTC\nOwns: A/B testing, conversion funnels, CTA optimization\nOutput: Proven conversion improvements, CRO playbook\nKPIs: Visitor-to-lead ≥ 3%, affiliate click rate +20%",
+        "model": "haiku",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "pipeline-competitive",
+      "type": "subAgent",
+      "name": "pipeline-7-competitive-research",
+      "position": { "x": 750, "y": 450 },
+      "data": {
+        "description": "Pipeline 7: Competitive Research (Monthly)",
+        "prompt": "Competitor Discovery → Content Gap Analysis → Benchmarking → Action Router → Content Strategy / Technical SEO / Strategy Report\n\nSchedule: Monthly, 1st of month, 2am UTC\nOwns: Competitive intelligence, market positioning\nOutput: Monthly competitive report, content gap TopicProposals\nKPIs: Competitive scorecard improving, content gaps shrinking",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "hub-dashboard",
+      "type": "subAgent",
+      "name": "admin-dashboard-hub",
+      "position": { "x": 750, "y": 600 },
+      "data": {
+        "description": "Admin Dashboard (iPhone-Optimized)",
+        "prompt": "Central visibility hub for Khaled:\n- Pipeline status: Topics → Drafts → Published → Indexed (with counts)\n- Per-site health: articles, traffic, revenue, errors\n- Action buttons: trigger crons, publish drafts, run audits\n- Error alerts in plain language with suggested fixes\n- Revenue tracking: affiliate clicks, conversions, earnings\n- All 7 pipeline reports feed into dashboard views\n- Mobile-first design for iPhone viewing",
+        "model": "haiku",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-revenue",
+      "type": "end",
+      "name": "end-financial-freedom",
+      "position": { "x": 1100, "y": 400 },
+      "data": { "label": "Financial Freedom (Revenue Generation)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-content", "from": "start-master", "to": "pipeline-content", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-seo", "from": "start-master", "to": "pipeline-seo", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-analytics", "from": "start-master", "to": "pipeline-analytics", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-frontend", "from": "start-master", "to": "pipeline-frontend", "fromPort": "out", "toPort": "input" },
+
+    { "id": "conn-content-seo", "from": "pipeline-content", "to": "pipeline-seo", "fromPort": "output", "toPort": "input", "label": "Every article passes SEO gate" },
+    { "id": "conn-seo-content", "from": "pipeline-seo", "to": "pipeline-content", "fromPort": "output", "toPort": "input", "label": "Low CTR triggers auto-rewrite" },
+    { "id": "conn-analytics-cro", "from": "pipeline-analytics", "to": "pipeline-cro", "fromPort": "output", "toPort": "input", "label": "Drop-off data feeds CRO priorities" },
+    { "id": "conn-cro-frontend", "from": "pipeline-cro", "to": "pipeline-frontend", "fromPort": "output", "toPort": "input", "label": "A/B winners trigger component updates" },
+    { "id": "conn-frontend-seo", "from": "pipeline-frontend", "to": "pipeline-seo", "fromPort": "output", "toPort": "input", "label": "Performance feeds CWV metrics" },
+    { "id": "conn-competitive-content", "from": "pipeline-competitive", "to": "pipeline-content", "fromPort": "output", "toPort": "input", "label": "Content gaps feed TopicProposals" },
+    { "id": "conn-content-growth", "from": "pipeline-content", "to": "pipeline-growth", "fromPort": "output", "toPort": "input", "label": "Published articles repurposed for social" },
+    { "id": "conn-growth-analytics", "from": "pipeline-growth", "to": "pipeline-analytics", "fromPort": "output", "toPort": "input", "label": "Social referral traffic tracked" },
+
+    { "id": "conn-content-dashboard", "from": "pipeline-content", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-seo-dashboard", "from": "pipeline-seo", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-analytics-dashboard", "from": "pipeline-analytics", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-cro-dashboard", "from": "pipeline-cro", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-competitive-dashboard", "from": "pipeline-competitive", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-growth-dashboard", "from": "pipeline-growth", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-frontend-dashboard", "from": "pipeline-frontend", "to": "hub-dashboard", "fromPort": "output", "toPort": "input" },
+
+    { "id": "conn-dashboard-end", "from": "hub-dashboard", "to": "end-revenue", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["master-orchestration", "cross-pipeline", "all-pipelines", "overview", "zenitha-network"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

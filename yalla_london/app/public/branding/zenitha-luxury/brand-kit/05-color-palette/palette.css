@@ -1,0 +1,46 @@
+/*
+  ZENITHA · LUXURY — Color Palette Reference
+  ═══════════════════════════════════════════
+
+  BRAND STORY
+  ───────────
+  Near-black foundation (not pure black — softer, more refined)
+  Warm gold accent (not yellow — amber-toned, heritage feeling)
+  Ivory + cream for light contexts (not white — more human, tactile)
+
+  USAGE RULES
+  ───────────
+  1. Dark contexts: obsidian + midnight backgrounds, gold + ivory text
+  2. Light contexts: ivory + cream backgrounds, obsidian text, gold accents
+  3. Never use pure black (#000000) or pure white (#FFFFFF) in brand materials
+  4. Gold is always an ACCENT — never dominant background
+  5. Typography on dark: ivory (#FDFCF9) primary, mist (#8A8A8A) secondary
+
+  ─── NEUTRALS ───────────────────────────────────────────────────── */
+
+.swatch-obsidian  { background: #0A0A0A; }  /* Primary dark background */
+.swatch-midnight  { background: #141414; }  /* Elevated dark surface */
+.swatch-charcoal  { background: #2A2A2A; }  /* Dark cards, panels */
+.swatch-smoke     { background: #4A4A4A; }  /* Borders on dark */
+.swatch-mist      { background: #8A8A8A; }  /* Secondary text */
+.swatch-platinum  { background: #D6D0C4; }  /* Light borders */
+.swatch-cream     { background: #F5F0E8; }  /* Light background */
+.swatch-ivory     { background: #FDFCF9; }  /* Near-white surface */
+
+/*  ─── GOLD ───────────────────────────────────────────────────────── */
+
+.swatch-gold       { background: #C4A96C; }  /* Primary gold */
+.swatch-gold-light { background: #E2CBAA; }  /* Hover / highlight */
+.swatch-gold-deep  { background: #9A7A42; }  /* Pressed / deep */
+.swatch-champagne  { background: #EAD9BB; }  /* Soft gold, backgrounds */
+.swatch-brass      { background: #B8934A; }  /* Supporting accent */
+
+/*
+  CONTRAST RATIOS (WCAG)
+  ──────────────────────
+  Gold on obsidian:  4.8:1  ✅ AA
+  Ivory on obsidian: 16.2:1 ✅ AAA
+  Obsidian on cream: 14.8:1 ✅ AAA
+  Mist on obsidian:  4.6:1  ✅ AA (large text)
+  Gold on ivory:     3.1:1  ⚠️  AA large text only — use for display only
+*/

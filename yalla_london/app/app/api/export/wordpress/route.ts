@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from '@/config/sites';
 
 /**
  * GET /api/export/wordpress
@@ -178,8 +179,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 });
 
 function generateWordPressWXR(content: any[]): string {
-  const siteName = process.env.SITE_NAME || 'Yalla London';
-  const siteUrl = process.env.NEXTAUTH_URL || 'https://yalla-london.com';
+  const id = getDefaultSiteId();
+  const config = getSiteConfig(id);
+  let siteName = process.env.SITE_NAME || config?.name || 'Yalla London';
+  let siteUrl = process.env.NEXTAUTH_URL || getSiteDomain(id);
   
   let wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"

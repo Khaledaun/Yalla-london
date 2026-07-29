@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 // Force dynamic rendering to avoid build-time database access
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       sites.map(async (site) => {
         const [articleCount, leadCount, pageViewCount] = await Promise.all([
           prisma.blogPost.count({
-            where: { published: true },
+            where: { published: true, siteId: site.id },
           }).catch(() => 0),
           prisma.lead.count({
             where: { site_id: site.id },

@@ -1,0 +1,35 @@
+{
+  "siteId": "yalla-london",
+  "baseUrl": "https://www.yalla-london.com",
+  "staticRoutes": [
+    "/",
+    "/blog",
+    "/information",
+    "/information/articles",
+    "/news",
+    "/events",
+    "/experiences",
+    "/hotels",
+    "/recommendations",
+    "/london-by-foot",
+    "/shop",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/affiliate-disclosure"
+  ],
+  "validators": {
+    "requiredSchemaByRoute": {
+      "/": ["Organization", "WebSite"],
+      "/blog": ["CollectionPage"],
+      "/blog/*": ["Article", "BreadcrumbList"],
+      "/news/*": ["NewsArticle"],
+      "/events": ["Event"],
+      "/hotels": ["Hotel"],
+      "/shop/*": ["Product"],
+      "/about": ["Organization"]
+    },
+    "expectedHreflangLangs": ["en-GB", "ar-SA", "x-default"]
+  }
+}

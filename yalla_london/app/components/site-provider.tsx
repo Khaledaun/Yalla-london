@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
   useState,
@@ -8,6 +8,7 @@ import {
   useCallback,
 } from "react";
 import { Site } from "@/lib/prisma-types";
+import { safeLocalGet, safeLocalSet } from "@/lib/safe-storage";
 
 /**
  * Fallback sites matching config/sites.ts identities.
@@ -27,8 +28,8 @@ function makeSite(
 }
 
 const DEFAULT_SITE: Site = makeSite(
-  "yalla-london", "Yalla London", "yalla-london", "yalla-london.com",
-  "en", "ltr", "#1A1F36", "#E8634B",
+  "yalla-london", "Yalla London", "yalla-london", "zenitha.luxury",
+  "en", "ltr", "#1C1917", "#C8322B",
 );
 
 const FALLBACK_SITES: Site[] = [
@@ -69,9 +70,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   // Load saved site preference from localStorage, then refresh from API
   useEffect(() => {
-    const savedSiteId = localStorage.getItem("admin_current_site_id");
+    const savedSiteId = safeLocalGet("admin_current_site_id");
     if (savedSiteId) {
-      const savedSite = sites.find((s) => s.id === savedSiteId);
+      const savedSite = FALLBACK_SITES.find((s) => s.id === savedSiteId);
       if (savedSite) {
         setCurrentSiteState(savedSite);
       }
@@ -100,9 +101,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   // Save site preference to localStorage when it changes
   const setCurrentSite = useCallback((site: Site) => {
     setCurrentSiteState(site);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("admin_current_site_id", site.id);
-    }
+    safeLocalSet("admin_current_site_id", site.id);
   }, []);
 
   // Helper to get site by ID
@@ -194,13 +193,20 @@ export function useSiteData<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Use a ref to always have the latest fetcher without adding it to deps
+  const fetcherRef = React.useRef(fetcher);
+  fetcherRef.current = fetcher;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableDeps = React.useMemo(() => dependencies, dependencies);
+
   useEffect(() => {
     if (siteLoading) return;
 
     setIsLoading(true);
     setError(null);
 
-    fetcher(currentSite.id)
+    fetcherRef.current(currentSite.id)
       .then((result) => {
         setData(result);
         setIsLoading(false);
@@ -209,7 +215,7 @@ export function useSiteData<T>(
         setError(err);
         setIsLoading(false);
       });
-  }, [currentSite.id, siteLoading, ...dependencies]);
+  }, [currentSite.id, siteLoading, stableDeps]);
 
   return {
     data,

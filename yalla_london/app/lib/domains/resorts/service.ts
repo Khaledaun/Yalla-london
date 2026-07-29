@@ -4,7 +4,7 @@
  * Business logic for managing Maldives resorts.
  */
 
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { getTenantPrisma, TenantPrismaClient } from '@/lib/db/tenant-queries';
 import { assertExists, assertValidSlug, ResourceNotFoundError } from '@/lib/db/assertions';
 import type {

@@ -10,10 +10,14 @@ import { promisify } from 'util'
 import fs from 'fs/promises'
 import path from 'path'
 import { apiLimiter } from '@/lib/rate-limit'
+import { requireAdmin } from '@/lib/admin-middleware'
 
 const execAsync = promisify(exec)
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const blocked = apiLimiter(request);
   if (blocked) return blocked;
   try {
@@ -32,6 +36,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const blocked = apiLimiter(request);
   if (blocked) return blocked;
 
@@ -94,11 +101,11 @@ async function createDatabaseBackup(backupId: string, backupName: string, backup
     const username = url.username
     const password = url.password
 
-    // Create pg_dump command
-    const pgDumpCommand = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${dbName} -f ${tempPath}`
-    
-    // Execute pg_dump
-    await execAsync(pgDumpCommand)
+    // Create pg_dump command (password passed via env to avoid shell injection)
+    const pgDumpCommand = `pg_dump -h ${host} -p ${port} -U ${username} -d ${dbName} -f ${tempPath}`
+
+    // Execute pg_dump with password in environment variable (not in command string)
+    await execAsync(pgDumpCommand, { env: { ...process.env, PGPASSWORD: password } })
 
     // Get file stats
     const stats = await fs.stat(tempPath)

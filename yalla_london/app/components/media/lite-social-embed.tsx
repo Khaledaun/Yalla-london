@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,26 +53,7 @@ export function LiteSocialEmbed({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (url && !isLoaded && !localVideo) {
-      fetchEmbedData();
-    }
-  }, [url, isLoaded]);
-
-  useEffect(() => {
-    // Track video engagement for GA4
-    if (isPlaying) {
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'video_start', {
-          video_title: embedData?.title || localVideo?.title || 'Social Video',
-          video_provider: type,
-          video_url: url || 'local'
-        });
-      }
-    }
-  }, [isPlaying]);
-
-  const fetchEmbedData = async () => {
+  const fetchEmbedData = useCallback(async () => {
     try {
       setError(null);
       const response = await fetch(`/api/social/embed-data`, {
@@ -93,7 +74,26 @@ export function LiteSocialEmbed({
       setError('Network error occurred');
       console.error('Embed data fetch failed:', err);
     }
-  };
+  }, [url, type]);
+
+  useEffect(() => {
+    if (url && !isLoaded && !localVideo) {
+      fetchEmbedData();
+    }
+  }, [url, isLoaded, localVideo, fetchEmbedData]);
+
+  useEffect(() => {
+    // Track video engagement for GA4
+    if (isPlaying) {
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'video_start', {
+          video_title: embedData?.title || localVideo?.title || 'Social Video',
+          video_provider: type,
+          video_url: url || 'local'
+        });
+      }
+    }
+  }, [isPlaying, embedData?.title, localVideo?.title, type, url]);
 
   const handlePlayClick = () => {
     if (localVideo && videoRef.current) {
@@ -168,6 +168,7 @@ export function LiteSocialEmbed({
     return (
       <div className="relative group cursor-pointer" onClick={handlePlayClick}>
         {/* Thumbnail Image */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={thumbnailUrl}
           alt={title}
@@ -346,7 +347,7 @@ export function generateVideoSchema(localVideo: {
       name: 'Yalla London',
       logo: {
         '@type': 'ImageObject',
-        url: '/logo.png'
+        url: '/images/yalla-london-logo.svg'
       }
     }
   };

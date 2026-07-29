@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { SITES } from "@/config/sites";
 

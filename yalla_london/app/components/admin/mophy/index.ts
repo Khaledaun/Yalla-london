@@ -2,7 +2,6 @@
 // Inspired by MOPHY Payment Admin Dashboard Template
 
 export { MophyAdminLayout } from './mophy-admin-layout'
-export { MophyDashboard } from './mophy-dashboard'
 export { StatCard, StatCardsGrid } from './stat-card'
 export {
   ChartCard,

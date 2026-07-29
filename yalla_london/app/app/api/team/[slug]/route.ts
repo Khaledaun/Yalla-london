@@ -8,12 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TeamService } from '@/lib/domains/team';
 
 interface RouteParams {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const member = await TeamService.getMemberBySlug(params.slug);
+    const { slug } = await params;
+    const member = await TeamService.getMemberBySlug(slug);
 
     if (!member) {
       return NextResponse.json(

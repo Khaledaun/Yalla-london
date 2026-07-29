@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zenitha Luxury — Luxury Travel Technology</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Montserrat:wght@200;300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C49A2A;--gold-light:#D4AF37;--gold-muted:#8B7331;
+  --navy:#0A1628;--navy-deep:#050E1A;--navy-surface:#0D192E;
+  --cream:#F5F0E8;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-heading:'Cormorant Garamond','Times New Roman',serif;
+  --font-body:'Montserrat',Helvetica,sans-serif;
+  --font-ui:'DM Sans',Helvetica,sans-serif;
+  --ease-luxe:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-behavior:smooth}
+body{background:var(--navy-deep);color:var(--cream);font-family:var(--font-body);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{display:block;max-width:100%}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1.2rem 3rem;display:flex;align-items:center;justify-content:space-between;transition:all .5s}
+.nav.scrolled{background:rgba(5,14,26,.95);backdrop-filter:blur(20px);padding:.75rem 3rem;border-bottom:1px solid rgba(196,154,42,.08)}
+.nav-logo{font-family:var(--font-display);font-size:1.25rem;letter-spacing:.06em;color:var(--gold);text-decoration:none;display:flex;align-items:center;gap:.4rem}
+.nav-logo em{font-family:var(--font-heading);font-style:italic;font-size:.9rem;color:var(--gold-muted)}
+.nav-links{display:flex;gap:2rem;align-items:center}
+.nav-links a{font-family:var(--font-ui);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(245,240,232,.4);text-decoration:none;transition:color .3s}
+.nav-links a:hover{color:var(--gold)}
+.nav-cta{background:var(--gold);color:var(--navy)!important;padding:.45rem 1.25rem;font-weight:600!important;transition:background .3s!important}
+.nav-cta:hover{background:var(--gold-light)!important}
+
+/* HERO */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;overflow:hidden}
+.hero-left{display:flex;flex-direction:column;justify-content:center;padding:9rem 4rem 7rem 5rem;position:relative;z-index:2}
+.hero-right{position:relative;overflow:hidden}
+.hero-right img{width:100%;height:100%;object-fit:cover;filter:brightness(.65)}
+.hero-right::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--navy-deep) 0%,transparent 35%)}
+.hero-eyebrow{font-family:var(--font-ui);font-size:.58rem;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-bottom:1.25rem;opacity:0;animation:fu .8s var(--ease-luxe) .3s forwards}
+.hero-title{font-family:var(--font-display);font-size:clamp(2.4rem,4.2vw,4rem);font-weight:400;line-height:1.06;margin-bottom:1.5rem;opacity:0;animation:fu .8s var(--ease-luxe) .5s forwards}
+.hero-title em{font-style:italic;color:var(--gold)}
+.hero-desc{font-family:var(--font-heading);font-size:1rem;font-weight:300;color:rgba(245,240,232,.5);line-height:1.9;max-width:460px;margin-bottom:2.5rem;opacity:0;animation:fu .8s var(--ease-luxe) .7s forwards}
+.hero-actions{display:flex;gap:1rem;flex-wrap:wrap;opacity:0;animation:fu .8s var(--ease-luxe) .9s forwards}
+.hero-stats{display:flex;gap:2.5rem;margin-top:3rem;padding-top:2rem;border-top:1px solid rgba(196,154,42,.08);opacity:0;animation:fu .8s var(--ease-luxe) 1.1s forwards}
+.stat-n{font-family:var(--font-display);font-size:1.75rem;font-weight:400;color:var(--gold)}
+.stat-l{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,240,232,.3);margin-top:.15rem}
+@keyframes fu{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* SECTIONS */
+section{padding:6rem 5rem}
+.sl{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.38em;text-transform:uppercase;color:var(--gold-muted);margin-bottom:.65rem}
+.st{font-family:var(--font-display);font-size:clamp(1.8rem,3vw,2.8rem);font-weight:400;margin-bottom:.8rem}
+.sd{font-family:var(--font-heading);font-size:1rem;font-weight:300;color:rgba(245,240,232,.45);max-width:540px;line-height:1.9}
+.divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(196,154,42,.1),transparent);position:relative}
+.divider::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:6px;height:6px;background:var(--gold-muted)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 2rem;font-family:var(--font-ui);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;border:none;cursor:pointer;transition:all .4s var(--ease-luxe);text-decoration:none}
+.btn-p{background:var(--gold);color:var(--navy);font-weight:600}
+.btn-p:hover{background:var(--gold-light);transform:translateY(-2px);box-shadow:0 6px 24px rgba(196,154,42,.28)}
+.btn-o{background:transparent;color:var(--gold);border:1px solid rgba(196,154,42,.35)}
+.btn-o:hover{border-color:var(--gold);background:rgba(196,154,42,.06)}
+
+/* ABOUT */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+.about-img{position:relative}
+.about-img img{width:100%;height:480px;object-fit:cover}
+.about-img::before{content:"";position:absolute;top:-1rem;left:-1rem;right:1rem;bottom:1rem;border:1px solid rgba(196,154,42,.1);z-index:-1}
+.about-badge{position:absolute;bottom:2rem;right:-2rem;background:var(--navy-surface);border:1px solid rgba(196,154,42,.12);padding:1.2rem 1.5rem;width:180px}
+.about-badge-n{font-family:var(--font-display);font-size:1.9rem;color:var(--gold)}
+.about-badge-l{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(245,240,232,.35);margin-top:.15rem}
+.pillars{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:2rem}
+.pillar{padding:1rem 1.2rem;border:1px solid rgba(196,154,42,.06);transition:border-color .3s var(--ease-luxe)}
+.pillar:hover{border-color:rgba(196,154,42,.18)}
+.pillar-t{font-family:var(--font-ui);font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:.25rem}
+.pillar-d{font-family:var(--font-body);font-size:.7rem;color:rgba(245,240,232,.38);line-height:1.65}
+
+/* SERVICES TABS */
+.s-tabs{display:flex;border:1px solid rgba(196,154,42,.08);margin-bottom:2.5rem;overflow:hidden}
+.s-tab{flex:1;padding:.75rem .8rem;font-family:var(--font-ui);font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;background:none;border:none;border-right:1px solid rgba(196,154,42,.06);color:rgba(245,240,232,.3);cursor:pointer;transition:all .3s;text-align:center}
+.s-tab:last-child{border-right:none}
+.s-tab.on{color:var(--gold);background:rgba(196,154,42,.05)}
+.s-panel{display:none}
+.s-panel.on{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start}
+.s-panel-img img{width:100%;height:350px;object-fit:cover}
+.s-content h3{font-family:var(--font-display);font-size:1.75rem;font-weight:400;margin-bottom:.65rem}
+.s-content p{font-family:var(--font-heading);font-size:.98rem;font-weight:300;color:rgba(245,240,232,.45);line-height:1.9;margin-bottom:1.4rem}
+.s-list{display:flex;flex-direction:column;gap:.55rem;margin-bottom:1.6rem}
+.s-item{display:flex;align-items:flex-start;gap:.7rem;font-family:var(--font-body);font-size:.72rem;font-weight:300;color:rgba(245,240,232,.45);line-height:1.6}
+.s-item::before{content:"—";color:var(--gold);flex-shrink:0}
+
+/* GALLERY */
+.gallery{display:flex;gap:4px;height:280px;overflow:hidden;margin-top:3.5rem}
+.gp{flex:1;position:relative;overflow:hidden;transition:flex .7s var(--ease-luxe);cursor:pointer;min-width:40px}
+.gp:hover{flex:3.5}
+.gp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease-luxe)}
+.gp:hover img{transform:scale(1.07)}
+.gp-ov{position:absolute;inset:0;background:linear-gradient(180deg,transparent 25%,rgba(5,14,26,.8) 100%)}
+.gp-info{position:absolute;bottom:.9rem;left:.9rem;opacity:0;transform:translateY(5px);transition:all .5s var(--ease-luxe) .1s}
+.gp:hover .gp-info{opacity:1;transform:translateY(0)}
+.gp-t{font-family:var(--font-display);font-size:.9rem;margin-bottom:.12rem}
+.gp-s{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+
+/* COMING SOON */
+.coming-soon{background:var(--navy-surface);border-top:1px solid rgba(196,154,42,.08);border-bottom:1px solid rgba(196,154,42,.08)}
+.coming-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem;margin-top:2.5rem}
+.coming-card{border:1px solid rgba(245,240,232,.08);padding:1.5rem 1.6rem;background:rgba(5,14,26,.6)}
+.coming-name{font-family:var(--font-display);font-size:1.1rem;margin-bottom:.35rem;color:var(--cream)}
+.coming-tag{font-family:var(--font-ui);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,240,232,.5);margin-bottom:.4rem}
+.coming-desc{font-family:var(--font-body);font-size:.7rem;color:rgba(245,240,232,.45);line-height:1.7}
+.coming-faded{opacity:.5;border-style:dashed}
+
+/* DETAIL SECTIONS */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+
+/* CONTACT */
+.c-grid{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:start}
+.fg{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem}
+.fl{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-muted)}
+.fi{background:rgba(255,255,255,.025);border:1px solid rgba(196,154,42,.1);padding:.82rem 1rem;font-family:var(--font-body);font-size:.78rem;color:var(--cream);outline:none;transition:all .3s;width:100%}
+.fi::placeholder{color:rgba(245,240,232,.28)}
+.fi:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(196,154,42,.06)}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+textarea.fi{resize:vertical;min-height:110px}
+select.fi{cursor:pointer}
+.c-ways{display:flex;flex-direction:column;gap:.9rem;margin-top:1.8rem}
+.cway{display:flex;align-items:center;gap:1rem;padding:.9rem 1.2rem;border:1px solid rgba(196,154,42,.06);transition:border-color .3s;text-decoration:none;color:inherit}
+.cway:hover{border-color:rgba(196,154,42,.18)}
+.cway-icon{width:34px;height:34px;border:1px solid rgba(196,154,42,.12);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;color:var(--gold)}
+.cway-l{font-family:var(--font-ui);font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-muted);margin-bottom:.12rem}
+.cway-v{font-family:var(--font-body);font-size:.75rem;color:rgba(245,240,232,.55)}
+
+/* FOOTER */
+.footer{padding:3.5rem 5rem 1.5rem;border-top:1px solid rgba(196,154,42,.06)}
+.footer-top{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:3rem;margin-bottom:2.5rem}
+.fb-name{font-family:var(--font-display);font-size:1.25rem;color:var(--gold);margin-bottom:.25rem}
+.fb-sub{font-family:var(--font-ui);font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,240,232,.28);margin-bottom:.9rem}
+.fb-desc{font-family:var(--font-body);font-size:.7rem;font-weight:300;color:rgba(245,240,232,.32);line-height:1.75}
+.fc h5{font-family:var(--font-ui);font-size:.57rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-muted);margin-bottom:.9rem}
+.fc a{display:block;font-family:var(--font-body);font-size:.7rem;font-weight:300;color:rgba(245,240,232,.32);text-decoration:none;margin-bottom:.45rem;transition:color .3s}
+.fc a:hover{color:var(--gold)}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.4rem;border-top:1px solid rgba(196,154,42,.04);flex-wrap:wrap;gap:1rem}
+.fcopy{font-family:var(--font-ui);font-size:.57rem;letter-spacing:.05em;color:rgba(245,240,232,.22)}
+.socials{display:flex;gap:.5rem}
+.sb{width:28px;height:28px;border:1px solid rgba(196,154,42,.1);display:flex;align-items:center;justify-content:center;color:rgba(245,240,232,.3);text-decoration:none;font-family:var(--font-ui);font-size:.56rem;transition:all .3s}
+.sb:hover{border-color:var(--gold);color:var(--gold)}
+
+/* SCROLL REVEAL */
+.rv{opacity:0;transform:translateY(22px);transition:all .72s var(--ease-luxe)}
+.rv.vis{opacity:1;transform:translateY(0)}
+.rv-d1{transition-delay:.1s}.rv-d2{transition-delay:.2s}.rv-d3{transition-delay:.3s}
+
+@media(max-width:960px){
+  .hero{grid-template-columns:1fr}.hero-right{display:none}
+  .hero-left{padding:7rem 2rem 4rem}
+  section{padding:4rem 1.5rem}
+  .about-grid,.detail-grid,.c-grid{grid-template-columns:1fr;gap:2.5rem}
+  .s-panel.on{grid-template-columns:1fr}
+  .coming-grid{grid-template-columns:1fr}
+  .footer-top{grid-template-columns:1fr 1fr;gap:2rem}
+  .footer{padding:2.5rem 1.5rem 1rem}
+  .nav{padding:.9rem 1.5rem}
+  .nav-links a:not(.nav-cta){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <a href="#top" class="nav-logo">Zenitha<em>.Luxury</em></a>
+  <div class="nav-links">
+    <a href="#about">About</a>
+    <a href="#services">Services</a>
+    <a href="#yalla-london">Yalla London</a>
+    <a href="#zenitha-yachts">Zenitha Yachts</a>
+    <a href="#coming-soon">Coming Soon</a>
+    <a href="#contact" class="nav-cta">Enquire</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="top" class="hero" style="padding:0">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Zenitha Luxury — Luxury Travel Technology</div>
+    <h1 class="hero-title">Where <em>Luxury</em><br>Meets Precision<br>Technology</h1>
+    <p class="hero-desc">A curated luxury travel technology brand — serving global high‑net‑worth travellers with bilingual digital experiences, London city discovery, and yacht charter journeys.</p>
+    <div class="hero-actions">
+      <a href="#services" class="btn btn-p">Explore Services</a>
+      <a href="#contact" class="btn btn-o">Private Enquiry</a>
+    </div>
+    <div class="hero-stats">
+      <div><div class="stat-n">EN/AR</div><div class="stat-l">Bilingual Focus</div></div>
+      <div><div class="stat-n">2</div><div class="stat-l">Live Platforms</div></div>
+      <div><div class="stat-n">Global</div><div class="stat-l">Travel Audience</div></div>
+      <div><div class="stat-n">2026</div><div class="stat-l">Growth Year</div></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <!-- TODO: Replace with branded hero image from the Zenitha branding kit. -->
+    <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/fb834b9da483806293d7a1f618db35291f483627.jpg" alt="Luxury London Rooftop">
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about-grid">
+    <div class="about-img rv">
+      <!-- TODO: Replace with a Mayfair / brand image from your own assets. -->
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/aa9cb5db3f16d50e3f8a53ad2bf6f1394760da3a.jpg" alt="Mayfair London">
+      <div class="about-badge">
+        <div class="about-badge-n">2026</div>
+        <div class="about-badge-l">Scaling Year</div>
+      </div>
+    </div>
+    <div>
+      <div class="rv">
+        <div class="sl">01 — About</div>
+        <div class="st">One Standard of Excellence</div>
+        <div class="sd">Zenitha Luxury builds and operates digital experiences for luxury travellers, with a specific focus on bilingual (EN/AR) audiences and high‑touch journeys across London and yachting destinations.</div>
+      </div>
+      <div class="pillars rv rv-d1">
+        <div class="pillar">
+          <div class="pillar-t">Technology First</div>
+          <div class="pillar-d">Modern web stack (e.g. Next.js, TypeScript, Supabase) for speed, reliability, and global scalability. Actual implementation should align with your existing codebase.</div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-t">Bilingual by Design</div>
+          <div class="pillar-d">English and Arabic baked into every experience — the exact language toggle and i18n system are not defined here and must be handled in your product architecture.</div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-t">Curated Experiences</div>
+          <div class="pillar-d">Every hotel, itinerary, and recommendation is intentionally selected, not bulk‑aggregated. Data sources and partners are not specified in this skeleton.</div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-t">Privacy &amp; Discretion</div>
+          <div class="pillar-d">Journeys are designed for users who value subtlety and confidentiality. Concrete privacy guarantees and policies should be taken from your legal docs.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SERVICES (PLATFORM OVERVIEW) -->
+<section id="services">
+  <div class="rv">
+    <div class="sl">02 — Platforms &amp; Services</div>
+    <div class="st">What Zenitha Operates</div>
+    <div class="sd">Two live platforms today — Yalla London and Zenitha Yachts — with additional concepts planned. This page describes structure and content only; actual integrations, pricing, and APIs are not defined here.</div>
+  </div>
+  <div class="s-tabs rv" style="margin-top:2.5rem">
+    <button class="s-tab on" data-panel="s1">Yalla London</button>
+    <button class="s-tab" data-panel="s2">Zenitha Yachts</button>
+  </div>
+
+  <!-- Yalla London Panel -->
+  <div class="s-panel on" id="s1">
+    <div class="s-panel-img rv">
+      <!-- TODO: Replace with real Yalla London hero asset. -->
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/b778b275059ec189dba2bc587e252bee221b1ae4.jpg" alt="London Luxury Travel">
+    </div>
+    <div class="s-content rv rv-d1">
+      <h3>Yalla London — Luxury City Discovery</h3>
+      <p>A bilingual (EN/AR) digital guide to London for luxury travellers. This platform focuses on neighbourhood discovery, hotels, restaurants, and shopping areas that align with high‑end tastes.</p>
+      <div class="s-list">
+        <div class="s-item">Home / landing with hero, sections for hotels, dining, shopping, and seasonal highlights.</div>
+        <div class="s-item">Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.</div>
+        <div class="s-item">Hotel collections by area or theme, using card grids and outbound links / affiliate logic defined in product.</div>
+        <div class="s-item">Dining &amp; experience pages for restaurants, afternoon tea, and private tours.</div>
+        <div class="s-item">Seasonal pages (e.g. summer in London, winter shopping, major events).</div>
+        <div class="s-item">Contact / concierge enquiry flows that connect to your own CRM or email systems.</div>
+      </div>
+      <a href="#yalla-london" class="btn btn-p">View Yalla London Structure</a>
+    </div>
+  </div>
+
+  <!-- Zenitha Yachts Panel -->
+  <div class="s-panel" id="s2">
+    <div class="s-panel-img rv">
+      <!-- TODO: Replace with real Zenitha Yachts hero asset. -->
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/5d9c12c772c71033cd14e3f91f761cb3c5e1f366.jpg" alt="Yacht Charter Sunset">
+    </div>
+    <div class="s-content rv rv-d1">
+      <h3>Zenitha Yachts — Charter Journeys</h3>
+      <p>A digital front door for yacht charter discovery — focused on itinerary inspiration and enquiry capture across the Mediterranean, Arabian Gulf and Caribbean.</p>
+      <div class="s-list">
+        <div class="s-item">Landing page with regions overview and primary charter enquiry CTA.</div>
+        <div class="s-item">Region pages (Mediterranean, Arabian Gulf, Caribbean) with curated content and imagery.</div>
+        <div class="s-item">Itinerary inspiration pages (sample 7‑day / 10‑day routes).</div>
+        <div class="s-item">Yacht category pages (motor yachts, sailing yachts, superyachts) using card‑based layouts.</div>
+        <div class="s-item">Dedicated enquiry forms / modals prepared for later integration with CRM or booking tools.</div>
+      </div>
+      <a href="#zenitha-yachts" class="btn btn-p">View Yacht Pages</a>
+    </div>
+  </div>
+
+  <!-- Gallery Strip -->
+  <div class="gallery rv" style="margin-top:3.5rem">
+    <!-- TODO: Replace all gallery images with licensed Zenitha assets. -->
+    <div class="gp">
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/f7195dd9804623498cc78aa83e1a1182ef47d822.jpg" alt="Tower Bridge London">
+      <div class="gp-ov"></div>
+      <div class="gp-info"><div class="gp-t">Tower Bridge</div><div class="gp-s">London</div></div>
+    </div>
+    <div class="gp">
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/88edd628af55fa654a6e67430dd602515f75f569.jpg" alt="Mediterranean Yacht">
+      <div class="gp-ov"></div>
+      <div class="gp-info"><div class="gp-t">Mediterranean</div><div class="gp-s">Yacht Region</div></div>
+    </div>
+    <div class="gp">
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/2d8a9d9efe4afa410a14d036b1727ef52ea7911.jpg" alt="Private Members Club">
+      <div class="gp-ov"></div>
+      <div class="gp-info"><div class="gp-t">Private Members</div><div class="gp-s">London</div></div>
+    </div>
+    <div class="gp">
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/cd36b89552ba691d0bbb5ca940e1cfe6cdb3fbb9.jpg" alt="Luxury Yacht Charter">
+      <div class="gp-ov"></div>
+      <div class="gp-info"><div class="gp-t">Superyacht</div><div class="gp-s">At Sea</div></div>
+    </div>
+    <div class="gp">
+      <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/684c21687414dc9e1f96c987bc5b16c20f3889b4.jpg" alt="White Glove Service">
+      <div class="gp-ov"></div>
+      <div class="gp-info"><div class="gp-t">White Glove</div><div class="gp-s">Hospitality</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- COMING SOON (FUTURE SITES) -->
+<section id="coming-soon" class="coming-soon">
+  <div class="rv">
+    <div class="sl">03 — Future</div>
+    <div class="st">Coming Soon</div>
+    <div class="sd">A monochrome snapshot of ideas in the Zenitha pipeline. Names and descriptions below are placeholders and must be updated once strategy and branding are final.</div>
+  </div>
+  <div class="coming-grid rv rv-d1">
+    <div class="coming-card">
+      <div class="coming-name">Worldtme</div>
+      <div class="coming-tag">Concept — Time &amp; Travel</div>
+      <!-- TODO: Define actual domain, product scope, and brand story for Worldtme. -->
+      <div class="coming-desc">Placeholder for a future Zenitha experience potentially related to global time, travel planning or similar. This is structural only.</div>
+    </div>
+    <div class="coming-card coming-faded">
+      <div class="coming-name">[Future Site #2]</div>
+      <!-- TODO: Replace with a real project name or remove this card when the roadmap is confirmed. -->
+      <div class="coming-desc">Generic placeholder card for another Zenitha website in concept stage.</div>
+    </div>
+    <div class="coming-card coming-faded">
+      <div class="coming-name">[Future Site #3]</div>
+      <!-- TODO: Replace with a real project name or remove this card when the roadmap is confirmed. -->
+      <div class="coming-desc">Generic placeholder card for another Zenitha website in concept stage.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- YALLA LONDON DETAIL -->
+<section id="yalla-london">
+  <div class="rv" style="margin-bottom:3rem">
+    <div class="sl">04 — Yalla London</div>
+    <div class="st">London, Curated</div>
+    <div class="sd">Section skeleton for the Yalla London site structure. The actual routing, components, and CMS bindings should follow this model inside your codebase.</div>
+  </div>
+  <div class="detail-grid rv rv-d1">
+    <!-- TODO: Replace with Yalla London brand image. -->
+    <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/aa9cb5db3f16d50e3f8a53ad2bf6f1394760da3a.jpg" alt="Yalla London Mayfair" style="width:100%;height:420px;object-fit:cover">
+    <div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.8rem;font-size:.75rem;color:rgba(245,240,232,.5);font-family:var(--font-body)">
+        <div>&bull; Home / Landing (hero, featured neighbourhoods, hotel &amp; dining highlights).</div>
+        <div>&bull; Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.</div>
+        <div>&bull; Hotel collection pages by area/theme with grid cards.</div>
+        <div>&bull; Dining &amp; experiences pages (restaurants, afternoon tea, private tours).</div>
+        <div>&bull; Seasonal / campaign pages (sales, events, cultural moments).</div>
+        <div>&bull; Contact / concierge enquiry page.</div>
+      </div>
+      <p style="font-family:var(--font-body);font-size:.75rem;color:rgba(245,240,232,.45);line-height:1.85">This is a content and page‑type sketch only. Use it to design Next.js routes, layout components, and CMS schemas (e.g. Neighbourhood, Collection, SeasonalGuide) in your actual application.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ZENITHA YACHTS DETAIL -->
+<section id="zenitha-yachts">
+  <div class="rv" style="margin-bottom:3rem">
+    <div class="sl">05 — Zenitha Yachts</div>
+    <div class="st">Journeys at Sea</div>
+    <div class="sd">Section skeleton for the Zenitha Yachts site. Actual yacht inventory, filters, booking flows, and CRMs are not defined here and must be implemented within your stack.</div>
+  </div>
+  <div class="detail-grid rv rv-d1">
+    <div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.8rem;font-size:.75rem;color:rgba(245,240,232,.5);font-family:var(--font-body)">
+        <div>&bull; Home / Landing (hero, regions overview, key selling points, primary CTA).</div>
+        <div>&bull; Region pages (Mediterranean, Arabian Gulf, Caribbean) with hero, summary, and sectioned content.</div>
+        <div>&bull; Itinerary pages (e.g. “7 days in the Greek Islands”) describing sample routes.</div>
+        <div>&bull; Yacht category pages (motor, sailing, superyachts) using card grids.</div>
+        <div>&bull; Charter enquiry page or modular form component that can be integrated with your backend.</div>
+      </div>
+      <p style="font-family:var(--font-body);font-size:.75rem;color:rgba(245,240,232,.45);line-height:1.85">Use this skeleton to define your page tree and core components. Data structures for yachts, regions, pricing, and availability should live in your own models and APIs.</p>
+    </div>
+    <!-- TODO: Replace with Zenitha Yachts brand image. -->
+    <img src="https://pplx-res.cloudinary.com/image/upload/pplx_search_images/cd36b89552ba691d0bbb5ca940e1cfe6cdb3fbb9.jpg" alt="Zenitha Yachts" style="width:100%;height:420px;object-fit:cover">
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CONTACT (GENERIC, NO PERSONAL DETAILS) -->
+<section id="contact">
+  <div class="c-grid">
+    <div class="rv">
+      <div class="sl">06 — Contact</div>
+      <div class="st" style="margin-bottom:.5rem">Get in Touch</div>
+      <p style="font-family:var(--font-heading);font-size:1rem;font-weight:300;color:rgba(245,240,232,.45);line-height:1.9">Generic enquiry skeleton. Replace placeholder contact details with your real support, partnership, and charter channels and wire them to your backend.</p>
+      <div class="c-ways">
+        <!-- TODO: Replace placeholder email and URLs with production details. -->
+        <a class="cway" href="mailto:info@example.com">
+          <div class="cway-icon">&#9993;</div>
+          <div><div class="cway-l">Email</div><div class="cway-v">info@example.com</div></div>
+        </a>
+        <a class="cway" href="#">
+          <div class="cway-icon">&#9674;</div>
+          <div><div class="cway-l">Yalla London</div><div class="cway-v">yalla-london.com (update to production URL)</div></div>
+        </a>
+        <a class="cway" href="#">
+          <div class="cway-icon">&#9835;</div>
+          <div><div class="cway-l">Zenitha Yachts</div><div class="cway-v">zenithayachts.co (update to production URL)</div></div>
+        </a>
+      </div>
+    </div>
+    <div class="rv rv-d1">
+      <form onsubmit="return false">
+        <div class="fg-row">
+          <div class="fg"><label class="fl">First Name</label><input class="fi" placeholder="First name" type="text"></div>
+          <div class="fg"><label class="fl">Last Name</label><input class="fi" placeholder="Last name" type="text"></div>
+        </div>
+        <div class="fg"><label class="fl">Email Address</label><input class="fi" placeholder="you@example.com" type="email"></div>
+        <div class="fg-row">
+          <div class="fg"><label class="fl">Organisation</label><input class="fi" placeholder="Your company" type="text"></div>
+          <div class="fg">
+            <label class="fl">Enquiry Type</label>
+            <select class="fi">
+              <option value="">Select...</option>
+              <option>Hotel / Venue Partnership</option>
+              <option>Yacht Charter Enquiry</option>
+              <option>Affiliate Partnership</option>
+              <option>Travel Concierge</option>
+              <option>Press / Media</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Message</label><textarea class="fi" placeholder="Tell us how we can help..."></textarea></div>
+        <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">Send Enquiry</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER (GENERIC) -->
+<footer class="footer">
+  <div class="footer-top">
+    <div>
+      <div class="fb-name">Zenitha Luxury</div>
+      <div class="fb-sub">Luxury Travel Technology</div>
+      <div class="fb-desc">High‑level visual and structural skeleton for Zenitha platforms. Actual branding details, legal entities, and disclaimers must come from your own documentation and brand kit.</div>
+    </div>
+    <div class="fc">
+      <h5>Platforms</h5>
+      <!-- TODO: Update hrefs once production URLs are finalised. -->
+      <a href="#">Yalla London</a>
+      <a href="#">Zenitha Yachts</a>
+      <a href="#">Worldtme (coming soon)</a>
+    </div>
+    <div class="fc">
+      <h5>Company</h5>
+      <a href="#about">About</a>
+      <a href="#services">Services</a>
+      <a href="#coming-soon">Coming Soon</a>
+      <a href="#contact">Contact</a>
+    </div>
+    <div class="fc">
+      <h5>Legal</h5>
+      <!-- TODO: Link to actual policy pages in your app. -->
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Use</a>
+      <a href="#">Cookie Policy</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="fcopy">&copy; 2026 Zenitha Luxury — Placeholder legal line. Replace with your actual entity and jurisdiction.</div>
+    <div style="font-family:var(--font-ui);font-size:.55rem;letter-spacing:.09em;text-transform:uppercase;color:rgba(245,240,232,.18)">Coordinates, office locations, or other metadata can be surfaced here.</div>
+    <div class="socials">
+      <!-- TODO: Replace with real social profiles or remove if not used. -->
+      <a class="sb" href="#">IG</a>
+      <a class="sb" href="#">LI</a>
+      <a class="sb" href="#">X</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const nav = document.getElementById("nav");
+window.addEventListener("scroll", () => {
+  nav.classList.toggle("scrolled", window.scrollY > 50);
+}, {passive: true});
+
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add("vis"); obs.unobserve(e.target); }
+  });
+}, {threshold: 0.07});
+document.querySelectorAll(".rv").forEach(el => obs.observe(el));
+
+document.querySelectorAll(".s-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".s-tab").forEach(b => b.classList.remove("on"));
+    document.querySelectorAll(".s-panel").forEach(p => p.classList.remove("on"));
+    btn.classList.add("on");
+    const panel = document.getElementById(btn.dataset.panel);
+    if (panel) panel.classList.add("on");
+  });
+});
+</script>
+</body>
+</html>

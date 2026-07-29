@@ -502,7 +502,7 @@ export class CloudflareClient {
       (r) => (r.type === "A" || r.type === "CNAME") && !r.name.startsWith("www.")
     );
     if (!wwwRecord) {
-      issues.push("No www CNAME record found — www.yalla-london.com may not resolve");
+      issues.push("No www CNAME record found — www subdomain may not resolve");
     }
     if (rootRecord && !rootRecord.proxied) {
       recommendations.push("Root domain DNS record is not proxied through Cloudflare — enable proxy for CDN benefits");

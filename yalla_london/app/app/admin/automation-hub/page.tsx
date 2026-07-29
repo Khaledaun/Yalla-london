@@ -1,18 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminKPICard,
+  AdminSectionLabel,
+  AdminTabs,
+} from "@/components/admin/admin-ui";
 import {
   Bot,
   Calendar,
@@ -22,19 +21,13 @@ import {
   Settings,
   Activity,
   CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  RotateCcw,
-  Zap,
-  Upload,
-  Download,
-  Database,
-  Globe,
-  Search,
-  FileText,
-  Users,
   Plus,
   Edit,
+  FileText,
+  Search,
+  Upload,
+  Database,
+  Globe,
   Trash2,
 } from "lucide-react";
 
@@ -106,23 +99,7 @@ export default function AutomationHubPage() {
     setIsLoading(false);
   };
 
-  const jobTypeColors = {
-    "content-generation": "bg-blue-100 text-blue-800",
-    "seo-audit": "bg-green-100 text-green-800",
-    publishing: "bg-purple-100 text-purple-800",
-    backup: "bg-orange-100 text-orange-800",
-    sync: "bg-cyan-100 text-cyan-800",
-    cleanup: "bg-gray-100 text-gray-800",
-  };
-
-  const statusColors = {
-    idle: "bg-gray-100 text-gray-800",
-    running: "bg-blue-100 text-blue-800",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-  };
-
-  const jobTypeIcons = {
+  const jobTypeIcons: Record<string, React.ComponentType<{ size?: number | string; className?: string }>> = {
     "content-generation": FileText,
     "seo-audit": Search,
     publishing: Upload,
@@ -227,10 +204,9 @@ export default function AutomationHubPage() {
   };
 
   const formatSchedule = (schedule: string) => {
-    // Convert cron to human readable
     const parts = schedule.split(" ");
     if (parts.length === 5) {
-      const [minute, hour, day, month, weekday] = parts;
+      const [minute, hour, , , weekday] = parts;
       if (minute === "0" && hour !== "*") {
         return `Daily at ${hour}:00`;
       }
@@ -241,671 +217,372 @@ export default function AutomationHubPage() {
     return schedule;
   };
 
+  const successRate = Math.round(
+    (jobs.reduce((acc, j) => acc + j.successCount, 0) /
+      (jobs.reduce((acc, j) => acc + j.successCount + j.failureCount, 0) || 1)) *
+      100,
+  );
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Automation Hub</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage automated jobs and publishing schedules
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsCreatingSchedule(true)}>
-            <Calendar className="h-4 w-4 mr-2" />
-            New Schedule
-          </Button>
-          <Button
-            onClick={() => setIsCreatingJob(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Job
-          </Button>
-        </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Automation Hub"
+        subtitle="Automated jobs and publishing schedules"
+        action={
+          <div className="flex gap-2">
+            <AdminButton variant="secondary" onClick={() => setIsCreatingSchedule(true)}>
+              <Calendar size={13} /> Schedule
+            </AdminButton>
+            <AdminButton variant="primary" onClick={() => setIsCreatingJob(true)}>
+              <Plus size={14} /> New Job
+            </AdminButton>
+          </div>
+        }
+      />
+
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard
+          value={jobs.filter((j) => j.isActive).length}
+          label="Active Jobs"
+          color="#3B7EA1"
+        />
+        <AdminKPICard
+          value={jobs.filter((j) => j.status === "running").length}
+          label="Running Now"
+          color="#7C3AED"
+        />
+        <AdminKPICard
+          value={`${successRate}%`}
+          label="Success Rate"
+          color={successRate >= 80 ? "#2D5A3D" : successRate >= 50 ? "#C49A2A" : "#C8322B"}
+        />
+        <AdminKPICard
+          value={schedules.reduce((acc, s) => acc + s.articlesQueue, 0)}
+          label="Queued Content"
+        />
       </div>
-      <div className="space-y-6">
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Active Jobs
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {jobs.filter((j) => j.isActive).length}
-                  </p>
-                </div>
-                <Bot className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Running Now
-                  </p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {jobs.filter((j) => j.status === "running").length}
-                  </p>
-                </div>
-                <Play className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Tabs */}
+      <div className="mb-4">
+        <AdminTabs
+          tabs={[
+            { id: "jobs", label: "Background Jobs", count: jobs.length },
+            { id: "schedules", label: "Schedules", count: schedules.length },
+          ]}
+          activeTab={activeTab}
+          onTabChange={(id) => setActiveTab(id as "jobs" | "schedules")}
+        />
+      </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Success Rate
-                  </p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {Math.round(
-                      (jobs.reduce((acc, j) => acc + j.successCount, 0) /
-                        (jobs.reduce(
-                          (acc, j) => acc + j.successCount + j.failureCount,
-                          0,
-                        ) || 1)) *
-                        100,
-                    )}
-                    %
-                  </p>
-                </div>
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Jobs Tab */}
+      {activeTab === "jobs" && (
+        <AdminCard elevated>
+          <div className="flex items-center justify-between mb-4">
+            <AdminSectionLabel>Background Jobs</AdminSectionLabel>
+            <select
+              value={selectedJobType}
+              onChange={(e) => setSelectedJobType(e.target.value)}
+              className="admin-select"
+            >
+              <option value="all">All Types</option>
+              <option value="content-generation">Content Generation</option>
+              <option value="seo-audit">SEO Audit</option>
+              <option value="publishing">Publishing</option>
+              <option value="backup">Backup</option>
+              <option value="sync">Sync</option>
+              <option value="cleanup">Cleanup</option>
+            </select>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Scheduled Content
-                  </p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {schedules.reduce((acc, s) => acc + s.articlesQueue, 0)}
-                  </p>
-                </div>
-                <Calendar className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {isLoading ? (
+            <AdminLoadingState label="Loading jobs…" />
+          ) : filteredJobs.length === 0 ? (
+            <AdminEmptyState
+              icon={Bot}
+              title="No automation jobs"
+              description="Create your first automation job to get started"
+              action={
+                <AdminButton variant="primary" onClick={() => setIsCreatingJob(true)}>
+                  <Plus size={14} /> Create Job
+                </AdminButton>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {filteredJobs.map((job) => {
+                const IconComponent = jobTypeIcons[job.type] || Bot;
+                return (
+                  <div key={job.id} className="admin-card-inset">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <IconComponent size={15} className="text-stone-500 flex-shrink-0" />
+                          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, color: "#1C1917" }}>
+                            {job.name}
+                          </span>
+                          <AdminStatusBadge status={job.status === "idle" ? "inactive" : job.status === "completed" ? "success" : job.status} />
+                          <AdminStatusBadge status={job.isActive ? "active" : "inactive"} />
+                        </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
-          <Button
-            variant={activeTab === "jobs" ? "default" : "ghost"}
-            onClick={() => setActiveTab("jobs")}
-            className="px-4 py-2"
-          >
-            <Activity className="h-4 w-4 mr-2" />
-            Background Jobs
-          </Button>
-          <Button
-            variant={activeTab === "schedules" ? "default" : "ghost"}
-            onClick={() => setActiveTab("schedules")}
-            className="px-4 py-2"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Publishing Schedules
-          </Button>
-        </div>
+                        <p style={{ fontSize: 12, color: "#78716C", marginBottom: 8 }}>{job.description}</p>
 
-        {/* Jobs Tab */}
-        {activeTab === "jobs" && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="h-5 w-5" />
-                  Background Jobs
-                </CardTitle>
-                <Select
-                  value={selectedJobType}
-                  onValueChange={setSelectedJobType}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="content-generation">
-                      Content Generation
-                    </SelectItem>
-                    <SelectItem value="seo-audit">SEO Audit</SelectItem>
-                    <SelectItem value="publishing">Publishing</SelectItem>
-                    <SelectItem value="backup">Backup</SelectItem>
-                    <SelectItem value="sync">Sync</SelectItem>
-                    <SelectItem value="cleanup">Cleanup</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="border rounded-lg p-4 animate-pulse"
-                    >
-                      <div className="h-5 bg-gray-200 rounded w-1/3 mb-3"></div>
-                      <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredJobs.length === 0 ? (
-                <div className="text-center py-12">
-                  <Bot className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No automation jobs yet
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Create your first automation job to get started
-                  </p>
-                  <Button
-                    onClick={() => setIsCreatingJob(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Job
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredJobs.map((job) => {
-                    const IconComponent = jobTypeIcons[job.type];
-                    return (
-                      <div key={job.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <IconComponent className="h-5 w-5 text-gray-600" />
-                              <h3 className="font-semibold text-gray-900">
-                                {job.name}
-                              </h3>
-                              <Badge className={jobTypeColors[job.type]}>
-                                {job.type.replace("-", " ")}
-                              </Badge>
-                              <Badge className={statusColors[job.status]}>
-                                {job.status}
-                              </Badge>
-                              {job.isActive ? (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="text-xs text-green-600">
-                                    Active
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                  <span className="text-xs text-gray-500">
-                                    Inactive
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <p className="text-sm text-gray-600 mb-3">
-                              {job.description}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ fontFamily: "var(--font-system)", fontSize: 10 }}>
+                          <div>
+                            <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Schedule</span>
+                            <p style={{ color: "#1C1917", marginTop: 2 }}>{formatSchedule(job.schedule)}</p>
+                          </div>
+                          <div>
+                            <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Success / Fail</span>
+                            <p style={{ color: "#1C1917", marginTop: 2 }}>
+                              <span className="score-high">{job.successCount}</span> / <span className="score-low">{job.failureCount}</span>
                             </p>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                              <div>
-                                <span className="font-medium text-gray-600">
-                                  Schedule:
-                                </span>
-                                <p className="text-gray-800">
-                                  {formatSchedule(job.schedule)}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-600">
-                                  Success/Failures:
-                                </span>
-                                <p className="text-gray-800">
-                                  {job.successCount}/{job.failureCount}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-600">
-                                  Last Run:
-                                </span>
-                                <p className="text-gray-800">
-                                  {job.lastRun
-                                    ? new Date(job.lastRun).toLocaleString()
-                                    : "Never"}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-600">
-                                  Duration:
-                                </span>
-                                <p className="text-gray-800">
-                                  {formatDuration(job.duration)}
-                                </p>
-                              </div>
-                            </div>
-
-                            {job.nextRun && (
-                              <div className="mt-2 text-xs">
-                                <span className="font-medium text-gray-600">
-                                  Next Run:
-                                </span>
-                                <span className="ml-1 text-gray-800">
-                                  {new Date(job.nextRun).toLocaleString()}
-                                </span>
-                              </div>
-                            )}
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRunJob(job.id)}
-                              disabled={
-                                job.status === "running" || !job.isActive
-                              }
-                            >
-                              {job.status === "running" ? (
-                                <Clock className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Play className="h-4 w-4" />
-                              )}
-                            </Button>
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleToggleJob(job.id)}
-                            >
-                              {job.isActive ? (
-                                <Pause className="h-4 w-4" />
-                              ) : (
-                                <Play className="h-4 w-4" />
-                              )}
-                            </Button>
-
-                            <Button variant="outline" size="sm">
-                              <Settings className="h-4 w-4" />
-                            </Button>
+                          <div>
+                            <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Last Run</span>
+                            <p style={{ color: "#1C1917", marginTop: 2 }}>{job.lastRun ? new Date(job.lastRun).toLocaleString() : "Never"}</p>
+                          </div>
+                          <div>
+                            <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Duration</span>
+                            <p style={{ color: "#1C1917", marginTop: 2 }}>{formatDuration(job.duration)}</p>
                           </div>
                         </div>
+
+                        {job.nextRun && (
+                          <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#78716C", marginTop: 6 }}>
+                            Next: {new Date(job.nextRun).toLocaleString()}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Schedules Tab */}
-        {activeTab === "schedules" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Publishing Schedules
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="border rounded-lg p-4 animate-pulse"
-                    >
-                      <div className="h-5 bg-gray-200 rounded w-1/3 mb-3"></div>
-                      <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : schedules.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No publishing schedules yet
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Create a schedule to automate content publishing
-                  </p>
-                  <Button
-                    onClick={() => setIsCreatingSchedule(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Create Schedule
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {schedules.map((schedule) => (
-                    <div key={schedule.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Calendar className="h-5 w-5 text-gray-600" />
-                            <h3 className="font-semibold text-gray-900">
-                              {schedule.name}
-                            </h3>
-                            <Badge variant="outline">
-                              {schedule.contentType}
-                            </Badge>
-                            <Badge
-                              className={
-                                schedule.frequency === "daily"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : schedule.frequency === "weekly"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-purple-100 text-purple-800"
-                              }
-                            >
-                              {schedule.frequency}
-                            </Badge>
-                            {schedule.isActive ? (
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-xs text-green-600">
-                                  Active
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                <span className="text-xs text-gray-500">
-                                  Inactive
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                            <div>
-                              <span className="font-medium text-gray-600">
-                                Frequency:
-                              </span>
-                              <p className="text-gray-800 capitalize">
-                                {schedule.frequency} at {schedule.time}
-                                {schedule.days &&
-                                  schedule.days.length > 0 &&
-                                  ` (${schedule.days.join(", ")})`}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-600">
-                                Articles in Queue:
-                              </span>
-                              <p className="text-gray-800">
-                                {schedule.articlesQueue}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-600">
-                                Next Publish:
-                              </span>
-                              <p className="text-gray-800">
-                                {schedule.nextPublish
-                                  ? new Date(
-                                      schedule.nextPublish,
-                                    ).toLocaleString()
-                                  : "Not scheduled"}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-600">
-                                Last Published:
-                              </span>
-                              <p className="text-gray-800">
-                                {schedule.lastPublished
-                                  ? new Date(
-                                      schedule.lastPublished,
-                                    ).toLocaleDateString()
-                                  : "Never"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleToggleSchedule(schedule.id)}
-                          >
-                            {schedule.isActive ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </Button>
-
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button variant="outline" size="sm">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                        <AdminButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleRunJob(job.id)}
+                          disabled={job.status === "running" || !job.isActive}
+                          loading={job.status === "running"}
+                        >
+                          <Play size={12} />
+                        </AdminButton>
+                        <AdminButton variant="ghost" size="sm" onClick={() => handleToggleJob(job.id)}>
+                          {job.isActive ? <Pause size={12} /> : <Play size={12} />}
+                        </AdminButton>
+                        <AdminButton variant="ghost" size="sm" onClick={() => { window.location.href = '/admin/health-monitoring'; }}>
+                          <Settings size={12} />
+                        </AdminButton>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* System Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.isActive).length > 0 ? "bg-green-500" : "bg-gray-400"}`}
-                ></div>
-                <div>
-                  <p className="font-medium text-sm">Job Scheduler</p>
-                  <p className="text-xs text-gray-500">
-                    {jobs.filter((j) => j.isActive).length} active job
-                    {jobs.filter((j) => j.isActive).length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.status === "running").length > 0 ? "bg-blue-500 animate-pulse" : "bg-green-500"}`}
-                ></div>
-                <div>
-                  <p className="font-medium text-sm">Content Generation</p>
-                  <p className="text-xs text-gray-500">
-                    {jobs.filter(
-                      (j) =>
-                        j.type === "content-generation" &&
-                        j.status === "completed",
-                    ).length > 0
-                      ? `${jobs.filter((j) => j.type === "content-generation").reduce((a, j) => a + j.successCount, 0)} runs completed`
-                      : "No runs yet"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.status === "failed").length > 0 ? "bg-yellow-500" : "bg-green-500"}`}
-                ></div>
-                <div>
-                  <p className="font-medium text-sm">System Health</p>
-                  <p className="text-xs text-gray-500">
-                    {jobs.filter((j) => j.status === "failed").length > 0
-                      ? `${jobs.filter((j) => j.status === "failed").length} job(s) failed`
-                      : "All systems operational"}
-                  </p>
-                </div>
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </AdminCard>
+      )}
+
+      {/* Schedules Tab */}
+      {activeTab === "schedules" && (
+        <AdminCard elevated>
+          <AdminSectionLabel>Publishing Schedules</AdminSectionLabel>
+
+          {isLoading ? (
+            <AdminLoadingState label="Loading schedules…" />
+          ) : schedules.length === 0 ? (
+            <AdminEmptyState
+              icon={Calendar}
+              title="No publishing schedules"
+              description="Create a schedule to automate content publishing"
+              action={
+                <AdminButton variant="primary" onClick={() => setIsCreatingSchedule(true)}>
+                  <Calendar size={14} /> Create Schedule
+                </AdminButton>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {schedules.map((schedule) => (
+                <div key={schedule.id} className="admin-card-inset">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <Calendar size={15} className="text-stone-500 flex-shrink-0" />
+                        <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, color: "#1C1917" }}>
+                          {schedule.name}
+                        </span>
+                        <span className="admin-filter-pill" style={{ fontSize: 9, padding: "2px 8px" }}>{schedule.contentType}</span>
+                        <AdminStatusBadge status={schedule.isActive ? "active" : "inactive"} />
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ fontFamily: "var(--font-system)", fontSize: 10 }}>
+                        <div>
+                          <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Frequency</span>
+                          <p style={{ color: "#1C1917", marginTop: 2, textTransform: "capitalize" }}>
+                            {schedule.frequency} at {schedule.time}
+                            {schedule.days && schedule.days.length > 0 && ` (${schedule.days.join(", ")})`}
+                          </p>
+                        </div>
+                        <div>
+                          <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Queue</span>
+                          <p style={{ color: "#1C1917", marginTop: 2 }}>{schedule.articlesQueue} articles</p>
+                        </div>
+                        <div>
+                          <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Next Publish</span>
+                          <p style={{ color: "#1C1917", marginTop: 2 }}>
+                            {schedule.nextPublish ? new Date(schedule.nextPublish).toLocaleString() : "Not scheduled"}
+                          </p>
+                        </div>
+                        <div>
+                          <span style={{ color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.5px" }}>Last Published</span>
+                          <p style={{ color: "#1C1917", marginTop: 2 }}>
+                            {schedule.lastPublished ? new Date(schedule.lastPublished).toLocaleDateString() : "Never"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                      <AdminButton variant="ghost" size="sm" onClick={() => handleToggleSchedule(schedule.id)}>
+                        {schedule.isActive ? <Pause size={12} /> : <Play size={12} />}
+                      </AdminButton>
+                      <AdminButton variant="ghost" size="sm" onClick={() => { window.location.href = '/admin/workflow'; }}>
+                        <Edit size={12} />
+                      </AdminButton>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </AdminCard>
+      )}
+
+      {/* System Status */}
+      <AdminCard className="mt-4">
+        <AdminSectionLabel>System Status</AdminSectionLabel>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${jobs.filter((j) => j.isActive).length > 0 ? "bg-[#2D5A3D]" : "bg-stone-400"}`} />
+            <div>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, color: "#1C1917" }}>Job Scheduler</p>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#78716C" }}>
+                {jobs.filter((j) => j.isActive).length} active job{jobs.filter((j) => j.isActive).length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${jobs.filter((j) => j.status === "running").length > 0 ? "bg-[#3B7EA1] animate-pulse" : "bg-[#2D5A3D]"}`} />
+            <div>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, color: "#1C1917" }}>Content Generation</p>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#78716C" }}>
+                {jobs.filter((j) => j.type === "content-generation" && j.status === "completed").length > 0
+                  ? `${jobs.filter((j) => j.type === "content-generation").reduce((a, j) => a + j.successCount, 0)} runs completed`
+                  : "No runs yet"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${jobs.filter((j) => j.status === "failed").length > 0 ? "bg-[#C49A2A]" : "bg-[#2D5A3D]"}`} />
+            <div>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, color: "#1C1917" }}>System Health</p>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#78716C" }}>
+                {jobs.filter((j) => j.status === "failed").length > 0
+                  ? `${jobs.filter((j) => j.status === "failed").length} job(s) failed`
+                  : "All systems operational"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </AdminCard>
 
       {/* Create Job Modal */}
       {isCreatingJob && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <AdminCard elevated className="w-full max-w-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Plus size={16} className="text-stone-500" />
+              <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: "#1C1917" }}>
                 Create New Automation Job
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </span>
+            </div>
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Job Name
-                </label>
-                <Input placeholder="Enter job name..." />
+                <AdminSectionLabel>Job Name</AdminSectionLabel>
+                <input className="admin-input" placeholder="Enter job name..." />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Job Type
-                </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select job type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="content-generation">
-                      Content Generation
-                    </SelectItem>
-                    <SelectItem value="seo-audit">SEO Audit</SelectItem>
-                    <SelectItem value="publishing">Publishing</SelectItem>
-                    <SelectItem value="backup">Backup</SelectItem>
-                    <SelectItem value="sync">Sync</SelectItem>
-                    <SelectItem value="cleanup">Cleanup</SelectItem>
-                  </SelectContent>
-                </Select>
+                <AdminSectionLabel>Job Type</AdminSectionLabel>
+                <select className="admin-select w-full">
+                  <option value="">Select job type</option>
+                  <option value="content-generation">Content Generation</option>
+                  <option value="seo-audit">SEO Audit</option>
+                  <option value="publishing">Publishing</option>
+                  <option value="backup">Backup</option>
+                  <option value="sync">Sync</option>
+                  <option value="cleanup">Cleanup</option>
+                </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Schedule (Cron)
-                </label>
-                <Input placeholder="0 9 * * * (9 AM daily)" />
+                <AdminSectionLabel>Schedule (Cron)</AdminSectionLabel>
+                <input className="admin-input" placeholder="0 9 * * * (9 AM daily)" />
               </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreatingJob(false)}
-                >
-                  Cancel
-                </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+              <div className="flex justify-end gap-2 pt-2">
+                <AdminButton variant="secondary" onClick={() => setIsCreatingJob(false)}>Cancel</AdminButton>
+                <AdminButton variant="primary" onClick={() => { setIsCreatingJob(false); window.location.href = '/admin/workflow'; }}>
                   Create Job
-                </Button>
+                </AdminButton>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminCard>
         </div>
       )}
 
       {/* Create Schedule Modal */}
       {isCreatingSchedule && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <AdminCard elevated className="w-full max-w-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar size={16} className="text-stone-500" />
+              <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: "#1C1917" }}>
                 Create Publishing Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </span>
+            </div>
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Schedule Name
-                </label>
-                <Input placeholder="Enter schedule name..." />
+                <AdminSectionLabel>Schedule Name</AdminSectionLabel>
+                <input className="admin-input" placeholder="Enter schedule name..." />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Content Type
-                </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select content type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="travel-guide">Travel Guide</SelectItem>
-                    <SelectItem value="restaurant-review">
-                      Restaurant Review
-                    </SelectItem>
-                    <SelectItem value="event-coverage">
-                      Event Coverage
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <AdminSectionLabel>Content Type</AdminSectionLabel>
+                <select className="admin-select w-full">
+                  <option value="">Select content type</option>
+                  <option value="travel-guide">Travel Guide</option>
+                  <option value="restaurant-review">Restaurant Review</option>
+                  <option value="event-coverage">Event Coverage</option>
+                </select>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Frequency
-                  </label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <AdminSectionLabel>Frequency</AdminSectionLabel>
+                  <select className="admin-select w-full">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium mb-2">Time</label>
-                  <Input type="time" />
+                  <AdminSectionLabel>Time</AdminSectionLabel>
+                  <input type="time" className="admin-input" />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreatingSchedule(false)}
-                >
-                  Cancel
-                </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+              <div className="flex justify-end gap-2 pt-2">
+                <AdminButton variant="secondary" onClick={() => setIsCreatingSchedule(false)}>Cancel</AdminButton>
+                <AdminButton variant="primary" onClick={() => { setIsCreatingSchedule(false); window.location.href = '/admin/workflow'; }}>
                   Create Schedule
-                </Button>
+                </AdminButton>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AdminCard>
         </div>
       )}
     </div>

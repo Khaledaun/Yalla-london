@@ -91,21 +91,39 @@ export class ContentGenerationService {
    * Save generated content as a blog post
    */
   static async saveAsBlogPost(content: GeneratedContent, options: ContentGenerationOptions): Promise<any> {
+    // Look up real category and author IDs
+    const category = options.category
+      ? await prisma.category.findUnique({ where: { id: options.category } })
+      : null;
+    const defaultCategory = category || await prisma.category.findFirst();
+    if (!defaultCategory) throw new Error("No category exists in database. Seed categories first.");
+
+    let authorId = options.authorId;
+    if (!authorId) {
+      const systemUser = await prisma.user.findFirst({
+        where: { role: "admin", isActive: true },
+        select: { id: true },
+      });
+      if (!systemUser) throw new Error("No admin user exists in database. Seed users first.");
+      authorId = systemUser.id;
+    }
+
+    const isEn = options.language === 'en';
     const blogPost = await prisma.blogPost.create({
       data: {
-        title_en: options.language === 'en' ? content.title : '',
-        title_ar: options.language === 'ar' ? content.title : '',
+        title_en: isEn ? content.title : `[Pending English] ${content.title}`,
+        title_ar: !isEn ? content.title : `[Pending Arabic] ${content.title}`,
         slug: content.slug,
-        excerpt_en: options.language === 'en' ? content.excerpt : '',
-        excerpt_ar: options.language === 'ar' ? content.excerpt : '',
-        content_en: options.language === 'en' ? content.content : '',
-        content_ar: options.language === 'ar' ? content.content : '',
-        meta_title_en: options.language === 'en' ? content.metaTitle : '',
-        meta_description_en: options.language === 'en' ? content.metaDescription : '',
+        excerpt_en: isEn ? content.excerpt : '',
+        excerpt_ar: !isEn ? content.excerpt : '',
+        content_en: isEn ? content.content : '[Pending English translation]',
+        content_ar: !isEn ? content.content : '[Pending Arabic translation]',
+        meta_title_en: isEn ? content.metaTitle : '',
+        meta_description_en: isEn ? content.metaDescription : '',
         tags: content.tags,
-        published: false, // Save as draft by default
-        category_id: options.category || 'default-category',
-        author_id: options.authorId || 'system-user'
+        published: false,
+        category_id: defaultCategory.id,
+        author_id: authorId,
       }
     })
 

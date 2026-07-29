@@ -2,6 +2,8 @@
  * Phase 4C CRM Subscription API
  * Double opt-in subscription management with GDPR compliance
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
         });
 
         // TODO: Send confirmation email
-        console.log(`Resending confirmation email to ${email} with token ${doubleOptinToken}`);
+        console.log(`Sending confirmation email to ${email}`);
 
         return NextResponse.json({
           success: true,
@@ -137,7 +139,7 @@ export async function POST(request: NextRequest) {
     });
 
     // TODO: Send double opt-in confirmation email
-    console.log(`Sending confirmation email to ${email} with token ${doubleOptinToken}`);
+    console.log(`Sending confirmation email to ${email}`);
 
     return NextResponse.json({
       success: true,

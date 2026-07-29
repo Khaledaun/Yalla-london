@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 console.log('🚀 Preparing build for deployment...');
+console.log(`📅 Build timestamp: ${new Date().toISOString()}`);
 
 // Detect CI environment and prevent infinite loops
 const isCI = process.env.CI === 'true' || 
@@ -53,10 +54,25 @@ fs.writeFileSync(executionMarker, new Date().toISOString());
 try {
     console.log('📦 Generating Prisma client...');
     
+    // Ensure required environment variables have placeholder values for Prisma generate
+    // These are only needed for schema validation during generation, not for actual DB connection
+    const buildEnv = { ...process.env };
+    
+    if (!buildEnv.DATABASE_URL) {
+        buildEnv.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+        console.log('ℹ️  Using placeholder DATABASE_URL for Prisma client generation');
+    }
+    
+    if (!buildEnv.DIRECT_URL) {
+        buildEnv.DIRECT_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+        console.log('ℹ️  Using placeholder DIRECT_URL for Prisma client generation');
+    }
+    
     // Try to generate Prisma client
     execSync('npx prisma generate --schema prisma/schema.prisma', {
         stdio: 'inherit',
-        cwd: path.join(__dirname, '..')
+        cwd: path.join(__dirname, '..'),
+        env: buildEnv
     });
     
     console.log('✅ Prisma client generated successfully');

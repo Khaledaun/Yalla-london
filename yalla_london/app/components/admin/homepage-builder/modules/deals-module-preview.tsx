@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -163,10 +164,13 @@ function DealCard({ deal, showPrices, layout }: DealCardProps) {
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <div className="flex">
           <div className="w-48 h-32 relative">
-            <img
+            <Image
               src={deal.image}
               alt={deal.title}
+              width={192}
+              height={128}
               className="w-full h-full object-cover"
+              unoptimized
             />
             {deal.badge && (
               <Badge className="absolute top-2 left-2 bg-red-500">
@@ -225,10 +229,15 @@ function DealCard({ deal, showPrices, layout }: DealCardProps) {
   return (
     <Card className={`overflow-hidden hover:shadow-lg transition-shadow ${layout === 'carousel' ? 'min-w-[300px]' : ''}`}>
       <div className="relative">
-        <img
+        <Image
           src={deal.image}
           alt={deal.title}
+          width={0}
+          height={0}
+          sizes="100vw"
           className="w-full h-48 object-cover"
+          style={{ width: '100%', height: '12rem' }}
+          unoptimized
         />
         {deal.badge && (
           <Badge className="absolute top-3 left-3 bg-red-500">

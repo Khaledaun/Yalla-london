@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -164,7 +165,7 @@ export function FAQBuilder({
             </div>
             <div className="p-4">
               <div className="prose prose-sm">
-                <div dangerouslySetInnerHTML={{ __html: faq.answer.replace(/\n/g, '<br>') }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer.replace(/\n/g, '<br>')) }} />
               </div>
             </div>
           </div>

@@ -60,8 +60,9 @@ test.describe('JSON-LD Structured Data Tests', () => {
     expect(websiteSchema['@type']).toBe('WebSite');
     expect(websiteSchema.name).toBe('Yalla London');
     expect(websiteSchema.url).toContain('yalla-london');
-    expect(websiteSchema.potentialAction).toBeTruthy();
-    expect(websiteSchema.potentialAction['@type']).toBe('SearchAction');
+    // SearchAction is only present on sites with working search endpoints (e.g., Zenitha Yachts)
+    // Yalla London doesn't have /blog?q= so potentialAction is omitted
+    // expect(websiteSchema.potentialAction).toBeTruthy();
   });
 
   test('blog post page has valid article JSON-LD', async ({ page }) => {

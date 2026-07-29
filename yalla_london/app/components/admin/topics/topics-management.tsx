@@ -5,7 +5,8 @@
  * Provides topic research management with inline editing, status management, and generation
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/admin/admin-ui'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -76,6 +77,7 @@ const pageTypeConfig = {
 }
 
 export default function TopicsManagement() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const [topics, setTopics] = useState<TopicProposal[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -97,13 +99,7 @@ export default function TopicsManagement() {
   // Check feature availability
   const isFeatureEnabled = isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')
 
-  useEffect(() => {
-    if (isFeatureEnabled) {
-      fetchTopics()
-    }
-  }, [filters, pagination.page, isFeatureEnabled])
-
-  const fetchTopics = async () => {
+  const fetchTopics = useCallback(async () => {
     if (!isFeatureEnabled) return
 
     setLoading(true)
@@ -129,7 +125,13 @@ export default function TopicsManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isFeatureEnabled, pagination.page, pagination.limit, filters])
+
+  useEffect(() => {
+    if (isFeatureEnabled) {
+      fetchTopics()
+    }
+  }, [fetchTopics, isFeatureEnabled])
 
   const generateTopics = async (formData: any) => {
     if (!isFeatureEnabled) return
@@ -186,7 +188,8 @@ export default function TopicsManagement() {
   const deleteTopic = async (topicId: string) => {
     if (!isFeatureEnabled) return
 
-    if (!confirm('Are you sure you want to delete this topic?')) return
+    const ok = await confirm({ title: 'Delete Topic', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`/api/admin/topics/${topicId}`, {
@@ -463,6 +466,7 @@ export default function TopicsManagement() {
           onUpdate={fetchTopics}
         />
       )}
+      <ConfirmDialog />
     </div>
   )
 }

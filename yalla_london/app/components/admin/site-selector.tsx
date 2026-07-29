@@ -50,7 +50,7 @@ export function SiteSelector({ compact = false }: SiteSelectorProps) {
         {/* Site Color Indicator */}
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm"
-          style={{ backgroundColor: currentSite.primary_color || '#1A1F36' }}
+          style={{ backgroundColor: currentSite.primary_color || '#1C1917' }}
         >
           {currentSite.name.charAt(0)}
         </div>
@@ -107,7 +107,7 @@ export function SiteSelector({ compact = false }: SiteSelectorProps) {
                 {/* Site Color */}
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0"
-                  style={{ backgroundColor: site.primary_color || '#1A1F36' }}
+                  style={{ backgroundColor: site.primary_color || '#1C1917' }}
                 >
                   {site.name.charAt(0)}
                 </div>

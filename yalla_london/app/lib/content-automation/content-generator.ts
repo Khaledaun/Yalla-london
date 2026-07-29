@@ -1,6 +1,8 @@
 
 // Advanced Content Generation & Automation System
 
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
+
 export interface ContentGenerationRequest {
   type: 'blog_post' | 'event' | 'recommendation' | 'social_post';
   language: 'en' | 'ar';
@@ -224,7 +226,11 @@ Format as JSON:
   }
 
   // Schema generation methods
-  private generateArticleSchema(content: any): any {
+  private generateArticleSchema(content: any, siteId?: string): any {
+    const resolvedSiteId = siteId || getDefaultSiteId();
+    const siteConfig = getSiteConfig(resolvedSiteId);
+    const siteDomain = getSiteDomain(resolvedSiteId);
+
     return {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -232,11 +238,11 @@ Format as JSON:
       "description": content.metaDescription,
       "author": {
         "@type": "Organization",
-        "name": "Yalla London"
+        "name": siteConfig?.name || "Zenitha Content Network"
       },
       "publisher": {
         "@type": "Organization",
-        "name": "Yalla London",
+        "name": siteConfig?.name || "Zenitha Content Network",
         "logo": {
           "@type": "ImageObject",
           "url": "https://i.pinimg.com/736x/fc/41/c5/fc41c56045c5b08eb352453e0b891d97.jpg"
@@ -246,12 +252,16 @@ Format as JSON:
       "dateModified": new Date().toISOString(),
       "mainEntityOfPage": {
         "@type": "WebPage",
-        "@id": `https://yalla-london.com/blog/${this.generateSlug(content.title)}`
+        "@id": `${siteDomain}/blog/${this.generateSlug(content.title)}`
       }
     };
   }
 
-  private generateEventSchema(event: any): any {
+  private generateEventSchema(event: any, siteId?: string): any {
+    const resolvedSiteId = siteId || getDefaultSiteId();
+    const siteConfig = getSiteConfig(resolvedSiteId);
+    const siteDomain = getSiteDomain(resolvedSiteId);
+
     return {
       "@context": "https://schema.org",
       "@type": "Event",
@@ -260,17 +270,17 @@ Format as JSON:
       "startDate": event.date,
       "location": {
         "@type": "Place",
-        "name": event.venue || "London, UK",
+        "name": event.venue || siteConfig?.destination || "London, UK",
         "address": {
           "@type": "PostalAddress",
-          "addressLocality": "London",
-          "addressCountry": "GB"
+          "addressLocality": siteConfig?.destination || "London",
+          "addressCountry": siteConfig?.country || "GB"
         }
       },
       "organizer": {
         "@type": "Organization",
-        "name": "Yalla London",
-        "url": "https://yalla-london.com"
+        "name": siteConfig?.name || "Zenitha Content Network",
+        "url": siteDomain
       },
       "offers": event.price ? {
         "@type": "Offer",
@@ -379,7 +389,34 @@ export class ContentScheduler {
   // Publish scheduled content
   async publishScheduledContent(): Promise<void> {
     const readyContent = await this.getReadyContent();
-    
+
+    // Find or create a default category for auto-generated content
+    let defaultCategory = await this.db.category.findFirst({
+      where: { slug: "general" }
+    });
+    if (!defaultCategory) {
+      defaultCategory = await this.db.category.create({
+        data: {
+          name_en: "General",
+          name_ar: "عام",
+          slug: "general",
+          description_en: "General content",
+          description_ar: "محتوى عام",
+        }
+      });
+    }
+
+    // Find or create a system user for auto-generated content
+    const systemUser = await this.db.user.findFirst() ||
+      await this.db.user.create({
+        data: {
+          email: `system@${getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '')}`,
+          name: "System",
+        }
+      });
+
+    const siteId = getDefaultSiteId();
+
     for (const content of readyContent) {
       try {
         // Create blog post
@@ -394,7 +431,9 @@ export class ContentScheduler {
             meta_description_en: content.metaDescription,
             published: true,
             tags: content.tags,
-            author_id: 'system-generated' // Replace with actual author ID
+            category_id: defaultCategory.id,
+            author_id: systemUser.id,
+            siteId: siteId,
           }
         });
 

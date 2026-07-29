@@ -1,0 +1,433 @@
+{
+  "timestamp": "2026-03-14T12:39:09.837Z",
+  "summary": {
+    "total": 60,
+    "pass": 56,
+    "fail": 4,
+    "warn": 0,
+    "skip": 0,
+    "score": 93
+  },
+  "results": [
+    {
+      "category": "1. Template Engine",
+      "name": "Templates file exports array",
+      "status": "PASS",
+      "details": "14 templates found (10+ expected)",
+      "durationMs": 0
+    },
+    {
+      "category": "1. Template Engine",
+      "name": "Category coverage",
+      "status": "PASS",
+      "details": "10/10 categories represented: registration, email, social, seo, development, design, content, intelligence, ai-monitoring, strategy",
+      "durationMs": 0
+    },
+    {
+      "category": "1. Template Engine",
+      "name": "Template field completeness",
+      "status": "PASS",
+      "details": "id=true title=true prompt=true category=true",
+      "durationMs": 1
+    },
+    {
+      "category": "2. Task Lifecycle",
+      "name": "createTask field validation",
+      "status": "PASS",
+      "details": "title, prompt, category validated",
+      "durationMs": 0
+    },
+    {
+      "category": "2. Task Lifecycle",
+      "name": "Status transitions",
+      "status": "PASS",
+      "details": "completed=true failed=true",
+      "durationMs": 0
+    },
+    {
+      "category": "2. Task Lifecycle",
+      "name": "Retry count increment",
+      "status": "PASS",
+      "details": "retryCount incremented on retry",
+      "durationMs": 0
+    },
+    {
+      "category": "2. Task Lifecycle",
+      "name": "Cancel transition",
+      "status": "PASS",
+      "details": "cancelled status set on cancel",
+      "durationMs": 0
+    },
+    {
+      "category": "3. Schedule Lifecycle",
+      "name": "Scheduler cron exists",
+      "status": "PASS",
+      "details": "perplexity-scheduler route found",
+      "durationMs": 0
+    },
+    {
+      "category": "3. Schedule Lifecycle",
+      "name": "Scheduler in vercel.json",
+      "status": "PASS",
+      "details": "perplexity-scheduler scheduled in vercel.json",
+      "durationMs": 0
+    },
+    {
+      "category": "3. Schedule Lifecycle",
+      "name": "Scheduler budget guard",
+      "status": "PASS",
+      "details": "Budget guard found",
+      "durationMs": 0
+    },
+    {
+      "category": "4. Executor",
+      "name": "Model selection",
+      "status": "PASS",
+      "details": "sonar-pro=true sonar=true",
+      "durationMs": 0
+    },
+    {
+      "category": "4. Executor",
+      "name": "Rate limiting",
+      "status": "PASS",
+      "details": "2s rate limit between tasks",
+      "durationMs": 0
+    },
+    {
+      "category": "4. Executor",
+      "name": "API call wired",
+      "status": "PASS",
+      "details": "queryPerplexity called in executeTask",
+      "durationMs": 0
+    },
+    {
+      "category": "4. Executor",
+      "name": "Cost tracking",
+      "status": "PASS",
+      "details": "Usage logging wired",
+      "durationMs": 1
+    },
+    {
+      "category": "4. Executor",
+      "name": "Budget guard",
+      "status": "PASS",
+      "details": "Budget guard prevents timeout",
+      "durationMs": 0
+    },
+    {
+      "category": "4. Executor",
+      "name": "Category prompts",
+      "status": "PASS",
+      "details": "Category-specific prompts defined",
+      "durationMs": 0
+    },
+    {
+      "category": "5. Dashboard & Context",
+      "name": "Context interface completeness",
+      "status": "PASS",
+      "details": "8/8 fields: cycleHealthGrade, cycleHealthIssueCount, contentVelocity, seoHealth, revenueSnapshot, cronHealth, aiCosts, activeAlerts",
+      "durationMs": 0
+    },
+    {
+      "category": "5. Dashboard & Context",
+      "name": "Platform Health in prompt",
+      "status": "PASS",
+      "details": "Platform Health section in formatted context",
+      "durationMs": 1
+    },
+    {
+      "category": "5. Dashboard & Context",
+      "name": "Health alerts",
+      "status": "PASS",
+      "details": "gradeAlert=true overdueAlert=true",
+      "durationMs": 0
+    },
+    {
+      "category": "5. Dashboard & Context",
+      "name": "Perplexity status",
+      "status": "PASS",
+      "details": "Perplexity status in CEO context",
+      "durationMs": 0
+    },
+    {
+      "category": "6. AI Quality",
+      "name": "ADHD-optimized communication",
+      "status": "PASS",
+      "details": "ADHD=true verdict=true nextSteps=true",
+      "durationMs": 0
+    },
+    {
+      "category": "6. AI Quality",
+      "name": "Urgency calibration",
+      "status": "PASS",
+      "details": "CRITICAL=true WARNING=true INFO=true",
+      "durationMs": 0
+    },
+    {
+      "category": "6. AI Quality",
+      "name": "KPI targets defined",
+      "status": "PASS",
+      "details": "KPI targets with 30/90 day goals",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "ai-assistant route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cockpit route valid",
+      "status": "FAIL",
+      "details": "exists=true auth=true hasHandlers=false",
+      "durationMs": 1
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cycle-health route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "aggregated-report route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "content-matrix route valid",
+      "status": "FAIL",
+      "details": "exists=true auth=true hasHandlers=false",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "departures route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 1
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "ai-config route valid",
+      "status": "FAIL",
+      "details": "exists=true auth=false hasHandlers=false",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "ai-costs route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "affiliate-hq route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "perplexity-tasks route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "per-page-audit route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "action-logs route valid",
+      "status": "PASS",
+      "details": "exists=true auth=true hasHandlers=true",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cron/content-builder",
+      "status": "PASS",
+      "details": "app/api/cron/content-builder/route.ts exists",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cron/content-selector",
+      "status": "PASS",
+      "details": "app/api/cron/content-selector/route.ts exists",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cron/seo-agent",
+      "status": "PASS",
+      "details": "app/api/cron/seo-agent/route.ts exists",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cron/perplexity-executor",
+      "status": "PASS",
+      "details": "app/api/cron/perplexity-executor/route.ts exists",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "cron/diagnostic-sweep",
+      "status": "PASS",
+      "details": "app/api/cron/diagnostic-sweep/route.ts exists",
+      "durationMs": 0
+    },
+    {
+      "category": "7. API Address Testing",
+      "name": "Departures covers quick actions",
+      "status": "FAIL",
+      "details": "4/5 crons whitelisted in departures",
+      "durationMs": 0
+    },
+    {
+      "category": "8. Timeout & Budget",
+      "name": "Cron budget coverage",
+      "status": "PASS",
+      "details": "31/36 crons have budget guards. Missing: analytics, diagnostic-sweep, seo-audit-runner, site-health-check, sweeper",
+      "durationMs": 0
+    },
+    {
+      "category": "8. Timeout & Budget",
+      "name": "AI assistant timeout",
+      "status": "PASS",
+      "details": "AI call has timeout guard",
+      "durationMs": 0
+    },
+    {
+      "category": "8. Timeout & Budget",
+      "name": "Per-task budget check",
+      "status": "PASS",
+      "details": "Budget checked before each task execution",
+      "durationMs": 0
+    },
+    {
+      "category": "8. Timeout & Budget",
+      "name": "Vercel maxDuration config",
+      "status": "PASS",
+      "details": "admin=true cron=true",
+      "durationMs": 0
+    },
+    {
+      "category": "8. Timeout & Budget",
+      "name": "Circuit breaker",
+      "status": "PASS",
+      "details": "Circuit breaker prevents timeout cascades",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "Prompt section coverage",
+      "status": "PASS",
+      "details": "9/9 sections: Identity, Mission, Business Model, Live Data Awareness, KPI Targets, Communication Rules, Available Actions, Diagnostic Capabilities, Multi-Site",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "Endpoint coverage in prompt",
+      "status": "PASS",
+      "details": "7/7 endpoints listed",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "Rule references",
+      "status": "PASS",
+      "details": "16 rule references in system prompt (10+ expected)",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "KPI data source coverage",
+      "status": "PASS",
+      "details": "7/7: cronHealth, pipelineStatus, contentVelocity, seoHealth, revenueSnapshot, aiCosts, activeAlerts",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "Response parsing",
+      "status": "PASS",
+      "details": "patches=true claudePrompts=true",
+      "durationMs": 0
+    },
+    {
+      "category": "9. Coherence Generation",
+      "name": "Safety guardrails",
+      "status": "PASS",
+      "details": "safetyRules=true secretRedaction=true",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Fix Now wiring",
+      "status": "PASS",
+      "details": "cycleHealthCall=true fetchPresent=true",
+      "durationMs": 1
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Fix action handler",
+      "status": "PASS",
+      "details": "POST=true fixAction=true",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Quick action endpoints",
+      "status": "PASS",
+      "details": "3/3 quick action endpoints wired",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Action feedback",
+      "status": "PASS",
+      "details": "feedback=true successCheck=true",
+      "durationMs": 1
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Post-fix refresh",
+      "status": "PASS",
+      "details": "Dashboard refreshes after fix",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "3-tab layout",
+      "status": "PASS",
+      "details": "operations=true chat=true health=true",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Real KPI data",
+      "status": "PASS",
+      "details": "cockpitAPI=true kpiCards=true",
+      "durationMs": 0
+    },
+    {
+      "category": "10. CEO Fix Execution",
+      "name": "Severity-colored alerts",
+      "status": "PASS",
+      "details": "severity=true colorCoded=true",
+      "durationMs": 1
+    }
+  ]
+}

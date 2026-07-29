@@ -124,7 +124,7 @@ const DEFAULT_HOMEPAGE_VARIANTS: ABTestVariant[] = [
           accent: '#E74C3C'
         },
         fonts: {
-          heading: 'Playfair Display',
+          heading: 'Anybody',
           body: 'Source Sans Pro'
         },
         spacing: {
@@ -448,7 +448,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    const testId = `ab_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const testId = `ab_test_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     
     const newTest: ABTest = {
       test_id: testId,

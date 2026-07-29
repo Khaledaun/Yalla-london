@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
+import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,10 +220,15 @@ export function SimplifiedHomepageBuilder({
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="relative group">
-                  <img
+                  <NextImage
                     src={heroConfig.image}
                     alt="Hero preview"
+                    width={0}
+                    height={0}
+                    sizes="100vw"
                     className="w-full h-32 object-cover rounded-lg border"
+                    style={{ width: '100%', height: '8rem' }}
+                    unoptimized
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center">
                     <Button 
@@ -389,10 +395,15 @@ export function SimplifiedHomepageBuilder({
             <CardContent className="p-0">
               {/* Hero Preview */}
               <div className="relative h-64 overflow-hidden">
-                <img
+                <NextImage
                   src={heroConfig.image}
                   alt="Hero"
+                  width={0}
+                  height={0}
+                  sizes="100vw"
                   className="w-full h-full object-cover"
+                  style={{ width: '100%', height: '100%' }}
+                  unoptimized
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                   <div className="text-center text-white p-6">
@@ -413,10 +424,13 @@ export function SimplifiedHomepageBuilder({
                     <div key={article.id} className="flex items-center space-x-3 p-3 border rounded-lg">
                       <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
                         {article.image && (
-                          <img 
-                            src={article.image} 
+                          <NextImage
+                            src={article.image}
                             alt={article.title}
+                            width={64}
+                            height={48}
                             className="w-full h-full object-cover"
+                            unoptimized
                           />
                         )}
                       </div>

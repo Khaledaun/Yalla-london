@@ -1,0 +1,695 @@
+export const dynamic = "force-dynamic";
+
+import { NextRequest, NextResponse } from "next/server";
+import { withAdminAuth } from "@/lib/admin-middleware";
+import { sendEmail } from "@/lib/email/sender";
+import { renderWelcomeEmail } from "@/lib/email/welcome-template";
+import { getDefaultSiteId, getActiveSiteIds, getSiteDomain, getSiteConfig } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface ProviderStatus {
+  active: boolean;
+  activeProvider: "resend" | "sendgrid" | "smtp" | null;
+  domainVerified: boolean;
+  sendingFrom: string;
+  providers: {
+    resend: { configured: boolean; envKey: string };
+    sendgrid: { configured: boolean; envKey: string };
+    smtp: { configured: boolean; envVars: string[] };
+  };
+  setupInstructions: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function buildProviderStatus(): ProviderStatus {
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY);
+  const sendgridConfigured = Boolean(process.env.SENDGRID_API_KEY);
+  const smtpConfigured = Boolean(
+    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
+  );
+
+  let activeProvider: "resend" | "sendgrid" | "smtp" | null = null;
+  if (resendConfigured) activeProvider = "resend";
+  else if (sendgridConfigured) activeProvider = "sendgrid";
+  else if (smtpConfigured) activeProvider = "smtp";
+
+  const active = activeProvider !== null;
+
+  const resendDomainVerified = Boolean(process.env.RESEND_DOMAIN_VERIFIED);
+
+  // Build dynamic domain for instructions — never hardcode a specific site
+  const defaultSiteId = getDefaultSiteId();
+  const siteConfig = getSiteConfig(defaultSiteId);
+  const siteDomain = siteConfig?.domain || "zenitha.luxury";
+  const siteName = siteConfig?.name || "Zenitha";
+
+  let setupInstructions =
+    "Email is configured and ready to send. No action needed.";
+  if (!active) {
+    setupInstructions =
+      "No email provider is configured. " +
+      "Add one of the following to your Vercel environment variables: " +
+      "RESEND_API_KEY (recommended — get it at resend.com), " +
+      "SENDGRID_API_KEY (sendgrid.com), " +
+      "or all three of SMTP_HOST + SMTP_USER + SMTP_PASS for a custom SMTP server. " +
+      "Redeploy after adding the variable.";
+  } else if (resendConfigured && !resendDomainVerified) {
+    setupInstructions =
+      "Resend API key is set — test emails work using onboarding@resend.dev. " +
+      `To send from your own domain: (1) Go to resend.com → Domains → Add Domain → enter ${siteDomain}, ` +
+      "(2) Add the DNS records Resend gives you in Cloudflare, " +
+      `(3) Once verified, add EMAIL_FROM=${siteName} <info@${siteDomain}> and RESEND_DOMAIN_VERIFIED=true in Vercel env vars, ` +
+      "(4) Redeploy.";
+  }
+
+  return {
+    active,
+    activeProvider,
+    domainVerified: resendConfigured ? resendDomainVerified : true,
+    sendingFrom: resendConfigured && !resendDomainVerified
+      ? "onboarding@resend.dev (Resend sandbox — test only)"
+      : process.env.EMAIL_FROM || `info@${siteDomain}`,
+    providers: {
+      resend: { configured: resendConfigured, envKey: "RESEND_API_KEY" },
+      sendgrid: { configured: sendgridConfigured, envKey: "SENDGRID_API_KEY" },
+      smtp: {
+        configured: smtpConfigured,
+        envVars: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"],
+      },
+    },
+    setupInstructions,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GET — Email center dashboard data
+// ---------------------------------------------------------------------------
+
+export const GET = withAdminAuth(async (request: NextRequest) => {
+  const { prisma } = await import("@/lib/db");
+
+  const providerStatus = buildProviderStatus();
+  const activeSiteIds = getActiveSiteIds();
+
+  // -------------------------------------------------------------------------
+  // Campaigns — P2021 = table does not exist; return [] gracefully
+  // -------------------------------------------------------------------------
+  let campaigns: Array<{
+    id: string;
+    name: string;
+    status: string;
+    sentAt: string | null;
+    recipientCount: number;
+    openRate: number | null;
+    clickRate: number | null;
+    createdAt: string;
+  }> = [];
+
+  try {
+    const rows = await prisma.emailCampaign.findMany({
+      where: { site: { in: activeSiteIds } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        sentAt: true,
+        recipientCount: true,
+        sentCount: true,
+        openCount: true,
+        clickCount: true,
+        createdAt: true,
+      },
+    });
+    campaigns = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      status: r.status,
+      sentAt: r.sentAt ? r.sentAt.toISOString() : null,
+      recipientCount: r.recipientCount,
+      openRate: r.sentCount > 0 ? Math.round((r.openCount / r.sentCount) * 10000) / 100 : null,
+      clickRate: r.sentCount > 0 ? Math.round((r.clickCount / r.sentCount) * 10000) / 100 : null,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : null;
+    if (code !== "P2021") {
+      console.warn("[email-center] Failed to query EmailCampaign:", err instanceof Error ? err.message : err);
+    }
+    // else: table doesn't exist yet — return empty array silently
+  }
+
+  // -------------------------------------------------------------------------
+  // Templates
+  // -------------------------------------------------------------------------
+  let templates: Array<{
+    id: string;
+    name: string;
+    subject: string;
+    type: string;
+    updatedAt: string;
+  }> = [];
+
+  try {
+    const rows = await prisma.emailTemplate.findMany({
+      where: { site: { in: activeSiteIds } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        subject: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    templates = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      subject: r.subject ?? "",
+      type: r.type ?? "campaign",
+      updatedAt: (r.updatedAt ?? r.createdAt).toISOString(),
+    }));
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : null;
+    if (code !== "P2021") {
+      console.warn("[email-center] Failed to query EmailTemplate:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Subscribers — count total + per site
+  // -------------------------------------------------------------------------
+  let subscriberTotal = 0;
+  const subscribersBySite: Record<string, number> = {};
+
+  try {
+    const grouped = await prisma.subscriber.groupBy({
+      by: ["site_id"],
+      where: { site_id: { in: activeSiteIds } },
+      _count: { id: true },
+    });
+    for (const row of grouped) {
+      const siteKey = row.site_id ?? "unknown";
+      subscribersBySite[siteKey] = row._count.id;
+      subscriberTotal += row._count.id;
+    }
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code: string }).code
+        : null;
+    if (code !== "P2021") {
+      console.warn("[email-center] Failed to query Subscriber:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Recent Activity — derive from latest campaigns
+  // -------------------------------------------------------------------------
+  const recentActivity = campaigns
+    .filter(
+      (c) =>
+        c.status === "sent" ||
+        c.status === "failed" ||
+        c.status === "scheduled",
+    )
+    .slice(0, 10)
+    .map((c) => ({
+      type: c.status as "sent" | "failed" | "scheduled",
+      campaignName: c.name,
+      timestamp: c.sentAt ?? c.createdAt,
+      recipients: c.recipientCount,
+    }));
+
+  // Flatten providerStatus into the shape the Email Center page expects:
+  // { resend: boolean, sendgrid: boolean, smtp: boolean, active: boolean, activeProvider: string | null }
+  const flatProviderStatus = {
+    active: providerStatus.active,
+    activeProvider: providerStatus.activeProvider,
+    domainVerified: providerStatus.domainVerified,
+    sendingFrom: providerStatus.sendingFrom,
+    resend: providerStatus.providers.resend.configured,
+    sendgrid: providerStatus.providers.sendgrid.configured,
+    smtp: providerStatus.providers.smtp.configured,
+  };
+
+  // -------------------------------------------------------------------------
+  // Compute stats for cockpit email center page
+  // -------------------------------------------------------------------------
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(todayStart.getTime() - 7 * 86_400_000);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const sentCampaigns = campaigns.filter(c => c.status === "sent");
+  const emailsSentToday = sentCampaigns.filter(c => c.sentAt && new Date(c.sentAt) >= todayStart).reduce((sum, c) => sum + c.recipientCount, 0);
+  const emailsSentThisWeek = sentCampaigns.filter(c => c.sentAt && new Date(c.sentAt) >= weekStart).reduce((sum, c) => sum + c.recipientCount, 0);
+  const totalSent = sentCampaigns.reduce((sum, c) => sum + c.recipientCount, 0);
+  const totalOpened = sentCampaigns.reduce((sum, c) => sum + (c.openRate ? Math.round(c.recipientCount * (c.openRate / 100)) : 0), 0);
+  const totalClicked = sentCampaigns.reduce((sum, c) => sum + (c.clickRate ? Math.round(c.recipientCount * (c.clickRate / 100)) : 0), 0);
+
+  let subscribersThisMonth = 0;
+  try {
+    subscribersThisMonth = await prisma.subscriber.count({
+      where: { site_id: { in: activeSiteIds }, createdAt: { gte: monthStart } },
+    });
+  } catch {
+    // Table may not exist yet
+  }
+
+  // Env vars configured (for cockpit config panel)
+  const configuredEnvVars: string[] = [];
+  if (process.env.RESEND_API_KEY) configuredEnvVars.push("RESEND_API_KEY");
+  if (process.env.SENDGRID_API_KEY) configuredEnvVars.push("SENDGRID_API_KEY");
+  if (process.env.SMTP_HOST) configuredEnvVars.push("SMTP_HOST");
+  if (process.env.EMAIL_FROM) configuredEnvVars.push("EMAIL_FROM");
+  if (process.env.RESEND_DOMAIN_VERIFIED) configuredEnvVars.push("RESEND_DOMAIN_VERIFIED");
+
+  // Setup steps for the cockpit banner
+  const setupSteps = [
+    { label: "Email provider", done: providerStatus.active, hint: "Add RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_HOST to Vercel env vars" },
+    { label: "Domain verification", done: providerStatus.domainVerified, hint: "Verify your domain at resend.com/domains, then set RESEND_DOMAIN_VERIFIED=true" },
+    { label: "Sender address", done: Boolean(process.env.EMAIL_FROM), hint: "Set EMAIL_FROM to 'Brand Name <info@yourdomain.com>' in Vercel" },
+  ];
+
+  return NextResponse.json({
+    providerStatus: flatProviderStatus,
+    provider: {
+      ...flatProviderStatus,
+      // Cockpit email page expects these fields:
+      fromAddress: providerStatus.sendingFrom,
+      sandboxMode: Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED,
+      configuredEnvVars,
+    },
+    campaigns,
+    templates: templates.map(t => ({ ...t, updatedAt: t.updatedAt })),
+    subscriberCount: subscriberTotal,
+    subscribers: {
+      total: subscriberTotal,
+      bySite: subscribersBySite,
+    },
+    recentActivity,
+    // Cockpit email center fields:
+    stats: {
+      totalTemplates: templates.length,
+      totalCampaigns: campaigns.length,
+      totalSubscribers: subscriberTotal,
+      subscribersThisMonth,
+      emailsSentToday,
+      emailsSentThisWeek,
+      openRate: totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0,
+      clickRate: totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0,
+    },
+    recentCampaigns: campaigns.slice(0, 5).map(c => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      sentCount: c.recipientCount,
+      openCount: c.openRate ? Math.round(c.recipientCount * (c.openRate / 100)) : 0,
+      clickCount: c.clickRate ? Math.round(c.recipientCount * (c.clickRate / 100)) : 0,
+      scheduledAt: null as string | null,
+      sentAt: c.sentAt,
+    })),
+    setupComplete: setupSteps.every(s => s.done),
+    setupSteps,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST — Actions
+// ---------------------------------------------------------------------------
+
+export const POST = withAdminAuth(async (request: NextRequest) => {
+  const { prisma } = await import("@/lib/db");
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
+
+  const action = body.action as string | undefined;
+  if (!action) {
+    return NextResponse.json(
+      { success: false, error: "Missing required field: action" },
+      { status: 400 },
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Action: test_send
+  // -------------------------------------------------------------------------
+  if (action === "test_send") {
+    const to = body.to as string | undefined;
+    if (!to || typeof to !== "string" || !to.includes("@")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or missing 'to' email address" },
+        { status: 400 },
+      );
+    }
+
+    // In Resend sandbox mode, force onboarding@resend.dev as sender
+    const isSandboxTest = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+    const testFrom = isSandboxTest ? "Yalla London <onboarding@resend.dev>" : undefined;
+
+    const result = await sendEmail({
+      to,
+      subject: "Cockpit Test Email",
+      html: "<p>This is a test email from your Cockpit dashboard.</p>",
+      plainText: "This is a test email from your Cockpit dashboard.",
+      from: testFrom,
+    });
+
+    const providerStatus = buildProviderStatus();
+
+    logManualAction(request, {
+      action: "email-center-action",
+      resource: "email",
+      success: result.success,
+      summary: result.success
+        ? `Test email sent to ${to} via ${providerStatus.activeProvider}`
+        : `Test email to ${to} failed`,
+      details: { subAction: "test_send", to, provider: providerStatus.activeProvider },
+      ...(result.success ? {} : { error: result.error || "Unknown send error", fix: "Check email provider configuration in Vercel env vars (RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_*)." }),
+    }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+    return NextResponse.json({
+      success: result.success,
+      error: result.success ? undefined : result.error,
+      provider: providerStatus.activeProvider,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Action: create_template
+  // -------------------------------------------------------------------------
+  if (action === "create_template") {
+    const name = body.name as string | undefined;
+    const subject = body.subject as string | undefined;
+    const htmlBody = body.htmlBody as string | undefined;
+    const siteId = (body.siteId as string | undefined) ?? getDefaultSiteId();
+
+    if (!name || !subject || !htmlBody) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required fields: name, subject, htmlBody",
+        },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const template = await prisma.emailTemplate.create({
+        data: {
+          name,
+          subject,
+          htmlContent: htmlBody,
+          site: siteId,
+          type: "campaign",
+        },
+        select: { id: true },
+      });
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        resourceId: template.id,
+        siteId,
+        success: true,
+        summary: `Created email template '${name}'`,
+        details: { subAction: "create_template", name, subject },
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json({ success: true, id: template.id });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create template";
+      console.warn("[email-center] create_template failed:", message);
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        siteId,
+        success: false,
+        summary: `Failed to create email template '${name}'`,
+        error: message,
+        fix: "Check that the EmailTemplate table exists in the database. Run 'npx prisma db push' if needed.",
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json(
+        { success: false, error: "Could not save template — database error" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Action: send_campaign
+  // -------------------------------------------------------------------------
+  if (action === "send_campaign") {
+    const campaignId = body.campaignId as string | undefined;
+    if (!campaignId) {
+      return NextResponse.json(
+        { success: false, error: "Missing required field: campaignId" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const campaign = await prisma.emailCampaign.findUnique({
+        where: { id: campaignId },
+      });
+
+      if (!campaign) {
+        return NextResponse.json(
+          { success: false, error: "Campaign not found" },
+          { status: 404 },
+        );
+      }
+
+      if (campaign.status === "sent") {
+        return NextResponse.json(
+          { success: false, error: "Campaign has already been sent" },
+          { status: 400 },
+        );
+      }
+
+      // Mark as sending — the actual send logic would be handled by a
+      // dedicated background process or cron job once the subscriber list
+      // and batch-send infrastructure is wired up.
+      await prisma.emailCampaign.update({
+        where: { id: campaignId },
+        data: { status: "sending" },
+      });
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-campaign",
+        resourceId: campaignId,
+        success: true,
+        summary: `Started sending campaign '${campaign.name}'`,
+        details: { subAction: "send_campaign", campaignId, campaignName: campaign.name, recipientCount: campaign.recipientCount },
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json({ success: true });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update campaign";
+      console.warn("[email-center] send_campaign failed:", message);
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-campaign",
+        resourceId: campaignId,
+        success: false,
+        summary: "Failed to start email campaign",
+        error: message,
+        fix: "Check that the EmailCampaign table exists and the campaign ID is valid.",
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Could not start campaign — database error",
+        },
+        { status: 500 },
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Action: send_welcome — Send branded welcome email using design system
+  // -------------------------------------------------------------------------
+  if (action === "send_welcome") {
+    const to = body.to as string | undefined;
+    const recipientName = body.name as string | undefined;
+    const siteId = (body.siteId as string | undefined) ?? getDefaultSiteId();
+    const language = (body.language as "en" | "ar" | undefined) ?? "en";
+
+    if (!to || typeof to !== "string" || !to.includes("@")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or missing 'to' email address" },
+        { status: 400 },
+      );
+    }
+
+    const welcomeEmail = renderWelcomeEmail({
+      recipientName: recipientName || undefined,
+      siteId,
+      language,
+    });
+
+    // In Resend sandbox mode (domain not verified), force onboarding@resend.dev as sender.
+    // Otherwise Resend returns 403 because unverified domains can't send.
+    const isSandbox = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+    const siteConfig = getSiteConfig(siteId);
+    const siteName = siteConfig?.name || "Yalla London";
+    const sandboxFrom = isSandbox
+      ? `${siteName} <onboarding@resend.dev>`
+      : undefined; // let sendEmail() use its normal fallback
+
+    const result = await sendEmail({
+      to,
+      subject: welcomeEmail.subject,
+      html: welcomeEmail.html,
+      plainText: welcomeEmail.plainText,
+      from: sandboxFrom,
+    });
+
+    logManualAction(request, {
+      action: "email-center-action",
+      resource: "email",
+      success: result.success,
+      summary: result.success
+        ? `Welcome email sent to ${to}`
+        : `Welcome email to ${to} failed`,
+      details: { subAction: "send_welcome", to, siteId, language },
+      ...(result.success ? {} : { error: result.error || "Unknown send error" }),
+    }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+    return NextResponse.json({
+      success: result.success,
+      error: result.success ? undefined : result.error,
+      messageId: result.messageId,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Action: test_template — Send a specific template to a test address
+  // -------------------------------------------------------------------------
+  if (action === "test_template") {
+    const to = body.to as string | undefined;
+    const templateId = body.templateId as string | undefined;
+
+    if (!to || typeof to !== "string" || !to.includes("@")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or missing 'to' email address" },
+        { status: 400 },
+      );
+    }
+    if (!templateId) {
+      return NextResponse.json(
+        { success: false, error: "Missing required field: templateId" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const template = await prisma.emailTemplate.findUnique({
+        where: { id: templateId },
+        select: { id: true, name: true, subject: true, htmlContent: true, site: true },
+      });
+
+      if (!template) {
+        return NextResponse.json(
+          { success: false, error: "Template not found" },
+          { status: 404 },
+        );
+      }
+
+      const htmlContent = template.htmlContent || "<p>This template has no content yet.</p>";
+      const templateSubject = template.subject || `[Test] ${template.name}`;
+
+      // Apply preview merge tags so {{first_name}} etc. render with sample data
+      const { buildPreviewContext } = await import("@/lib/email/personalization");
+      const siteId = template.site || getDefaultSiteId();
+      const siteConfig = getSiteConfig(siteId);
+      const previewContext = buildPreviewContext(to, siteConfig?.name || "Yalla London");
+
+      // In Resend sandbox mode, force onboarding@resend.dev as sender
+      const isSandbox = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+      const siteName = siteConfig?.name || "Yalla London";
+      const sandboxFrom = isSandbox ? `${siteName} <onboarding@resend.dev>` : undefined;
+
+      const result = await sendEmail({
+        to,
+        subject: `[Test] ${templateSubject}`,
+        html: htmlContent,
+        plainText: `Test email for template: ${template.name}`,
+        from: sandboxFrom,
+        mergeTagContext: previewContext,
+      });
+
+      const providerStatus = buildProviderStatus();
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        resourceId: templateId,
+        success: result.success,
+        summary: result.success
+          ? `Test email for template '${template.name}' sent to ${to} via ${providerStatus.activeProvider}`
+          : `Test email for template '${template.name}' to ${to} failed`,
+        details: { subAction: "test_template", to, templateId, templateName: template.name, provider: providerStatus.activeProvider },
+        ...(result.success ? {} : { error: result.error || "Unknown send error" }),
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json({
+        success: result.success,
+        error: result.success ? undefined : result.error,
+        provider: providerStatus.activeProvider,
+        templateName: template.name,
+        messageId: result.messageId,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send test template";
+      console.warn("[email-center] test_template failed:", message);
+      return NextResponse.json(
+        { success: false, error: "Could not send test template — database error" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Unknown action
+  // -------------------------------------------------------------------------
+  return NextResponse.json(
+    {
+      success: false,
+      error: `Unknown action: ${action}. Valid actions: test_send, test_template, create_template, send_campaign, send_welcome`,
+    },
+    { status: 400 },
+  );
+});

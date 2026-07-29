@@ -5,6 +5,7 @@
  * PUT /api/admin/skills/[id] - Update a skill
  * DELETE /api/admin/skills/[id] - Delete a skill
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SkillService, SkillCategory } from '@/lib/domains/team';
@@ -13,7 +14,7 @@ import type { UpdateSkillInput } from '@/lib/domains/team';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -21,9 +22,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'view_analytics');
 
-    const skill = await SkillService.getSkillById(params.id);
+    const skill = await SkillService.getSkillById(id);
 
     if (!skill) {
       return NextResponse.json(
@@ -50,6 +52,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_system');
 
     const body = await request.json();
@@ -76,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.is_active !== undefined) data.is_active = body.is_active;
     if (body.display_order !== undefined) data.display_order = body.display_order;
 
-    const skill = await SkillService.updateSkill(params.id, data);
+    const skill = await SkillService.updateSkill(id, data);
 
     return NextResponse.json({
       success: true,
@@ -111,9 +114,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_system');
 
-    await SkillService.deleteSkill(params.id);
+    await SkillService.deleteSkill(id);
 
     return NextResponse.json({
       success: true,

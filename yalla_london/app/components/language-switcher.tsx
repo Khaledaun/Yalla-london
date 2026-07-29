@@ -4,12 +4,22 @@
 import { useLanguage } from './language-provider'
 import { Button } from './ui/button'
 import { Globe } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
 
 export function LanguageSwitcher() {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
+  const pathname = usePathname()
+  const router = useRouter()
 
   const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'ar' : 'en')
+    if (language === 'en') {
+      // English → Arabic: prefix /ar/
+      router.push(`/ar${pathname === '/' ? '' : pathname}`)
+    } else {
+      // Arabic → English: strip /ar prefix
+      const enPath = pathname.replace(/^\/ar\/?/, '/') || '/'
+      router.push(enPath)
+    }
   }
 
   return (
@@ -17,7 +27,7 @@ export function LanguageSwitcher() {
       variant="outline"
       size="sm"
       onClick={toggleLanguage}
-      className="flex items-center gap-2 bg-white/80 hover:bg-white border-gray-200 hover:border-gray-300"
+      className="flex items-center gap-2 bg-white/80 hover:bg-white border-yl-gray-200 hover:border-stone"
     >
       <Globe className="h-4 w-4" />
       <span className="font-medium">

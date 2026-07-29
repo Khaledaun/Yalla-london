@@ -7,6 +7,7 @@ import { googleTrends } from "@/lib/integrations/google-trends";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
 import { fetchGA4Metrics, isGA4Configured, type GA4Report } from "@/lib/seo/ga4-data-api";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getBaseUrl } from "@/lib/url-utils";
 
 /**
  * SEO Data Dashboard API
@@ -229,8 +230,7 @@ export async function GET(request: NextRequest) {
     const includePageSpeed = searchParams.get("pagespeed") !== "false";
     const testUrl =
       searchParams.get("url") ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.yalla-london.com";
+      await getBaseUrl();
 
     const dashboard: DashboardData = {
       timestamp: new Date().toISOString(),
@@ -346,8 +346,7 @@ export async function GET(request: NextRequest) {
 async function getSearchConsoleData(): Promise<SearchConsoleData> {
   const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY;
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const siteUrl = await getBaseUrl();
 
   if (!clientEmail || !privateKey) {
     return {

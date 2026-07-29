@@ -50,9 +50,9 @@ export function ZenithaLuxuryFooter() {
               lineHeight: 1.75,
             }}
           >
-            Building AI&#8209;powered travel products for high&#8209;value
-            travellers. Proprietary technology meets genuine,
-            human&#8209;curated editorial.
+            An AI venture studio for next&#8209;generation travel brands.
+            We build, operate, and partner — combining AI&#8209;powered
+            discovery with human&#8209;curated editorial.
           </div>
         </div>
 

@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, isYachtSite } from "@/config/sites";
+import { getFallbackYachtApiResponse } from "@/lib/zenitha/fallback-fleet";
 
 /**
  * GET /api/yachts
@@ -193,6 +194,35 @@ export async function GET(request: NextRequest) {
       }),
       prisma.yacht.count({ where }),
     ]);
+
+    // Unseeded yacht site → serve the curated fallback fleet (with the request's
+    // filters applied) so the catalogue never renders empty pre-launch.
+    if (total === 0 && isYachtSite(siteId)) {
+      const siteTotal = await prisma.yacht.count({
+        where: { siteId, status: "active" },
+      });
+      if (siteTotal === 0) {
+        return NextResponse.json(
+          getFallbackYachtApiResponse(
+            {
+              destination,
+              type,
+              minPrice: minPrice ? parseFloat(minPrice) : null,
+              maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+              guests: guests ? parseInt(guests, 10) : null,
+              halal: halal === "true",
+              family: family === "true",
+              crew: crew === "true",
+              featured: featured === "true",
+              q: query,
+              sort,
+            },
+            page,
+            limit,
+          ),
+        );
+      }
+    }
 
     // Fetch available filter options for the current site (for filter dropdowns)
     const [destinations, distinctTypes, priceAgg] = await Promise.all([

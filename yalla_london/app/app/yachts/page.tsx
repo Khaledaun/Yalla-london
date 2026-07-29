@@ -2,9 +2,10 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils';
-import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
+import { getDefaultSiteId, getSiteConfig, isYachtSite } from '@/config/sites';
 import { YachtSearchClient } from './yacht-search-client';
 import { WhatsAppButton } from '@/components/zenitha/whatsapp-button';
+import { getFallbackYachtCatalogue } from '@/lib/zenitha/fallback-fleet';
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -46,6 +47,11 @@ async function getInitialYachts(siteId: string) {
       take: 24,
     });
     const total = await prisma.yacht.count({ where: { siteId, status: 'active' } });
+    // Empty catalogue on a yacht site → serve the curated fallback fleet so the
+    // page is never a bare "no yachts" skeleton before the DB is seeded.
+    if (total === 0 && isYachtSite(siteId)) {
+      return getFallbackYachtCatalogue();
+    }
     const destinations = await prisma.yachtDestination.findMany({
       where: { siteId, status: 'active' },
       select: { id: true, name: true, slug: true },
@@ -74,8 +80,10 @@ async function getInitialYachts(siteId: string) {
       destinations: destinations.map(d => ({ id: d.id, name: d.name, slug: d.slug })),
     };
   } catch (err) {
-    console.warn('[yacht-search] DB query failed, using empty state:', err instanceof Error ? err.message : 'unknown');
-    return { yachts: [], total: 0, destinations: [] };
+    console.warn('[yacht-search] DB query failed, using fallback fleet:', err instanceof Error ? err.message : 'unknown');
+    return isYachtSite(siteId)
+      ? getFallbackYachtCatalogue()
+      : { yachts: [], total: 0, destinations: [] };
   }
 }
 

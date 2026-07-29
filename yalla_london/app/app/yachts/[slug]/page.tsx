@@ -8,11 +8,24 @@ import {
   getSiteConfig,
   getSiteDescription,
   getSiteDomain,
+  isYachtSite,
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import { YachtDetailClient } from "./yacht-detail-client";
 import { YachtGallery } from "@/components/zenitha/yacht-gallery";
 import { WhatsAppButton } from "@/components/zenitha/whatsapp-button";
+import {
+  getFallbackYachtDetail,
+  getFallbackRelatedYachts,
+} from "@/lib/zenitha/fallback-fleet";
+
+/** DB first, then the curated fallback fleet for unseeded yacht sites. */
+async function getYacht(slug: string, siteId: string): Promise<YachtData | null> {
+  const dbYacht = await getYachtFromDB(slug, siteId);
+  if (dbYacht) return dbYacht;
+  if (isYachtSite(siteId)) return getFallbackYachtDetail(slug);
+  return null;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -258,7 +271,7 @@ export async function generateMetadata({
   const siteDomain = getSiteDomain(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
 
-  const yacht = await getYachtFromDB(slug, siteId);
+  const yacht = await getYacht(slug, siteId);
 
   // If yacht not found, return generic metadata (page will render 404 via notFound())
   if (!yacht) {
@@ -346,10 +359,13 @@ export default async function YachtDetailPage({ params }: PageProps) {
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
 
-  const yacht = await getYachtFromDB(slug, siteId);
+  const yacht = await getYacht(slug, siteId);
   if (!yacht) notFound();
 
-  const relatedYachts = await getRelatedYachtsFromDB(yacht, siteId);
+  let relatedYachts = await getRelatedYachtsFromDB(yacht, siteId);
+  if (relatedYachts.length === 0 && isYachtSite(siteId)) {
+    relatedYachts = getFallbackRelatedYachts(slug);
+  }
   const yachtType = formatYachtType(yacht.type);
   const canonicalUrl = `${baseUrl}/yachts/${slug}`;
 

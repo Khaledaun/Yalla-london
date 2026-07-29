@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig, getSiteDescription } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription, isYachtSite } from "@/config/sites";
+import { getFallbackDestinationDetail } from "@/lib/zenitha/fallback-fleet";
 import { StructuredData } from "@/components/structured-data";
 import {
   Anchor,
@@ -114,6 +115,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   } catch (e) {
     console.warn("[destination-detail] metadata DB query failed:", e);
+  }
+
+  if (title === `Destination | ${siteName}` && isYachtSite(siteId)) {
+    const fb = getFallbackDestinationDetail(slug);
+    if (fb) {
+      title = `${fb.destination.name} Yacht Charter | ${siteName}`;
+      description = fb.destination.description_en?.substring(0, 155) || description;
+      heroImage = fb.destination.heroImage || undefined;
+    }
   }
 
   const alternates = await getLocaleAlternates(`/destinations/${slug}`);
@@ -246,6 +256,18 @@ export default async function DestinationDetailPage({ params }: PageProps) {
     }
   } catch (e) {
     console.warn("[destination-detail] DB query failed:", e);
+  }
+
+  // Unseeded yacht site → serve the curated fallback destination (with its
+  // related yachts + itineraries) so the page never 404s before the DB is
+  // populated. These pages are linked directly from the header nav + homepage.
+  if (!destination && isYachtSite(siteId)) {
+    const fb = getFallbackDestinationDetail(slug);
+    if (fb) {
+      destination = fb.destination as DestRow;
+      relatedYachts = fb.relatedYachts as YachtRow[];
+      relatedItineraries = fb.relatedItineraries as ItinRow[];
+    }
   }
 
   if (!destination) {
